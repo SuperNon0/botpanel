@@ -145,7 +145,9 @@ function renderButtons() {
   builder.querySelectorAll(".button-row").forEach(row => {
     const idx = +row.dataset.idx;
     row.querySelectorAll("[data-k]").forEach(inp => {
-      inp.addEventListener("input", () => { buttons[idx][inp.dataset.k] = inp.value; });
+      const sync = () => { buttons[idx][inp.dataset.k] = inp.value; };
+      inp.addEventListener("input", sync);
+      inp.addEventListener("change", sync);
     });
   });
   builder.querySelectorAll("[data-remove]").forEach(btn => {
