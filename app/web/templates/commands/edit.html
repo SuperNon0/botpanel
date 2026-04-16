@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Commande — BotPanel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2 id="page-title">Nouvelle commande</h2>
+  <a href="/commands" class="btn btn-secondary">Retour</a>
+</div>
+
+<form id="cmd-form">
+  <div class="card">
+    <h3>Commande Discord</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Nom (sans /)</label>
+        <input class="form-input" name="name" required pattern="[a-z0-9_-]{1,32}" placeholder="allumer_salon">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Activee</label>
+        <label class="form-checkbox"><input type="checkbox" name="enabled" checked> Commande active</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description (max 100)</label>
+      <input class="form-input" name="description" required maxlength="100">
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Action</h3>
+    <div class="form-group">
+      <label class="form-label">Type d'action</label>
+      <select class="form-select" name="action_type" id="f-action">
+        <option value="service">Appel service HA</option>
+        <option value="script">Lancer un script</option>
+        <option value="scene">Activer une scene</option>
+        <option value="notification">Envoyer une notification</option>
+      </select>
+    </div>
+
+    <div id="block-service">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Service HA</label>
+          <input class="form-input" name="ha_service" id="f-service" placeholder="light.turn_on">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Entite</label>
+          <input class="form-input" name="ha_entity_id" id="f-entity" placeholder="light.salon">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Data additionnelle (JSON)</label>
+        <input class="form-input" name="ha_data_json" placeholder='{"brightness": 255}'>
+      </div>
+    </div>
+
+    <div id="block-notif" style="display:none;">
+      <div class="form-group">
+        <label class="form-label">Slug de la notification</label>
+        <input class="form-input" name="notification_slug" placeholder="notif_porte_entree">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Message de confirmation (ephemere)</label>
+      <input class="form-input" name="response_message" value="OK">
+    </div>
+  </div>
+
+  <div style="display:flex; gap:0.7rem; justify-content:flex-end;">
+    <a href="/commands" class="btn btn-secondary">Annuler</a>
+    <button type="submit" class="btn btn-primary">Enregistrer</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CMD_ID = {% if cmd_id %}{{ cmd_id }}{% else %}null{% endif %};
+const form = document.getElementById("cmd-form");
+const actionSel = document.getElementById("f-action");
+
+function refreshBlocks() {
+  const v = actionSel.value;
+  document.getElementById("block-service").style.display = (v === "notification") ? "none" : "";
+  document.getElementById("block-notif").style.display   = (v === "notification") ? "" : "none";
+}
+actionSel.addEventListener("change", refreshBlocks);
+refreshBlocks();
+
+// Autocompletion HA
+attachAutocomplete(document.getElementById("f-service"), "/ha/services",
+  it => it.service, it => it.service);
+attachAutocomplete(document.getElementById("f-entity"), "/ha/entities",
+  it => it.friendly_name, it => it.entity_id);
+
+async function loadExisting() {
+  if (!CMD_ID) return;
+  try {
+    const cmds = await API.get("/commands");
+    const c = cmds.find(x => x.id === CMD_ID);
+    if (!c) throw new Error("Introuvable");
+    document.getElementById("page-title").textContent = `Modifier /${c.name}`;
+    for (const [key, val] of Object.entries(c)) {
+      const el = form.elements[key];
+      if (!el) continue;
+      if (el.type === "checkbox") el.checked = !!val;
+      else el.value = val ?? "";
+    }
+    refreshBlocks();
+  } catch (e) { toast(e.message, "error"); }
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const fd = new FormData(form);
+  const payload = {
+    name: fd.get("name"),
+    description: fd.get("description"),
+    action_type: fd.get("action_type"),
+    ha_service: fd.get("ha_service") || null,
+    ha_entity_id: fd.get("ha_entity_id") || null,
+    ha_data_json: fd.get("ha_data_json") || null,
+    notification_slug: fd.get("notification_slug") || null,
+    response_message: fd.get("response_message") || "OK",
+    enabled: fd.get("enabled") === "on",
+  };
+  try {
+    if (CMD_ID) await API.put(`/commands/${CMD_ID}`, payload);
+    else        await API.post("/commands", payload);
+    toast("Enregistre !");
+    setTimeout(() => { window.location.href = "/commands"; }, 600);
+  } catch (err) {
+    toast(err.message, "error");
+  }
+});
+
+loadExisting();
+</script>
+{% endblock %}

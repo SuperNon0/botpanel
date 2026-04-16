@@ -1,0 +1,20 @@
+# Core
+discord.py==2.4.0
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+
+# HTTP client (pour l'API HA)
+httpx==0.27.2
+
+# Config & templating
+pydantic==2.9.2
+pydantic-settings==2.5.2
+python-dotenv==1.0.1
+jinja2==3.1.4
+python-multipart==0.0.9
+
+# DB
+aiosqlite==0.20.0
+
+# Compatibilite Python 3.13 (audioop supprime de la stdlib)
+audioop-lts==0.2.1

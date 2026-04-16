@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}Monitoring — BotPanel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Monitoring temps reel</h2>
+</div>
+
+<div id="blocks"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const LABELS = {
+  temperature: "Temperature & Humidite",
+  power:       "Consommation serveur",
+};
+
+async function load() {
+  const container = document.getElementById("blocks");
+  try {
+    const blocks = await API.get("/monitoring");
+    container.innerHTML = blocks.map(b => renderBlock(b)).join("");
+
+    blocks.forEach(b => bindBlock(b));
+  } catch (e) {
+    container.innerHTML = `<div class="empty-state">Erreur : ${esc(e.message)}</div>`;
+  }
+}
+
+function renderBlock(b) {
+  const cfg = safeParseJson(b.config_json);
+  let cfgHtml = "";
+  if (b.block_type === "temperature") {
+    const sensors = cfg.sensors || [];
+    cfgHtml = `
+      <label class="form-label">Capteurs (entity_id + label)</label>
+      <div class="buttons-builder" id="sensors-${b.block_type}">
+        ${sensors.map((s, i) => sensorRow(s, i)).join("")}
+      </div>
+      <button type="button" class="btn btn-secondary btn-small" data-add-sensor="${b.block_type}" style="margin-top:0.6rem;">+ Ajouter un capteur</button>
+    `;
+  } else if (b.block_type === "power") {
+    cfgHtml = `
+      <div class="form-group">
+        <label class="form-label">Entite consommation</label>
+        <input class="form-input ha-entity-input" data-cfg-key="entity_id"
+               value="${esc(cfg.entity_id || "")}" placeholder="sensor.conso_jour">
+      </div>
+    `;
+  }
+
+  return `
+    <div class="card" data-block="${b.block_type}">
+      <h3>
+        ${b.enabled ? '<span class="pulse"></span>' : ''}
+        ${LABELS[b.block_type] || b.block_type}
+      </h3>
+      <p class="hint">Le message Discord est edite automatiquement au rythme configure.</p>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-checkbox">
+            <input type="checkbox" data-k="enabled" ${b.enabled ? "checked" : ""}>
+            Bloc actif
+          </label>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Intervalle (secondes)</label>
+          <input class="form-input" type="number" min="30" data-k="interval_seconds" value="${b.interval_seconds}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Channel Discord (ID, vide = channel monitoring du .env)</label>
+        <input class="form-input" data-k="channel_id" value="${esc(b.channel_id || "")}" placeholder="123456789012345678">
+      </div>
+
+      ${cfgHtml}
+
+      <div style="display:flex; gap:0.6rem; justify-content:flex-end; margin-top:1rem;">
+        <button class="btn btn-primary" data-save="${b.block_type}">Enregistrer</button>
+      </div>
+    </div>
+  `;
+}
+
+function sensorRow(s, i) {
+  return `
+    <div class="button-row" data-sensor-idx="${i}">
+      <input class="form-input ha-entity-input" data-sk="entity_id" value="${esc(s.entity_id || "")}" placeholder="sensor.temp_salon">
+      <input class="form-input" data-sk="label" value="${esc(s.label || "")}" placeholder="Salon">
+      <button type="button" class="btn btn-danger btn-small" data-remove-sensor="${i}">X</button>
+    </div>
+  `;
+}
+
+function safeParseJson(s) { try { return JSON.parse(s || "{}"); } catch { return {}; } }
+
+function bindBlock(block) {
+  const card = document.querySelector(`[data-block="${block.block_type}"]`);
+  if (!card) return;
+
+  // Autocompletion entites
+  card.querySelectorAll(".ha-entity-input").forEach(inp =>
+    attachAutocomplete(inp, "/ha/entities",
+      it => it.friendly_name, it => it.entity_id));
+
+  // Ajout capteur (temperature)
+  const addBtn = card.querySelector("[data-add-sensor]");
+  if (addBtn) {
+    addBtn.addEventListener("click", () => {
+      const cfg = collectConfig(card, block.block_type);
+      cfg.sensors = cfg.sensors || [];
+      cfg.sensors.push({ entity_id: "", label: "" });
+      reRenderSensors(card, cfg.sensors, block.block_type);
+    });
+  }
+
+  // Suppression capteurs (delegation)
+  card.addEventListener("click", (e) => {
+    const rm = e.target.closest("[data-remove-sensor]");
+    if (!rm) return;
+    const cfg = collectConfig(card, block.block_type);
+    cfg.sensors.splice(+rm.dataset.removeSensor, 1);
+    reRenderSensors(card, cfg.sensors, block.block_type);
+  });
+
+  // Save
+  card.querySelector("[data-save]").addEventListener("click", async () => {
+    const payload = {
+      enabled: card.querySelector('[data-k="enabled"]').checked,
+      channel_id: card.querySelector('[data-k="channel_id"]').value || null,
+      interval_seconds: parseInt(card.querySelector('[data-k="interval_seconds"]').value, 10),
+      config_json: JSON.stringify(collectConfig(card, block.block_type)),
+    };
+    try {
+      await API.put(`/monitoring/${block.block_type}`, payload);
+      toast("Enregistre !");
+      load();
+    } catch (e) { toast(e.message, "error"); }
+  });
+}
+
+function collectConfig(card, type) {
+  if (type === "temperature") {
+    const rows = card.querySelectorAll("[data-sensor-idx]");
+    const sensors = Array.from(rows).map(r => ({
+      entity_id: r.querySelector('[data-sk="entity_id"]').value,
+      label: r.querySelector('[data-sk="label"]').value,
+    }));
+    return { sensors };
+  }
+  if (type === "power") {
+    return {
+      entity_id: card.querySelector('[data-cfg-key="entity_id"]').value || null,
+    };
+  }
+  return {};
+}
+
+function reRenderSensors(card, sensors, blockType) {
+  const zone = card.querySelector(`#sensors-${blockType}`);
+  if (!zone) return;
+  zone.innerHTML = sensors.map((s, i) => sensorRow(s, i)).join("");
+  zone.querySelectorAll(".ha-entity-input").forEach(inp =>
+    attachAutocomplete(inp, "/ha/entities",
+      it => it.friendly_name, it => it.entity_id));
+}
+
+load();
+</script>
+{% endblock %}

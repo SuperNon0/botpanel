@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Notifications — BotPanel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Notifications</h2>
+  <span class="card-row-meta" id="notif-count">0 notification</span>
+</div>
+
+<div class="card" style="padding: 0;">
+  <div id="notif-list"></div>
+</div>
+
+<a href="/notifications/new" class="fab" title="Nouvelle notification">+</a>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadNotifications() {
+  const list = document.getElementById("notif-list");
+  const count = document.getElementById("notif-count");
+  try {
+    const notifs = await API.get("/notifications");
+    count.textContent = `${notifs.length} notification${notifs.length > 1 ? "s" : ""}`;
+
+    if (notifs.length === 0) {
+      list.innerHTML = `<div class="empty-state">
+        Aucune notification configuree.<br>Clique sur <strong>+</strong> pour en creer une.
+      </div>`;
+      return;
+    }
+
+    list.innerHTML = notifs.map(n => `
+      <div class="card-row">
+        <div>
+          <div><strong>${esc(n.title)}</strong></div>
+          <div class="card-row-meta">
+            <code>${esc(n.slug)}</code>
+            &nbsp;&middot;&nbsp; ${n.buttons.length} bouton${n.buttons.length > 1 ? "s" : ""}
+            ${n.delete_button ? '<span class="tag tag-red">DEL</span>' : ''}
+            ${n.snooze_button ? '<span class="tag tag-purple">SNOOZE</span>' : ''}
+          </div>
+        </div>
+        <div class="row-actions">
+          <button class="btn btn-purple btn-small" data-test="${n.id}">TESTER</button>
+          <a class="btn btn-edit btn-small" href="/notifications/${n.id}">EDITER</a>
+          <button class="btn btn-danger btn-small" data-del="${n.id}">SUPPR</button>
+        </div>
+      </div>
+    `).join("");
+
+    list.querySelectorAll("[data-del]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Supprimer cette notification ?")) return;
+        try {
+          await API.del(`/notifications/${btn.dataset.del}`);
+          toast("Notification supprimee");
+          loadNotifications();
+        } catch (e) { toast(e.message, "error"); }
+      });
+    });
+
+    list.querySelectorAll("[data-test]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        try {
+          await API.post(`/notifications/${btn.dataset.test}/test`);
+          toast("Notification envoyee !");
+        } catch (e) { toast(e.message, "error"); }
+      });
+    });
+  } catch (e) {
+    list.innerHTML = `<div class="empty-state">Erreur : ${esc(e.message)}</div>`;
+  }
+}
+
+loadNotifications();
+</script>
+{% endblock %}

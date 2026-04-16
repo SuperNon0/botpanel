@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <title>{% block title %}BotPanel{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">
+    <span class="bot">bot</span><span class="panel">panel</span>
+  </div>
+  <div class="header-right">super-nono.cc</div>
+</header>
+
+<nav class="nav">
+  <a href="/notifications"  class="{% if active_page == 'notifications' %}active{% endif %}">Notifications</a>
+  <a href="/commands"       class="{% if active_page == 'commands'      %}active{% endif %}">Commandes /</a>
+  <a href="/monitoring"     class="{% if active_page == 'monitoring'    %}active{% endif %}">Monitoring</a>
+</nav>
+
+<main>
+  {% block content %}{% endblock %}
+</main>
+
+<div id="toast" class="toast">Ok</div>
+
+<script src="/static/js/api.js"></script>
+<script src="/static/js/ui.js"></script>
+{% block scripts %}{% endblock %}
+
+</body>
+</html>

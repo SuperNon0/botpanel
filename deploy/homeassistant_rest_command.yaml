@@ -1,0 +1,23 @@
+# Snippet a ajouter dans configuration.yaml de Home Assistant.
+# Remplace IP_BOT et PORT par l'IP du conteneur LXC et le port API (defaut 8080).
+
+rest_command:
+  bot_discord:
+    url: "http://IP_BOT:PORT/api/notify"
+    method: POST
+    content_type: "application/json"
+    payload: '{"id": "{{ id }}"}'
+    timeout: 10
+
+# Exemple d'automation :
+#
+# automation:
+#   - alias: "Alerte porte d'entree"
+#     trigger:
+#       - platform: state
+#         entity_id: binary_sensor.porte_entree
+#         to: "on"
+#     action:
+#       - service: rest_command.bot_discord
+#         data:
+#           id: "notif_porte_entree"

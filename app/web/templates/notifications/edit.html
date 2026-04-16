@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}Notification — BotPanel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2 id="page-title">Nouvelle notification</h2>
+  <a href="/notifications" class="btn btn-secondary">Retour</a>
+</div>
+
+<form id="notif-form">
+  <div class="card">
+    <h3>Identification</h3>
+    <p class="hint">Le <code>slug</code> est l'identifiant appele depuis Home Assistant.</p>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Slug unique</label>
+        <input class="form-input" name="slug" required pattern="[a-z0-9_]+" placeholder="notif_porte_entree">
+        <div class="form-hint">minuscules, chiffres, underscore uniquement</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Channel Discord (ID)</label>
+        <input class="form-input" name="channel_id" required inputmode="numeric" placeholder="123456789012345678">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Embed Discord</h3>
+    <div class="form-group">
+      <label class="form-label">Titre</label>
+      <input class="form-input" name="title" required maxlength="256" id="f-title">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Message</label>
+      <textarea class="form-textarea" name="message" required maxlength="4000" id="f-message"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Couleur</label>
+        <input type="color" name="color" id="f-color" value="#e8c547">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Icone (URL)</label>
+        <input class="form-input" name="icon_url" placeholder="https://...">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Footer</label>
+        <input class="form-input" name="footer" id="f-footer">
+      </div>
+      <div class="form-group" style="display:flex; align-items:flex-end;">
+        <label class="form-checkbox"><input type="checkbox" name="show_timestamp"> Afficher le timestamp</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Apercu</h3>
+    <div class="embed-preview" id="preview">
+      <div class="embed-title" id="p-title">Titre</div>
+      <div class="embed-desc"  id="p-desc">Message</div>
+      <div class="embed-footer" id="p-footer"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Boutons</h3>
+    <p class="hint">Les boutons Snooze/Supprimer sont gerees par le bot. Les boutons custom appellent un service HA.</p>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-checkbox"><input type="checkbox" name="delete_button"> Bouton "Supprimer"</label>
+      </div>
+      <div class="form-group">
+        <label class="form-checkbox"><input type="checkbox" name="snooze_button"> Bouton "Snooze"</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Duree du Snooze (minutes)</label>
+      <input class="form-input" name="snooze_minutes" type="number" min="1" value="15">
+    </div>
+
+    <h3 style="margin-top: 1.3rem;">Boutons d'action</h3>
+    <div class="buttons-builder" id="btn-builder"></div>
+    <button type="button" class="btn btn-secondary" id="btn-add" style="margin-top: 0.8rem;">+ Ajouter un bouton</button>
+  </div>
+
+  <div style="display:flex; gap:0.7rem; justify-content:flex-end;">
+    <a href="/notifications" class="btn btn-secondary">Annuler</a>
+    <button type="submit" class="btn btn-primary">Enregistrer</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const NOTIF_ID = {% if notif_id %}{{ notif_id }}{% else %}null{% endif %};
+const form = document.getElementById("notif-form");
+const builder = document.getElementById("btn-builder");
+
+// --- Preview live ---
+function bindPreview() {
+  const t = document.getElementById("f-title");
+  const m = document.getElementById("f-message");
+  const f = document.getElementById("f-footer");
+  const c = document.getElementById("f-color");
+  const update = () => {
+    document.getElementById("p-title").textContent  = t.value || "Titre";
+    document.getElementById("p-desc").textContent   = m.value || "Message";
+    document.getElementById("p-footer").textContent = f.value || "";
+    document.getElementById("preview").style.borderLeftColor = c.value;
+  };
+  [t, m, f, c].forEach(el => el.addEventListener("input", update));
+  update();
+}
+
+// --- Builder de boutons ---
+let buttons = [];
+
+function renderButtons() {
+  builder.innerHTML = buttons.map((b, i) => `
+    <div class="button-row" data-idx="${i}">
+      <div>
+        <label class="form-label">Label</label>
+        <input class="form-input" data-k="label" value="${esc(b.label)}">
+        <label class="form-label" style="margin-top:0.4rem;">Service HA</label>
+        <input class="form-input ha-service-input" data-k="ha_service" value="${esc(b.ha_service)}" placeholder="light.turn_on">
+      </div>
+      <div>
+        <label class="form-label">Entite</label>
+        <input class="form-input ha-entity-input" data-k="ha_entity_id" value="${esc(b.ha_entity_id || '')}" placeholder="light.salon">
+        <label class="form-label" style="margin-top:0.4rem;">Style</label>
+        <select class="form-select" data-k="style">
+          ${["primary","secondary","success","danger"].map(s =>
+            `<option ${s===b.style?"selected":""}>${s}</option>`
+          ).join("")}
+        </select>
+      </div>
+      <button type="button" class="btn btn-danger btn-small" data-remove="${i}">X</button>
+    </div>
+  `).join("");
+
+  builder.querySelectorAll(".button-row").forEach(row => {
+    const idx = +row.dataset.idx;
+    row.querySelectorAll("[data-k]").forEach(inp => {
+      inp.addEventListener("input", () => { buttons[idx][inp.dataset.k] = inp.value; });
+    });
+  });
+  builder.querySelectorAll("[data-remove]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      buttons.splice(+btn.dataset.remove, 1);
+      renderButtons();
+    });
+  });
+
+  // Autocompletion HA
+  builder.querySelectorAll(".ha-service-input").forEach(inp =>
+    attachAutocomplete(inp, "/ha/services",
+      it => it.service, it => it.service));
+  builder.querySelectorAll(".ha-entity-input").forEach(inp =>
+    attachAutocomplete(inp, "/ha/entities",
+      it => it.friendly_name, it => it.entity_id));
+}
+
+document.getElementById("btn-add").addEventListener("click", () => {
+  buttons.push({ label: "Action", style: "primary", ha_service: "", ha_entity_id: "" });
+  renderButtons();
+});
+
+// --- Chargement si edition ---
+async function loadExisting() {
+  if (!NOTIF_ID) return;
+  try {
+    const n = await API.get(`/notifications/${NOTIF_ID}`);
+    document.getElementById("page-title").textContent = `Modifier — ${n.title}`;
+    for (const [key, val] of Object.entries(n)) {
+      const el = form.elements[key];
+      if (!el) continue;
+      if (el.type === "checkbox") el.checked = !!val;
+      else if (key === "color") el.value = "#" + val.toString(16).padStart(6, "0");
+      else el.value = val ?? "";
+    }
+    buttons = n.buttons || [];
+    renderButtons();
+  } catch (e) {
+    toast("Erreur chargement : " + e.message, "error");
+  }
+}
+
+// --- Submit ---
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const fd = new FormData(form);
+  const payload = {
+    slug: fd.get("slug"),
+    channel_id: fd.get("channel_id"),
+    title: fd.get("title"),
+    message: fd.get("message"),
+    color: parseInt(fd.get("color").replace("#", ""), 16),
+    icon_url: fd.get("icon_url") || null,
+    footer: fd.get("footer") || null,
+    show_timestamp: fd.get("show_timestamp") === "on",
+    delete_button: fd.get("delete_button") === "on",
+    snooze_button: fd.get("snooze_button") === "on",
+    snooze_minutes: parseInt(fd.get("snooze_minutes") || "15", 10),
+    buttons: buttons.map((b, i) => ({
+      position: i,
+      label: b.label,
+      style: b.style,
+      emoji: b.emoji || null,
+      ha_service: b.ha_service,
+      ha_entity_id: b.ha_entity_id || null,
+      ha_data_json: b.ha_data_json || null,
+    })),
+  };
+  try {
+    if (NOTIF_ID) {
+      await API.put(`/notifications/${NOTIF_ID}`, payload);
+    } else {
+      await API.post("/notifications", payload);
+    }
+    toast("Enregistre !");
+    setTimeout(() => { window.location.href = "/notifications"; }, 600);
+  } catch (err) {
+    toast(err.message, "error");
+  }
+});
+
+bindPreview();
+loadExisting();
+</script>
+{% endblock %}

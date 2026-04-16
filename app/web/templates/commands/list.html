@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Commandes — BotPanel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Commandes slash</h2>
+  <span class="card-row-meta" id="quota">0 / 100</span>
+</div>
+
+<div class="card" style="padding: 0;">
+  <div id="cmd-list"></div>
+</div>
+
+<a href="/commands/new" class="fab" title="Nouvelle commande">+</a>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadCommands() {
+  const list = document.getElementById("cmd-list");
+  const quota = document.getElementById("quota");
+  try {
+    const [cmds, q] = await Promise.all([API.get("/commands"), API.get("/commands/quota")]);
+    quota.textContent = `${q.used} / ${q.max}`;
+
+    if (cmds.length === 0) {
+      list.innerHTML = `<div class="empty-state">
+        Aucune commande.<br>Clique sur <strong>+</strong> pour en creer une.
+      </div>`;
+      return;
+    }
+
+    list.innerHTML = cmds.map(c => `
+      <div class="card-row">
+        <div>
+          <div><code>/${esc(c.name)}</code> ${c.enabled ? '' : '<span class="tag tag-muted">OFF</span>'}</div>
+          <div class="card-row-meta">
+            ${esc(c.description)}
+            &nbsp;&middot;&nbsp;
+            <span class="tag ${tagForAction(c.action_type)}">${esc(c.action_type)}</span>
+          </div>
+        </div>
+        <div class="row-actions">
+          <a class="btn btn-edit btn-small" href="/commands/${c.id}">EDITER</a>
+          <button class="btn btn-danger btn-small" data-del="${c.id}">SUPPR</button>
+        </div>
+      </div>
+    `).join("");
+
+    list.querySelectorAll("[data-del]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Supprimer cette commande ?")) return;
+        try {
+          await API.del(`/commands/${btn.dataset.del}`);
+          toast("Commande supprimee");
+          loadCommands();
+        } catch (e) { toast(e.message, "error"); }
+      });
+    });
+  } catch (e) {
+    list.innerHTML = `<div class="empty-state">Erreur : ${esc(e.message)}</div>`;
+  }
+}
+
+function tagForAction(t) {
+  return { service: "tag-yellow", script: "tag-green", scene: "tag-orange", notification: "tag-purple" }[t] || "tag-muted";
+}
+
+loadCommands();
+</script>
+{% endblock %}
