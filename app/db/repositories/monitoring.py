@@ -1,4 +1,4 @@
-"""Repository des blocs de monitoring."""
+"""Repository des blocs de monitoring (CRUD libre)."""
 
 from __future__ import annotations
 
@@ -9,58 +9,93 @@ from app.db.models import MonitoringBlock, MonitoringBlockIn
 
 
 class MonitoringRepository:
-    """Gestion des blocs de monitoring (temperature, conso electrique...)."""
+    """Gestion des blocs de monitoring custom."""
 
     async def list_all(self) -> list[MonitoringBlock]:
         async with get_connection() as db:
             rows = await db.execute_fetchall(
-                "SELECT * FROM monitoring_blocks ORDER BY block_type"
+                "SELECT * FROM monitoring_blocks ORDER BY id"
             )
             return [self._row_to_model(r) for r in rows]
 
-    async def get_by_type(self, block_type: str) -> Optional[MonitoringBlock]:
+    async def get_by_id(self, block_id: int) -> Optional[MonitoringBlock]:
         async with get_connection() as db:
             cursor = await db.execute(
-                "SELECT * FROM monitoring_blocks WHERE block_type = ?", (block_type,)
+                "SELECT * FROM monitoring_blocks WHERE id = ?", (block_id,)
             )
             row = await cursor.fetchone()
             return self._row_to_model(row) if row else None
 
-    async def update(self, block_type: str, payload: MonitoringBlockIn) -> Optional[MonitoringBlock]:
+    async def create(self, payload: MonitoringBlockIn) -> MonitoringBlock:
+        async with get_connection() as db:
+            cursor = await db.execute(
+                """
+                INSERT INTO monitoring_blocks (
+                    name, icon, color, enabled, channel_id,
+                    interval_seconds, footer, config_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    payload.name, payload.icon, payload.color,
+                    int(payload.enabled), payload.channel_id,
+                    payload.interval_seconds, payload.footer, payload.config_json,
+                ),
+            )
+            await db.commit()
+            block_id = cursor.lastrowid
+        result = await self.get_by_id(block_id)
+        assert result is not None
+        return result
+
+    async def update(self, block_id: int, payload: MonitoringBlockIn) -> Optional[MonitoringBlock]:
         async with get_connection() as db:
             cursor = await db.execute(
                 """
                 UPDATE monitoring_blocks SET
-                    enabled = ?, channel_id = ?, interval_seconds = ?,
-                    config_json = ?, updated_at = datetime('now')
-                WHERE block_type = ?
+                    name = ?, icon = ?, color = ?, enabled = ?, channel_id = ?,
+                    interval_seconds = ?, footer = ?, config_json = ?,
+                    updated_at = datetime('now')
+                WHERE id = ?
                 """,
                 (
+                    payload.name, payload.icon, payload.color,
                     int(payload.enabled), payload.channel_id,
-                    payload.interval_seconds, payload.config_json, block_type,
+                    payload.interval_seconds, payload.footer, payload.config_json,
+                    block_id,
                 ),
             )
             if cursor.rowcount == 0:
                 return None
             await db.commit()
-        return await self.get_by_type(block_type)
+        return await self.get_by_id(block_id)
 
-    async def set_message_id(self, block_type: str, message_id: Optional[str]) -> None:
+    async def delete(self, block_id: int) -> bool:
+        async with get_connection() as db:
+            cursor = await db.execute(
+                "DELETE FROM monitoring_blocks WHERE id = ?", (block_id,)
+            )
+            await db.commit()
+            return cursor.rowcount > 0
+
+    async def set_message_id(self, block_id: int, message_id: Optional[str]) -> None:
         """Memorise l'ID du message epingle apres son premier envoi."""
         async with get_connection() as db:
             await db.execute(
-                "UPDATE monitoring_blocks SET message_id = ? WHERE block_type = ?",
-                (message_id, block_type),
+                "UPDATE monitoring_blocks SET message_id = ? WHERE id = ?",
+                (message_id, block_id),
             )
             await db.commit()
 
     def _row_to_model(self, row) -> MonitoringBlock:
         return MonitoringBlock(
             id=row["id"],
-            block_type=row["block_type"],
+            name=row["name"] or "Bloc",
+            icon=row["icon"],
+            color=row["color"] if row["color"] is not None else 0x49A0DF,
             enabled=bool(row["enabled"]),
             channel_id=row["channel_id"],
             message_id=row["message_id"],
             interval_seconds=row["interval_seconds"],
-            config_json=row["config_json"],
+            footer=row["footer"],
+            config_json=row["config_json"] or "{}",
         )

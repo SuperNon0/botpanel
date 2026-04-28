@@ -87,6 +87,19 @@
     <button type="button" class="btn btn-secondary" id="btn-add" style="margin-top: 0.8rem;">+ Ajouter un bouton</button>
   </div>
 
+  <div class="card">
+    <h3>Champs (fields)</h3>
+    <p class="hint">
+      Affiches en grille dans l'embed Discord. La valeur peut contenir des placeholders d'etats HA :<br>
+      <code>{state:lock.porte}</code> &middot;
+      <code>{state:sensor.temp|--}</code> &middot;
+      <code>{attr:sensor.temp:friendly_name}</code> &middot;
+      <code>{unit:sensor.temp}</code>
+    </p>
+    <div class="buttons-builder" id="field-builder"></div>
+    <button type="button" class="btn btn-secondary" id="field-add" style="margin-top: 0.8rem;">+ Ajouter un champ</button>
+  </div>
+
   <div style="display:flex; gap:0.7rem; justify-content:flex-end;">
     <a href="/notifications" class="btn btn-secondary">Annuler</a>
     <button type="submit" class="btn btn-primary">Enregistrer</button>
@@ -171,6 +184,52 @@ document.getElementById("btn-add").addEventListener("click", () => {
   renderButtons();
 });
 
+// --- Builder de fields ---
+let fields = [];
+const fieldBuilder = document.getElementById("field-builder");
+
+function renderFields() {
+  fieldBuilder.innerHTML = fields.map((f, i) => `
+    <div class="button-row" data-fidx="${i}">
+      <div>
+        <label class="form-label">Nom du champ</label>
+        <input class="form-input" data-fk="name" value="${esc(f.name || '')}" placeholder="Serrure">
+        <label class="form-checkbox" style="margin-top:0.6rem;">
+          <input type="checkbox" data-fk="inline" ${f.inline !== false ? "checked" : ""}> En grille (inline)
+        </label>
+      </div>
+      <div style="flex:2;">
+        <label class="form-label">Valeur (texte ou placeholder HA)</label>
+        <input class="form-input" data-fk="value_template" value="${esc(f.value_template || '')}" placeholder="{state:lock.porte_entree|inconnu}">
+      </div>
+      <button type="button" class="btn btn-danger btn-small" data-fremove="${i}">X</button>
+    </div>
+  `).join("");
+
+  fieldBuilder.querySelectorAll(".button-row").forEach(row => {
+    const idx = +row.dataset.fidx;
+    row.querySelectorAll("[data-fk]").forEach(inp => {
+      const sync = () => {
+        const v = inp.type === "checkbox" ? inp.checked : inp.value;
+        fields[idx][inp.dataset.fk] = v;
+      };
+      inp.addEventListener("input", sync);
+      inp.addEventListener("change", sync);
+    });
+  });
+  fieldBuilder.querySelectorAll("[data-fremove]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      fields.splice(+btn.dataset.fremove, 1);
+      renderFields();
+    });
+  });
+}
+
+document.getElementById("field-add").addEventListener("click", () => {
+  fields.push({ name: "", value_template: "", inline: true });
+  renderFields();
+});
+
 // --- Chargement si edition ---
 async function loadExisting() {
   if (!NOTIF_ID) return;
@@ -185,7 +244,9 @@ async function loadExisting() {
       else el.value = val ?? "";
     }
     buttons = n.buttons || [];
+    fields = n.fields || [];
     renderButtons();
+    renderFields();
   } catch (e) {
     toast("Erreur chargement : " + e.message, "error");
   }
@@ -215,6 +276,12 @@ form.addEventListener("submit", async (e) => {
       ha_service: b.ha_service,
       ha_entity_id: b.ha_entity_id || null,
       ha_data_json: b.ha_data_json || null,
+    })),
+    fields: fields.map((f, i) => ({
+      position: i,
+      name: f.name || "",
+      value_template: f.value_template || "",
+      inline: f.inline !== false,
     })),
   };
   try {

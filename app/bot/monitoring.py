@@ -1,16 +1,28 @@
-"""Taches periodiques de monitoring.
+"""Taches periodiques de monitoring (multi-blocs).
 
-Chaque bloc active maintient un message Discord epingle qui est EDITE
+Chaque bloc actif maintient un message Discord epingle qui est EDITE
 (jamais supprime/recree) a chaque cycle. L'ID du message est persiste
 dans la table monitoring_blocks pour survivre aux redemarrages.
 
-Pour activer/desactiver a chaud depuis l'API :
+Pour activer/desactiver/modifier a chaud depuis l'API :
   - update du bloc en DB
-  - appel de `refresh_block_task(bot, block_type)`
+  - appel de `refresh_block_task(bot, block_id)`
+  - ou `stop_block_task(block_id)` lors d'une suppression
 
-Blocs supportes :
-    temperature : 2 thermometres (config_json = {"sensors": [{"entity_id", "label"}]})
-    power       : conso journaliere (config_json = {"entity_id": "sensor.conso_jour"})
+Structure attendue de `config_json` :
+    {
+      "fields": [
+        {
+          "label": "Temperature",
+          "icon":  "\U0001f321\ufe0f",
+          "entity_id": "sensor.temp_salon",
+          "attribute": null,           # ou un nom d'attribut HA
+          "suffix": "\u00b0C",
+          "inline": true
+        },
+        ...
+      ]
+    }
 """
 
 from __future__ import annotations
@@ -32,67 +44,36 @@ from app.ha.client import HomeAssistantError
 logger = logging.getLogger(__name__)
 
 
-# block_type -> asyncio.Task
-_tasks: dict[str, asyncio.Task] = {}
+# block_id -> asyncio.Task
+_tasks: dict[int, asyncio.Task] = {}
 
 
 # -------------------------------------------------------------------
 # Construction des embeds
 # -------------------------------------------------------------------
-async def _build_temperature_embed(config: dict[str, Any]) -> discord.Embed:
-    sensors = config.get("sensors", []) or []
-    embed = discord.Embed(
-        title="\U0001f321\ufe0f  Temperature & Humidite",
-        color=0x4ADE80,
-        timestamp=dt.datetime.now(dt.timezone.utc),
-    )
-    if not sensors:
-        embed.description = "_Aucun capteur configure._"
-        return embed
-
-    for sensor in sensors:
-        entity_id = sensor.get("entity_id")
-        label = sensor.get("label") or entity_id or "Capteur"
-        if not entity_id:
-            embed.add_field(name=label, value="_entity_id manquant_", inline=True)
-            continue
-        state = await ha_client.get_state(entity_id)
-        if state is None:
-            embed.add_field(name=label, value="_indisponible_", inline=True)
-            continue
-        value = state.get("state", "?")
-        unit = state.get("attributes", {}).get("unit_of_measurement", "")
-        embed.add_field(
-            name=label,
-            value=f"**{value}** {unit}".strip(),
-            inline=True,
-        )
-    embed.set_footer(text="Mise a jour")
-    return embed
-
-
-async def _build_power_embed(config: dict[str, Any]) -> discord.Embed:
-    entity_id = config.get("entity_id")
-    embed = discord.Embed(
-        title="\u26a1  Consommation serveur",
-        color=0xFFD93D,
-        timestamp=dt.datetime.now(dt.timezone.utc),
-    )
+async def _resolve_field_value(field: dict[str, Any]) -> str:
+    """Resout la valeur a afficher pour un field d'un bloc monitoring."""
+    entity_id = field.get("entity_id")
+    suffix = field.get("suffix") or ""
+    attribute = field.get("attribute")
     if not entity_id:
-        embed.description = "_Aucune entite configuree._"
-        return embed
+        return "_entity_id manquant_"
 
     state = await ha_client.get_state(entity_id)
     if state is None:
-        embed.description = "_Entite indisponible._"
-        return embed
+        return "_indisponible_"
 
-    value = state.get("state", "?")
-    unit = state.get("attributes", {}).get("unit_of_measurement", "")
-    friendly = state.get("attributes", {}).get("friendly_name", entity_id)
-    embed.add_field(name=friendly, value=f"**{value}** {unit}".strip(), inline=False)
-    embed.set_footer(text="Mise a jour")
-    return embed
+    if attribute:
+        value = state.get("attributes", {}).get(attribute)
+        if value is None:
+            return "_attribut absent_"
+    else:
+        value = state.get("state", "?")
+
+    text = f"**{value}**"
+    if suffix:
+        text = f"{text} {suffix}"
+    return text
 
 
 async def _build_embed(block: MonitoringBlock) -> discord.Embed:
@@ -101,11 +82,34 @@ async def _build_embed(block: MonitoringBlock) -> discord.Embed:
     except json.JSONDecodeError:
         config = {}
 
-    if block.block_type == "temperature":
-        return await _build_temperature_embed(config)
-    if block.block_type == "power":
-        return await _build_power_embed(config)
-    return discord.Embed(title=f"Bloc {block.block_type}", description="Type inconnu")
+    title = block.name or "Monitoring"
+    if block.icon:
+        title = f"{block.icon}  {title}"
+
+    embed = discord.Embed(
+        title=title,
+        color=block.color,
+        timestamp=dt.datetime.now(dt.timezone.utc),
+    )
+
+    fields = config.get("fields") or []
+    if not fields:
+        embed.description = "_Aucun champ configure._"
+    else:
+        for field in fields:
+            label = field.get("label") or field.get("entity_id") or "Field"
+            icon = field.get("icon")
+            if icon:
+                label = f"{icon} {label}"
+            value = await _resolve_field_value(field)
+            embed.add_field(
+                name=label,
+                value=value,
+                inline=bool(field.get("inline", True)),
+            )
+
+    embed.set_footer(text=block.footer or "Mise a jour")
+    return embed
 
 
 # -------------------------------------------------------------------
@@ -118,7 +122,7 @@ async def _ensure_message(
     try:
         cid = int(channel_id)
     except (TypeError, ValueError):
-        logger.error("channel_id invalide bloc=%s : %r", block.block_type, channel_id)
+        logger.error("channel_id invalide bloc=%s : %r", block.id, channel_id)
         return None
 
     channel = bot_.get_channel(cid)
@@ -136,14 +140,14 @@ async def _ensure_message(
         try:
             return await channel.fetch_message(int(block.message_id))  # type: ignore[union-attr]
         except (discord.NotFound, discord.HTTPException):
-            logger.info("Message monitoring introuvable pour %s, recreation.", block.block_type)
+            logger.info("Message monitoring introuvable pour bloc %s, recreation.", block.id)
 
     # Creation d'un nouveau message
     embed = await _build_embed(block)
     try:
         message = await channel.send(embed=embed)  # type: ignore[union-attr]
     except discord.HTTPException as exc:
-        logger.error("Echec envoi message monitoring %s : %s", block.block_type, exc)
+        logger.error("Echec envoi message monitoring %s : %s", block.id, exc)
         return None
 
     try:
@@ -151,20 +155,20 @@ async def _ensure_message(
     except discord.HTTPException:
         logger.warning("Impossible d'epingler le message (permission manquante ?)")
 
-    await repo.set_message_id(block.block_type, str(message.id))
+    await repo.set_message_id(block.id, str(message.id))
     return message
 
 
 # -------------------------------------------------------------------
 # Boucle d'un bloc
 # -------------------------------------------------------------------
-async def _block_loop(bot_: discord.Client, block_type: str) -> None:
+async def _block_loop(bot_: discord.Client, block_id: int) -> None:
     repo = MonitoringRepository()
-    logger.info("Demarrage task monitoring %s", block_type)
+    logger.info("Demarrage task monitoring bloc=%s", block_id)
     while True:
-        block = await repo.get_by_type(block_type)
+        block = await repo.get_by_id(block_id)
         if block is None or not block.enabled:
-            logger.info("Arret task monitoring %s (desactive).", block_type)
+            logger.info("Arret task monitoring bloc=%s (desactive ou supprime).", block_id)
             return
 
         message = await _ensure_message(bot_, block)
@@ -173,9 +177,9 @@ async def _block_loop(bot_: discord.Client, block_type: str) -> None:
                 embed = await _build_embed(block)
                 await message.edit(embed=embed)
             except discord.HTTPException as exc:
-                logger.error("Edit du message monitoring %s echoue : %s", block_type, exc)
+                logger.error("Edit du message monitoring %s echoue : %s", block_id, exc)
             except HomeAssistantError as exc:
-                logger.warning("HA indisponible pour %s : %s", block_type, exc)
+                logger.warning("HA indisponible pour bloc %s : %s", block_id, exc)
 
         await asyncio.sleep(max(30, block.interval_seconds))
 
@@ -183,9 +187,9 @@ async def _block_loop(bot_: discord.Client, block_type: str) -> None:
 # -------------------------------------------------------------------
 # API du module (appele depuis client.py et les routes API)
 # -------------------------------------------------------------------
-async def refresh_block_task(bot_: discord.Client, block_type: str) -> None:
-    """Redemarre la task d'un bloc (apres modif via l'API)."""
-    existing = _tasks.get(block_type)
+async def stop_block_task(block_id: int) -> None:
+    """Stoppe la task d'un bloc (avant suppression ou desactivation)."""
+    existing = _tasks.pop(block_id, None)
     if existing is not None and not existing.done():
         existing.cancel()
         try:
@@ -193,14 +197,18 @@ async def refresh_block_task(bot_: discord.Client, block_type: str) -> None:
         except (asyncio.CancelledError, Exception):
             pass
 
+
+async def refresh_block_task(bot_: discord.Client, block_id: int) -> None:
+    """Redemarre la task d'un bloc (apres modif via l'API)."""
+    await stop_block_task(block_id)
+
     repo = MonitoringRepository()
-    block = await repo.get_by_type(block_type)
+    block = await repo.get_by_id(block_id)
     if block is None or not block.enabled:
-        _tasks.pop(block_type, None)
         return
 
-    task = asyncio.create_task(_block_loop(bot_, block_type), name=f"monitor:{block_type}")
-    _tasks[block_type] = task
+    task = asyncio.create_task(_block_loop(bot_, block_id), name=f"monitor:{block_id}")
+    _tasks[block_id] = task
 
 
 async def start_monitoring_tasks(bot_: discord.Client) -> None:
@@ -209,5 +217,5 @@ async def start_monitoring_tasks(bot_: discord.Client) -> None:
     blocks = await repo.list_all()
     for block in blocks:
         if block.enabled:
-            await refresh_block_task(bot_, block.block_type)
+            await refresh_block_task(bot_, block.id)
     logger.info("%d tasks de monitoring actives", sum(1 for b in blocks if b.enabled))

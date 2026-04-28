@@ -65,3 +65,19 @@ async def page_monitoring(request: Request):
     return templates.TemplateResponse(
         "monitoring/list.html", {"request": request, "active_page": "monitoring"}
     )
+
+
+@router.get("/monitoring/new", response_class=HTMLResponse)
+async def page_monitoring_new(request: Request):
+    return templates.TemplateResponse(
+        "monitoring/edit.html",
+        {"request": request, "active_page": "monitoring", "block_id": None},
+    )
+
+
+@router.get("/monitoring/{block_id}", response_class=HTMLResponse)
+async def page_monitoring_edit(request: Request, block_id: int):
+    return templates.TemplateResponse(
+        "monitoring/edit.html",
+        {"request": request, "active_page": "monitoring", "block_id": block_id},
+    )

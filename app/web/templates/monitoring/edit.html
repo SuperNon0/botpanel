@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block title %}Bloc monitoring — BotPanel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2 id="page-title">Nouveau bloc</h2>
+  <a href="/monitoring" class="btn btn-secondary">Retour</a>
+</div>
+
+<form id="block-form">
+  <div class="card">
+    <h3>Identification</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Nom du bloc</label>
+        <input class="form-input" name="name" required maxlength="128" id="f-name" placeholder="Meteo, Conso, Temperatures...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Icone (emoji ou URL)</label>
+        <input class="form-input" name="icon" id="f-icon" placeholder="🌡️ ou https://...">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Couleur</label>
+        <input type="color" name="color" id="f-color" value="#49a0df">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Channel Discord (ID, vide = channel monitoring du .env)</label>
+        <input class="form-input" name="channel_id" placeholder="123456789012345678">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Intervalle (secondes)</label>
+        <input class="form-input" name="interval_seconds" type="number" min="30" value="300">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Footer</label>
+        <input class="form-input" name="footer" id="f-footer" placeholder="Mise a jour">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-checkbox">
+        <input type="checkbox" name="enabled"> Bloc actif (envoie/met a jour le message Discord)
+      </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Apercu</h3>
+    <div class="embed-preview" id="preview">
+      <div class="embed-title" id="p-title">Titre</div>
+      <div class="embed-fields" id="p-fields" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:0.6rem; margin-top:0.6rem;"></div>
+      <div class="embed-footer" id="p-footer" style="margin-top:0.6rem;"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Champs (entites HA suivies)</h3>
+    <p class="hint">Chaque champ affiche la valeur actuelle d'une entite HA. Tu peux preciser un attribut (ex: <code>humidity</code> pour un capteur Netatmo).</p>
+    <div class="buttons-builder" id="fields-builder"></div>
+    <button type="button" class="btn btn-secondary" id="field-add" style="margin-top: 0.8rem;">+ Ajouter un champ</button>
+  </div>
+
+  <div style="display:flex; gap:0.7rem; justify-content:flex-end;">
+    <a href="/monitoring" class="btn btn-secondary">Annuler</a>
+    <button type="submit" class="btn btn-primary">Enregistrer</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const BLOCK_ID = {% if block_id %}{{ block_id }}{% else %}null{% endif %};
+const form = document.getElementById("block-form");
+const builder = document.getElementById("fields-builder");
+
+let fields = [];
+
+function renderFields() {
+  builder.innerHTML = fields.map((f, i) => `
+    <div class="button-row" data-idx="${i}">
+      <div>
+        <label class="form-label">Label</label>
+        <input class="form-input" data-k="label" value="${esc(f.label || '')}" placeholder="Temperature">
+        <label class="form-label" style="margin-top:0.4rem;">Icone (emoji)</label>
+        <input class="form-input" data-k="icon" value="${esc(f.icon || '')}" placeholder="🌡️">
+      </div>
+      <div>
+        <label class="form-label">Entite HA</label>
+        <input class="form-input ha-entity-input" data-k="entity_id" value="${esc(f.entity_id || '')}" placeholder="sensor.temp_salon">
+        <label class="form-label" style="margin-top:0.4rem;">Attribut (optionnel)</label>
+        <input class="form-input" data-k="attribute" value="${esc(f.attribute || '')}" placeholder="humidity">
+      </div>
+      <div>
+        <label class="form-label">Suffixe</label>
+        <input class="form-input" data-k="suffix" value="${esc(f.suffix || '')}" placeholder="°C">
+        <label class="form-checkbox" style="margin-top:0.6rem;">
+          <input type="checkbox" data-k="inline" ${f.inline !== false ? "checked" : ""}> En grille (inline)
+        </label>
+      </div>
+      <button type="button" class="btn btn-danger btn-small" data-remove="${i}">X</button>
+    </div>
+  `).join("");
+
+  builder.querySelectorAll(".button-row").forEach(row => {
+    const idx = +row.dataset.idx;
+    row.querySelectorAll("[data-k]").forEach(inp => {
+      const sync = () => {
+        const v = inp.type === "checkbox" ? inp.checked : inp.value;
+        fields[idx][inp.dataset.k] = v;
+        updatePreview();
+      };
+      inp.addEventListener("input", sync);
+      inp.addEventListener("change", sync);
+    });
+  });
+  builder.querySelectorAll("[data-remove]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      fields.splice(+btn.dataset.remove, 1);
+      renderFields();
+      updatePreview();
+    });
+  });
+
+  builder.querySelectorAll(".ha-entity-input").forEach(inp =>
+    attachAutocomplete(inp, "/ha/entities",
+      it => it.friendly_name, it => it.entity_id));
+
+  updatePreview();
+}
+
+document.getElementById("field-add").addEventListener("click", () => {
+  fields.push({ label: "", icon: "", entity_id: "", attribute: "", suffix: "", inline: true });
+  renderFields();
+});
+
+// --- Apercu live ---
+function updatePreview() {
+  const title = document.getElementById("f-name").value || "Titre";
+  const icon = document.getElementById("f-icon").value;
+  document.getElementById("p-title").textContent = (icon ? icon + "  " : "") + title;
+  document.getElementById("p-footer").textContent = document.getElementById("f-footer").value || "Mise a jour";
+  document.getElementById("preview").style.borderLeftColor = document.getElementById("f-color").value;
+
+  document.getElementById("p-fields").innerHTML = fields.map(f => {
+    const label = (f.icon ? f.icon + " " : "") + (f.label || "Field");
+    const v = f.entity_id ? `<em>${esc(f.entity_id)}</em> ${esc(f.suffix || "")}` : "—";
+    return `<div><div class="card-row-meta">${esc(label)}</div><div><strong>${v}</strong></div></div>`;
+  }).join("");
+}
+
+["f-name", "f-icon", "f-footer", "f-color"].forEach(id =>
+  document.getElementById(id).addEventListener("input", updatePreview));
+
+// --- Chargement si edition ---
+async function loadExisting() {
+  if (!BLOCK_ID) {
+    renderFields();
+    updatePreview();
+    return;
+  }
+  try {
+    const b = await API.get(`/monitoring/${BLOCK_ID}`);
+    document.getElementById("page-title").textContent = `Modifier — ${b.name}`;
+    form.elements["name"].value = b.name || "";
+    form.elements["icon"].value = b.icon || "";
+    form.elements["color"].value = "#" + (b.color || 0x49a0df).toString(16).padStart(6, "0");
+    form.elements["channel_id"].value = b.channel_id || "";
+    form.elements["interval_seconds"].value = b.interval_seconds || 300;
+    form.elements["footer"].value = b.footer || "";
+    form.elements["enabled"].checked = !!b.enabled;
+    try {
+      const cfg = JSON.parse(b.config_json || "{}");
+      fields = cfg.fields || [];
+    } catch { fields = []; }
+    renderFields();
+    updatePreview();
+  } catch (e) {
+    toast("Erreur chargement : " + e.message, "error");
+  }
+}
+
+// --- Submit ---
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const fd = new FormData(form);
+  const config = {
+    fields: fields.map(f => ({
+      label: f.label || "",
+      icon: f.icon || "",
+      entity_id: f.entity_id || "",
+      attribute: f.attribute || null,
+      suffix: f.suffix || "",
+      inline: f.inline !== false,
+    })),
+  };
+  const payload = {
+    name: fd.get("name"),
+    icon: fd.get("icon") || null,
+    color: parseInt(fd.get("color").replace("#", ""), 16),
+    enabled: fd.get("enabled") === "on",
+    channel_id: fd.get("channel_id") || null,
+    interval_seconds: parseInt(fd.get("interval_seconds") || "300", 10),
+    footer: fd.get("footer") || null,
+    config_json: JSON.stringify(config),
+  };
+  try {
+    if (BLOCK_ID) {
+      await API.put(`/monitoring/${BLOCK_ID}`, payload);
+    } else {
+      await API.post("/monitoring", payload);
+    }
+    toast("Enregistre !");
+    setTimeout(() => { window.location.href = "/monitoring"; }, 600);
+  } catch (err) {
+    toast(err.message, "error");
+  }
+});
+
+loadExisting();
+</script>
+{% endblock %}

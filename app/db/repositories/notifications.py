@@ -1,15 +1,20 @@
-"""Repository des notifications et de leurs boutons custom."""
+"""Repository des notifications, de leurs boutons et fields custom."""
 
 from __future__ import annotations
 
 from typing import Optional
 
 from app.db.database import get_connection
-from app.db.models import Notification, NotificationButton, NotificationIn
+from app.db.models import (
+    Notification,
+    NotificationButton,
+    NotificationField,
+    NotificationIn,
+)
 
 
 class NotificationRepository:
-    """CRUD notifications + boutons associes."""
+    """CRUD notifications + boutons + fields associes."""
 
     async def list_all(self) -> list[Notification]:
         async with get_connection() as db:
@@ -19,7 +24,8 @@ class NotificationRepository:
             notifs: list[Notification] = []
             for row in rows:
                 buttons = await self._list_buttons(db, row["id"])
-                notifs.append(self._row_to_model(row, buttons))
+                fields = await self._list_fields(db, row["id"])
+                notifs.append(self._row_to_model(row, buttons, fields))
             return notifs
 
     async def get_by_slug(self, slug: str) -> Optional[Notification]:
@@ -31,7 +37,8 @@ class NotificationRepository:
             if row is None:
                 return None
             buttons = await self._list_buttons(db, row["id"])
-            return self._row_to_model(row, buttons)
+            fields = await self._list_fields(db, row["id"])
+            return self._row_to_model(row, buttons, fields)
 
     async def get_by_id(self, notif_id: int) -> Optional[Notification]:
         async with get_connection() as db:
@@ -42,7 +49,8 @@ class NotificationRepository:
             if row is None:
                 return None
             buttons = await self._list_buttons(db, row["id"])
-            return self._row_to_model(row, buttons)
+            fields = await self._list_fields(db, row["id"])
+            return self._row_to_model(row, buttons, fields)
 
     async def create(self, payload: NotificationIn) -> Notification:
         async with get_connection() as db:
@@ -62,6 +70,7 @@ class NotificationRepository:
             )
             notif_id = cursor.lastrowid
             await self._replace_buttons(db, notif_id, payload.buttons)
+            await self._replace_fields(db, notif_id, payload.fields)
             await db.commit()
         result = await self.get_by_id(notif_id)
         assert result is not None
@@ -87,6 +96,7 @@ class NotificationRepository:
             if cursor.rowcount == 0:
                 return None
             await self._replace_buttons(db, notif_id, payload.buttons)
+            await self._replace_fields(db, notif_id, payload.fields)
             await db.commit()
         return await self.get_by_id(notif_id)
 
@@ -112,6 +122,28 @@ class NotificationRepository:
         rows = await cursor.fetchall()
         return [NotificationButton(**dict(row)) for row in rows]
 
+    async def _list_fields(self, db, notif_id: int) -> list[NotificationField]:
+        cursor = await db.execute(
+            """
+            SELECT id, position, name, value_template, inline
+            FROM notification_fields
+            WHERE notification_id = ?
+            ORDER BY position, id
+            """,
+            (notif_id,),
+        )
+        rows = await cursor.fetchall()
+        return [
+            NotificationField(
+                id=row["id"],
+                position=row["position"],
+                name=row["name"],
+                value_template=row["value_template"],
+                inline=bool(row["inline"]),
+            )
+            for row in rows
+        ]
+
     async def _replace_buttons(self, db, notif_id: int, buttons: list[NotificationButton]) -> None:
         await db.execute(
             "DELETE FROM notification_buttons WHERE notification_id = ?", (notif_id,)
@@ -130,7 +162,29 @@ class NotificationRepository:
                 ),
             )
 
-    def _row_to_model(self, row, buttons: list[NotificationButton]) -> Notification:
+    async def _replace_fields(self, db, notif_id: int, fields: list[NotificationField]) -> None:
+        await db.execute(
+            "DELETE FROM notification_fields WHERE notification_id = ?", (notif_id,)
+        )
+        for idx, fld in enumerate(fields):
+            await db.execute(
+                """
+                INSERT INTO notification_fields (
+                    notification_id, position, name, value_template, inline
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    notif_id, fld.position or idx, fld.name,
+                    fld.value_template, int(fld.inline),
+                ),
+            )
+
+    def _row_to_model(
+        self,
+        row,
+        buttons: list[NotificationButton],
+        fields: list[NotificationField],
+    ) -> Notification:
         return Notification(
             id=row["id"],
             slug=row["slug"],
@@ -145,4 +199,5 @@ class NotificationRepository:
             snooze_button=bool(row["snooze_button"]),
             snooze_minutes=row["snooze_minutes"],
             buttons=buttons,
+            fields=fields,
         )

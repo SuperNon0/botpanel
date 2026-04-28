@@ -21,6 +21,24 @@ class NotificationButton(BaseModel):
     ha_data_json: Optional[str] = None
 
 
+class NotificationField(BaseModel):
+    """Champ d'embed (apparait en grille dans Discord).
+
+    `value_template` peut contenir des placeholders qui seront resolus
+    au moment de l'envoi via les etats Home Assistant :
+        {state:sensor.xxx}              -> etat brut
+        {state:sensor.xxx|--}           -> avec fallback si indisponible
+        {attr:sensor.xxx:friendly_name} -> attribut precis
+        {unit:sensor.xxx}               -> unit_of_measurement
+    """
+
+    id: Optional[int] = None
+    position: int = 0
+    name: str = Field(..., max_length=256)
+    value_template: str = Field(..., max_length=1024)
+    inline: bool = True
+
+
 class NotificationIn(BaseModel):
     """Payload de creation/modification d'une notification."""
 
@@ -36,6 +54,7 @@ class NotificationIn(BaseModel):
     snooze_button: bool = False
     snooze_minutes: int = 15
     buttons: list[NotificationButton] = Field(default_factory=list)
+    fields: list[NotificationField] = Field(default_factory=list)
 
     @field_validator("snooze_minutes")
     @classmethod
@@ -74,17 +93,34 @@ class SlashCommand(SlashCommandIn):
 # ==========================================================
 #  Monitoring
 # ==========================================================
-BlockType = Literal["temperature", "power"]
-
-
 class MonitoringBlockIn(BaseModel):
+    """Payload de creation/modification d'un bloc de monitoring.
+
+    `config_json` est un JSON serialise. Structure libre, mais le bot lit :
+        {
+          "fields": [
+            {
+              "label": "Temperature",
+              "icon": "🌡️",
+              "entity_id": "sensor.temp_salon",
+              "attribute": null,           # ou "humidity" pour lire un attribut
+              "suffix": "°C",
+              "inline": true
+            }
+          ]
+        }
+    """
+
+    name: str = Field("Bloc", max_length=128)
+    icon: Optional[str] = None
+    color: int = 0x49A0DF  # bleu par defaut
     enabled: bool = False
     channel_id: Optional[str] = None
     interval_seconds: int = Field(300, ge=30)
+    footer: Optional[str] = None
     config_json: str = "{}"
 
 
 class MonitoringBlock(MonitoringBlockIn):
     id: int
-    block_type: BlockType
     message_id: Optional[str] = None
