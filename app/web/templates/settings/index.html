@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Parametres — BotPanel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Parametres</h2>
+</div>
+
+<div class="card">
+  <h3>Couleurs preconfigurees</h3>
+  <p class="hint">
+    Ces couleurs apparaissent dans le selecteur rapide quand tu crees ou modifies une notification.
+    Donne-leur un nom parlant (ex: <em>Alerte porte</em>, <em>Info confort</em>).
+  </p>
+  <div id="colors-builder" class="buttons-builder"></div>
+  <button type="button" class="btn btn-secondary" id="color-add" style="margin-top: 0.8rem;">+ Ajouter une couleur</button>
+  <div style="display:flex; gap:0.7rem; justify-content:flex-end; margin-top:1rem;">
+    <button type="button" class="btn btn-primary" id="colors-save">Enregistrer les couleurs</button>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Channels Discord preconfigures</h3>
+  <p class="hint">
+    Les channels listes ici apparaissent dans la liste deroulante du formulaire notification.
+    Tu peux aussi piocher directement dans les channels detectes par le bot ci-dessous.
+  </p>
+  <div id="channels-builder" class="buttons-builder"></div>
+  <button type="button" class="btn btn-secondary" id="channel-add" style="margin-top: 0.8rem;">+ Ajouter un channel</button>
+  <div style="display:flex; gap:0.7rem; justify-content:flex-end; margin-top:1rem;">
+    <button type="button" class="btn btn-primary" id="channels-save">Enregistrer les channels</button>
+  </div>
+
+  <h3 style="margin-top: 1.4rem;">Channels detectes par le bot</h3>
+  <p class="hint">Cliquez sur "Ajouter" pour copier le channel dans vos preconfigures.</p>
+  <div id="bot-channels" class="buttons-builder"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let colors = [];
+let channels = [];
+
+function colorToHex(n) {
+  return "#" + (n & 0xFFFFFF).toString(16).padStart(6, "0");
+}
+function hexToInt(h) {
+  return parseInt((h || "#000000").replace("#", ""), 16);
+}
+
+function renderColors() {
+  const root = document.getElementById("colors-builder");
+  root.innerHTML = colors.map((c, i) => `
+    <div class="button-row" data-cidx="${i}">
+      <div>
+        <label class="form-label">Nom</label>
+        <input class="form-input" data-ck="name" value="${esc(c.name || "")}" placeholder="Alerte porte">
+      </div>
+      <div>
+        <label class="form-label">Couleur</label>
+        <input type="color" data-ck="color" value="${colorToHex(c.color || 0)}">
+      </div>
+      <button type="button" class="btn btn-danger btn-small" data-cdel="${i}">X</button>
+    </div>
+  `).join("");
+  root.querySelectorAll(".button-row").forEach(row => {
+    const idx = +row.dataset.cidx;
+    row.querySelectorAll("[data-ck]").forEach(inp => {
+      const sync = () => {
+        if (inp.dataset.ck === "color") colors[idx].color = hexToInt(inp.value);
+        else colors[idx][inp.dataset.ck] = inp.value;
+      };
+      inp.addEventListener("input", sync);
+      inp.addEventListener("change", sync);
+    });
+  });
+  root.querySelectorAll("[data-cdel]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      colors.splice(+btn.dataset.cdel, 1);
+      renderColors();
+    });
+  });
+}
+
+function renderChannels() {
+  const root = document.getElementById("channels-builder");
+  root.innerHTML = channels.map((c, i) => `
+    <div class="button-row" data-chidx="${i}">
+      <div>
+        <label class="form-label">Nom</label>
+        <input class="form-input" data-chk="name" value="${esc(c.name || "")}" placeholder="general">
+      </div>
+      <div>
+        <label class="form-label">Channel ID</label>
+        <input class="form-input" data-chk="channel_id" value="${esc(c.channel_id || "")}" placeholder="123456789012345678" inputmode="numeric">
+      </div>
+      <button type="button" class="btn btn-danger btn-small" data-chdel="${i}">X</button>
+    </div>
+  `).join("");
+  root.querySelectorAll(".button-row").forEach(row => {
+    const idx = +row.dataset.chidx;
+    row.querySelectorAll("[data-chk]").forEach(inp => {
+      const sync = () => { channels[idx][inp.dataset.chk] = inp.value; };
+      inp.addEventListener("input", sync);
+      inp.addEventListener("change", sync);
+    });
+  });
+  root.querySelectorAll("[data-chdel]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      channels.splice(+btn.dataset.chdel, 1);
+      renderChannels();
+    });
+  });
+}
+
+document.getElementById("color-add").addEventListener("click", () => {
+  colors.push({ name: "", color: 0xE8C547 });
+  renderColors();
+});
+document.getElementById("channel-add").addEventListener("click", () => {
+  channels.push({ name: "", channel_id: "" });
+  renderChannels();
+});
+
+document.getElementById("colors-save").addEventListener("click", async () => {
+  try {
+    const cleaned = colors.filter(c => c.name && c.name.trim());
+    await API.put("/settings/colors", cleaned);
+    toast("Couleurs enregistrees");
+  } catch (e) { toast(e.message, "error"); }
+});
+
+document.getElementById("channels-save").addEventListener("click", async () => {
+  try {
+    const cleaned = channels.filter(c => c.name && c.channel_id);
+    await API.put("/settings/channels", cleaned);
+    toast("Channels enregistres");
+  } catch (e) { toast(e.message, "error"); }
+});
+
+async function loadAll() {
+  try {
+    colors = await API.get("/settings/colors");
+    renderColors();
+  } catch (e) { toast("Erreur couleurs : " + e.message, "error"); }
+
+  try {
+    channels = await API.get("/settings/channels");
+    renderChannels();
+  } catch (e) { toast("Erreur channels : " + e.message, "error"); }
+
+  try {
+    const bot = await API.get("/discord/channels");
+    const root = document.getElementById("bot-channels");
+    if (!bot.length) {
+      root.innerHTML = `<div class="empty-state">Aucun channel detecte (le bot est-il en ligne ?).</div>`;
+      return;
+    }
+    root.innerHTML = bot.map(ch => `
+      <div class="card-row">
+        <div>
+          <strong># ${esc(ch.name)}</strong>
+          <div class="card-row-meta">
+            ${ch.category ? esc(ch.category) + " &middot; " : ""}<code>${esc(ch.id)}</code>
+          </div>
+        </div>
+        <button type="button" class="btn btn-edit btn-small"
+                data-add-ch="${esc(ch.id)}" data-add-name="${esc(ch.name)}">+ AJOUTER</button>
+      </div>
+    `).join("");
+    root.querySelectorAll("[data-add-ch]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        channels.push({ name: btn.dataset.addName, channel_id: btn.dataset.addCh });
+        renderChannels();
+        toast("Ajoute en bas — pense a enregistrer");
+      });
+    });
+  } catch (e) {
+    document.getElementById("bot-channels").innerHTML =
+      `<div class="empty-state">Erreur : ${esc(e.message)}</div>`;
+  }
+}
+
+loadAll();
+</script>
+{% endblock %}

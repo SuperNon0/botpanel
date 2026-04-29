@@ -7,6 +7,56 @@
   <a href="/notifications" class="btn btn-secondary">Retour</a>
 </div>
 
+<details class="card help-card" id="help-guide">
+  <summary>
+    <span class="help-arrow">&#9656;</span>
+    Guide rapide &mdash; comment utiliser les champs ?
+  </summary>
+  <div class="help-body">
+    <h4>Slug</h4>
+    <p>Identifiant unique appele depuis Home Assistant via <code>rest_command.bot_discord</code>.
+       <strong>Minuscules + chiffres + underscore</strong> uniquement.</p>
+
+    <h4>Channel Discord</h4>
+    <p>Choisis dans la liste deroulante (channels detectes par le bot ou tes preconfigures dans
+       <a href="/settings">Parametres</a>) ou colle un ID brut.</p>
+
+    <h4>Couleur</h4>
+    <p>Click sur la pastille pour une couleur custom, ou utilise un preset enregistre dans
+       <a href="/settings">Parametres &gt; Couleurs</a>.</p>
+
+    <h4>Markdown dans le message</h4>
+    <p>Discord supporte le markdown : <code>**gras**</code>, <code>*italique*</code>,
+       <code>__souligne__</code>, <code>~~barre~~</code>, <code>`code`</code>.
+       Selectionne un mot et clique sur les boutons <strong>B</strong> / <em>I</em>
+       pour les inserer rapidement.</p>
+
+    <h4>Champs (fields) &mdash; placeholders Home Assistant</h4>
+    <p>Les fields sont affiches en grille dans l'embed (un par carre quand
+       <em>"En grille"</em> est coche, sinon une ligne pleine).</p>
+    <p>Dans la <strong>valeur</strong> tu peux melanger du texte et des placeholders qui seront
+       remplaces a l'envoi par les etats Home Assistant :</p>
+    <ul>
+      <li><code>{state:sensor.temp}</code> &mdash; etat brut</li>
+      <li><code>{state:sensor.temp|--}</code> &mdash; avec fallback si HA est down</li>
+      <li><code>{attr:sensor.temp:friendly_name}</code> &mdash; un attribut precis</li>
+      <li><code>{unit:sensor.temp}</code> &mdash; l'unite (ex. <em>&deg;C</em>)</li>
+    </ul>
+    <p>Exemple : <code>{state:sensor.temp_salon} {unit:sensor.temp_salon}</code> affichera
+       <em>21.5 &deg;C</em>. Tu peux utiliser <strong>"Inserer une entite"</strong> sous le
+       message ou la valeur d'un field pour piocher une entite directement.</p>
+
+    <h4>Boutons</h4>
+    <p><strong>Supprimer</strong> et <strong>Snooze</strong> sont gerees par le bot.
+       Les <em>boutons d'action</em> appellent un service Home Assistant
+       (ex. <code>light.turn_on</code> sur <code>light.salon</code>).</p>
+
+    <h4>Timestamp</h4>
+    <p>Quand active, la date d'envoi est ajoutee dans le pied de l'embed
+       (ex. <em>28 avril 2026 a 14:05</em>).</p>
+  </div>
+</details>
+
 <form id="notif-form">
   <div class="card">
     <h3>Identification</h3>
@@ -19,8 +69,11 @@
         <div class="form-hint">minuscules, chiffres, underscore uniquement</div>
       </div>
       <div class="form-group">
-        <label class="form-label">Channel Discord (ID)</label>
-        <input class="form-input" name="channel_id" required inputmode="numeric" placeholder="123456789012345678">
+        <label class="form-label">Channel Discord</label>
+        <select class="form-select" id="channel-select"></select>
+        <input class="form-input" name="channel_id" id="f-channel-id" required inputmode="numeric"
+               placeholder="123456789012345678" style="margin-top:0.4rem;">
+        <div class="form-hint">choisis un preset ou colle un ID brut</div>
       </div>
     </div>
   </div>
@@ -31,27 +84,44 @@
       <label class="form-label">Titre</label>
       <input class="form-input" name="title" required maxlength="256" id="f-title">
     </div>
+
     <div class="form-group">
       <label class="form-label">Message</label>
+      <div class="md-toolbar">
+        <button type="button" class="md-btn" data-wrap="**" title="Gras"><strong>B</strong></button>
+        <button type="button" class="md-btn" data-wrap="*" title="Italique"><em>I</em></button>
+        <button type="button" class="md-btn" data-wrap="__" title="Souligne"><u>U</u></button>
+        <button type="button" class="md-btn" data-wrap="~~" title="Barre"><s>S</s></button>
+        <button type="button" class="md-btn" data-wrap="`" title="Code">&lt;/&gt;</button>
+        <button type="button" class="md-btn" id="msg-insert-entity" title="Inserer une entite HA">+ entite</button>
+      </div>
       <textarea class="form-textarea" name="message" required maxlength="4000" id="f-message"></textarea>
     </div>
+
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Couleur</label>
-        <input type="color" name="color" id="f-color" value="#e8c547">
+        <div class="color-row">
+          <input type="color" name="color" id="f-color" value="#e8c547">
+          <select class="form-select" id="color-presets" style="flex:1;">
+            <option value="">— Preset —</option>
+          </select>
+        </div>
+        <div class="form-hint"><a href="/settings">Gerer les presets</a></div>
       </div>
       <div class="form-group">
         <label class="form-label">Icone (URL)</label>
         <input class="form-input" name="icon_url" placeholder="https://...">
       </div>
     </div>
+
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Footer</label>
-        <input class="form-input" name="footer" id="f-footer">
+        <input class="form-input" name="footer" id="f-footer" value="Home Assistant">
       </div>
       <div class="form-group" style="display:flex; align-items:flex-end;">
-        <label class="form-checkbox"><input type="checkbox" name="show_timestamp"> Afficher le timestamp</label>
+        <label class="form-checkbox"><input type="checkbox" name="show_timestamp" id="f-ts" checked> Afficher le timestamp</label>
       </div>
     </div>
   </div>
@@ -61,7 +131,12 @@
     <div class="embed-preview" id="preview">
       <div class="embed-title" id="p-title">Titre</div>
       <div class="embed-desc"  id="p-desc">Message</div>
-      <div class="embed-footer" id="p-footer"></div>
+      <div class="embed-fields" id="p-fields"></div>
+      <div class="embed-footer-row">
+        <span class="embed-footer" id="p-footer"></span>
+        <span class="embed-ts" id="p-ts"></span>
+      </div>
+      <div class="embed-buttons" id="p-buttons"></div>
     </div>
   </div>
 
@@ -71,10 +146,10 @@
 
     <div class="form-row">
       <div class="form-group">
-        <label class="form-checkbox"><input type="checkbox" name="delete_button"> Bouton "Supprimer"</label>
+        <label class="form-checkbox"><input type="checkbox" name="delete_button" id="f-del-btn"> Bouton "Supprimer"</label>
       </div>
       <div class="form-group">
-        <label class="form-checkbox"><input type="checkbox" name="snooze_button"> Bouton "Snooze"</label>
+        <label class="form-checkbox"><input type="checkbox" name="snooze_button" id="f-snz-btn"> Bouton "Snooze"</label>
       </div>
     </div>
     <div class="form-group">
@@ -105,6 +180,19 @@
     <button type="submit" class="btn btn-primary">Enregistrer</button>
   </div>
 </form>
+
+<!-- Modal de selection d'entite -->
+<div class="ent-modal" id="ent-modal">
+  <div class="ent-modal-box">
+    <div class="ent-modal-head">
+      <strong>Choisir une entite Home Assistant</strong>
+      <button type="button" class="btn btn-secondary btn-small" id="ent-modal-close">Fermer</button>
+    </div>
+    <input type="text" class="form-input" id="ent-modal-search" placeholder="Filtrer par nom ou entity_id...">
+    <div class="ent-modal-list" id="ent-modal-list"></div>
+    <div class="form-hint" id="ent-modal-hint" style="margin-top:0.5rem;"></div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -113,25 +201,237 @@ const NOTIF_ID = {% if notif_id %}{{ notif_id }}{% else %}null{% endif %};
 const form = document.getElementById("notif-form");
 const builder = document.getElementById("btn-builder");
 
-// --- Preview live ---
-function bindPreview() {
-  const t = document.getElementById("f-title");
-  const m = document.getElementById("f-message");
-  const f = document.getElementById("f-footer");
-  const c = document.getElementById("f-color");
-  const update = () => {
-    document.getElementById("p-title").textContent  = t.value || "Titre";
-    document.getElementById("p-desc").textContent   = m.value || "Message";
-    document.getElementById("p-footer").textContent = f.value || "";
-    document.getElementById("preview").style.borderLeftColor = c.value;
-  };
-  [t, m, f, c].forEach(el => el.addEventListener("input", update));
-  update();
+// ============================================================
+// Markdown helpers (gras, italique, etc.)
+// ============================================================
+function wrapSelection(textarea, wrap) {
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const before = textarea.value.slice(0, start);
+  const sel = textarea.value.slice(start, end) || "texte";
+  const after = textarea.value.slice(end);
+  textarea.value = before + wrap + sel + wrap + after;
+  textarea.focus();
+  textarea.selectionStart = start + wrap.length;
+  textarea.selectionEnd = start + wrap.length + sel.length;
+  textarea.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-// --- Builder de boutons ---
-let buttons = [];
+document.querySelectorAll(".md-toolbar .md-btn[data-wrap]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    wrapSelection(document.getElementById("f-message"), btn.dataset.wrap);
+  });
+});
 
+// Convertit le markdown Discord -> HTML pour l'apercu
+function renderDiscordMd(text) {
+  let html = esc(text);
+  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/__(.+?)__/g, "<u>$1</u>");
+  html = html.replace(/~~(.+?)~~/g, "<s>$1</s>");
+  html = html.replace(/`([^`]+?)`/g, "<code>$1</code>");
+  html = html.replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, "$1<em>$2</em>");
+  return html;
+}
+
+// ============================================================
+// Modal de selection d'entites HA
+// ============================================================
+let _haEntities = null;
+async function loadEntities() {
+  if (_haEntities) return _haEntities;
+  try {
+    _haEntities = await API.get("/ha/entities");
+  } catch {
+    _haEntities = [];
+  }
+  return _haEntities;
+}
+
+const entModal = document.getElementById("ent-modal");
+const entList = document.getElementById("ent-modal-list");
+const entSearch = document.getElementById("ent-modal-search");
+const entHint = document.getElementById("ent-modal-hint");
+let entOnPick = null;
+
+function renderEntList(filter) {
+  const q = (filter || "").toLowerCase();
+  const matches = (_haEntities || [])
+    .filter(e => !q || e.entity_id.toLowerCase().includes(q) || (e.friendly_name || "").toLowerCase().includes(q))
+    .slice(0, 80);
+  entList.innerHTML = matches.map(e => `
+    <div class="ent-item" data-eid="${esc(e.entity_id)}">
+      <div><strong>${esc(e.friendly_name || e.entity_id)}</strong></div>
+      <div class="card-row-meta"><code>${esc(e.entity_id)}</code></div>
+    </div>
+  `).join("") || `<div class="empty-state">Aucune entite</div>`;
+}
+
+async function openEntityPicker(onPick, hint) {
+  entOnPick = onPick;
+  entHint.textContent = hint || "Clique sur une entite pour l'inserer.";
+  entSearch.value = "";
+  entModal.classList.add("open");
+  await loadEntities();
+  renderEntList("");
+  setTimeout(() => entSearch.focus(), 50);
+}
+
+function closeEntityPicker() {
+  entModal.classList.remove("open");
+  entOnPick = null;
+}
+
+entSearch.addEventListener("input", () => renderEntList(entSearch.value));
+document.getElementById("ent-modal-close").addEventListener("click", closeEntityPicker);
+entModal.addEventListener("click", (e) => { if (e.target === entModal) closeEntityPicker(); });
+entList.addEventListener("click", (e) => {
+  const item = e.target.closest(".ent-item");
+  if (!item || !entOnPick) return;
+  entOnPick(item.dataset.eid);
+  closeEntityPicker();
+});
+
+document.getElementById("msg-insert-entity").addEventListener("click", () => {
+  openEntityPicker((eid) => {
+    const ta = document.getElementById("f-message");
+    const insert = `{state:${eid}|--}`;
+    const start = ta.selectionStart;
+    ta.value = ta.value.slice(0, start) + insert + ta.value.slice(ta.selectionEnd);
+    ta.selectionStart = ta.selectionEnd = start + insert.length;
+    ta.focus();
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+  }, "L'entite sera inseree comme {state:...|--}.");
+});
+
+// ============================================================
+// Channels Discord (presets + bot)
+// ============================================================
+async function bindChannelSelect() {
+  const sel = document.getElementById("channel-select");
+  const idIn = document.getElementById("f-channel-id");
+
+  const [presets, botCh] = await Promise.all([
+    API.get("/settings/channels").catch(() => []),
+    API.get("/discord/channels").catch(() => []),
+  ]);
+
+  const opts = ['<option value="">— choisir —</option>'];
+  if (presets.length) {
+    opts.push('<optgroup label="Preconfigures">');
+    presets.forEach(p => opts.push(
+      `<option value="${esc(p.channel_id)}">${esc(p.name)} (${esc(p.channel_id)})</option>`
+    ));
+    opts.push('</optgroup>');
+  }
+  if (botCh.length) {
+    opts.push('<optgroup label="Detectes par le bot">');
+    botCh.forEach(c => opts.push(
+      `<option value="${esc(c.id)}"># ${esc(c.name)}${c.category ? " — " + esc(c.category) : ""}</option>`
+    ));
+    opts.push('</optgroup>');
+  }
+  sel.innerHTML = opts.join("");
+
+  sel.addEventListener("change", () => {
+    if (sel.value) idIn.value = sel.value;
+  });
+  // Si l'ID est deja saisi (edition), pre-selectionne dans le dropdown
+  if (idIn.value) sel.value = idIn.value;
+}
+
+// ============================================================
+// Couleur : presets
+// ============================================================
+async function bindColorPresets() {
+  const sel = document.getElementById("color-presets");
+  const colorIn = document.getElementById("f-color");
+  let presets = [];
+  try { presets = await API.get("/settings/colors"); } catch { presets = []; }
+  presets.forEach(p => {
+    const hex = "#" + (p.color & 0xFFFFFF).toString(16).padStart(6, "0");
+    const opt = document.createElement("option");
+    opt.value = hex;
+    opt.textContent = `${p.name} (${hex})`;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener("change", () => {
+    if (sel.value) {
+      colorIn.value = sel.value;
+      colorIn.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  });
+}
+
+// ============================================================
+// Apercu live (titre, message, footer, couleur, timestamp,
+// fields, boutons)
+// ============================================================
+function formatTsFr(d) {
+  const months = ["janvier","fevrier","mars","avril","mai","juin",
+                  "juillet","aout","septembre","octobre","novembre","decembre"];
+  const pad = n => String(n).padStart(2, "0");
+  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()} a ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+const STYLE_BG = {
+  primary: "#5865f2", secondary: "#4e5058",
+  success: "#248046", danger: "#da373c",
+};
+
+let buttons = [];
+let fields = [];
+
+function updatePreview() {
+  const t = document.getElementById("f-title").value || "Titre";
+  const m = document.getElementById("f-message").value || "Message";
+  const f = document.getElementById("f-footer").value || "";
+  const c = document.getElementById("f-color").value || "#e8c547";
+  const ts = document.getElementById("f-ts").checked;
+  const delBtn = document.getElementById("f-del-btn").checked;
+  const snzBtn = document.getElementById("f-snz-btn").checked;
+
+  document.getElementById("p-title").innerHTML = renderDiscordMd(t);
+  document.getElementById("p-desc").innerHTML = renderDiscordMd(m);
+  document.getElementById("p-footer").textContent = f;
+  document.getElementById("p-ts").textContent = ts
+    ? (f ? " · " : "") + formatTsFr(new Date())
+    : "";
+  document.getElementById("preview").style.borderLeftColor = c;
+
+  // Fields
+  const fHtml = fields.map(fl => `
+    <div class="embed-field ${fl.inline !== false ? "inline" : ""}">
+      <div class="embed-field-name">${renderDiscordMd(fl.name || "")}</div>
+      <div class="embed-field-val">${renderDiscordMd(fl.value_template || "")}</div>
+    </div>
+  `).join("");
+  document.getElementById("p-fields").innerHTML = fHtml;
+
+  // Boutons (Snooze/Supprimer + custom)
+  const btnHtml = [];
+  if (delBtn) btnHtml.push(`<span class="d-btn d-btn-secondary">Supprimer</span>`);
+  if (snzBtn) btnHtml.push(`<span class="d-btn d-btn-secondary">Snooze</span>`);
+  buttons.forEach(b => {
+    const bg = STYLE_BG[b.style] || STYLE_BG.primary;
+    btnHtml.push(`<span class="d-btn" style="background:${bg};">${esc(b.label || "Action")}</span>`);
+  });
+  document.getElementById("p-buttons").innerHTML = btnHtml.join("");
+}
+
+function bindPreview() {
+  ["f-title","f-message","f-footer","f-color","f-ts","f-del-btn","f-snz-btn"]
+    .forEach(id => {
+      const el = document.getElementById(id);
+      el.addEventListener("input", updatePreview);
+      el.addEventListener("change", updatePreview);
+    });
+  updatePreview();
+}
+
+// ============================================================
+// Builder de boutons
+// ============================================================
 function renderButtons() {
   builder.innerHTML = buttons.map((b, i) => `
     <div class="button-row" data-idx="${i}">
@@ -158,7 +458,7 @@ function renderButtons() {
   builder.querySelectorAll(".button-row").forEach(row => {
     const idx = +row.dataset.idx;
     row.querySelectorAll("[data-k]").forEach(inp => {
-      const sync = () => { buttons[idx][inp.dataset.k] = inp.value; };
+      const sync = () => { buttons[idx][inp.dataset.k] = inp.value; updatePreview(); };
       inp.addEventListener("input", sync);
       inp.addEventListener("change", sync);
     });
@@ -167,6 +467,7 @@ function renderButtons() {
     btn.addEventListener("click", () => {
       buttons.splice(+btn.dataset.remove, 1);
       renderButtons();
+      updatePreview();
     });
   });
 
@@ -182,10 +483,12 @@ function renderButtons() {
 document.getElementById("btn-add").addEventListener("click", () => {
   buttons.push({ label: "Action", style: "primary", ha_service: "", ha_entity_id: "" });
   renderButtons();
+  updatePreview();
 });
 
-// --- Builder de fields ---
-let fields = [];
+// ============================================================
+// Builder de fields
+// ============================================================
 const fieldBuilder = document.getElementById("field-builder");
 
 function renderFields() {
@@ -200,7 +503,8 @@ function renderFields() {
       </div>
       <div style="flex:2;">
         <label class="form-label">Valeur (texte ou placeholder HA)</label>
-        <input class="form-input" data-fk="value_template" value="${esc(f.value_template || '')}" placeholder="{state:lock.porte_entree|inconnu}">
+        <input class="form-input" data-fk="value_template" value="${esc(f.value_template || '')}" placeholder="{state:lock.porte_entree|--}">
+        <button type="button" class="md-btn" data-finsert="${i}" style="margin-top:0.4rem;">+ entite</button>
       </div>
       <button type="button" class="btn btn-danger btn-small" data-fremove="${i}">X</button>
     </div>
@@ -212,6 +516,7 @@ function renderFields() {
       const sync = () => {
         const v = inp.type === "checkbox" ? inp.checked : inp.value;
         fields[idx][inp.dataset.fk] = v;
+        updatePreview();
       };
       inp.addEventListener("input", sync);
       inp.addEventListener("change", sync);
@@ -221,6 +526,18 @@ function renderFields() {
     btn.addEventListener("click", () => {
       fields.splice(+btn.dataset.fremove, 1);
       renderFields();
+      updatePreview();
+    });
+  });
+  fieldBuilder.querySelectorAll("[data-finsert]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const idx = +btn.dataset.finsert;
+      openEntityPicker((eid) => {
+        const inp = fieldBuilder.querySelector(`[data-fidx="${idx}"] [data-fk="value_template"]`);
+        const insert = `{state:${eid}|--}`;
+        inp.value = (inp.value || "") + (inp.value ? " " : "") + insert;
+        inp.dispatchEvent(new Event("input", { bubbles: true }));
+      }, "L'entite sera ajoutee comme {state:...|--}.");
     });
   });
 }
@@ -228,9 +545,12 @@ function renderFields() {
 document.getElementById("field-add").addEventListener("click", () => {
   fields.push({ name: "", value_template: "", inline: true });
   renderFields();
+  updatePreview();
 });
 
-// --- Chargement si edition ---
+// ============================================================
+// Chargement si edition
+// ============================================================
 async function loadExisting() {
   if (!NOTIF_ID) return;
   try {
@@ -238,21 +558,29 @@ async function loadExisting() {
     document.getElementById("page-title").textContent = `Modifier — ${n.title}`;
     for (const [key, val] of Object.entries(n)) {
       const el = form.elements[key];
-      if (!el) continue;
+      if (!el || el.type === "file") continue;
       if (el.type === "checkbox") el.checked = !!val;
-      else if (key === "color") el.value = "#" + val.toString(16).padStart(6, "0");
+      else if (key === "color") el.value = "#" + (val & 0xFFFFFF).toString(16).padStart(6, "0");
       else el.value = val ?? "";
     }
     buttons = n.buttons || [];
     fields = n.fields || [];
     renderButtons();
     renderFields();
+    // re-sync apercu apres l'injection des valeurs (les setters de .value
+    // ne declenchent pas d'evenement input)
+    updatePreview();
+    // re-sync le select de channel maintenant qu'on a l'ID
+    const sel = document.getElementById("channel-select");
+    if (sel && n.channel_id) sel.value = n.channel_id;
   } catch (e) {
     toast("Erreur chargement : " + e.message, "error");
   }
 }
 
-// --- Submit ---
+// ============================================================
+// Submit
+// ============================================================
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const fd = new FormData(form);
@@ -297,7 +625,15 @@ form.addEventListener("submit", async (e) => {
   }
 });
 
-bindPreview();
-loadExisting();
+// ============================================================
+// Boot
+// ============================================================
+async function boot() {
+  bindPreview();
+  // On attend les selects pour que loadExisting puisse les pre-selectionner.
+  await Promise.all([bindChannelSelect(), bindColorPresets()]);
+  await loadExisting();
+}
+boot();
 </script>
 {% endblock %}

@@ -124,3 +124,16 @@ class MonitoringBlockIn(BaseModel):
 class MonitoringBlock(MonitoringBlockIn):
     id: int
     message_id: Optional[str] = None
+
+
+# ==========================================================
+#  Settings (presets globaux)
+# ==========================================================
+class ColorPreset(BaseModel):
+    name: str = Field(..., max_length=64)
+    color: int = Field(..., ge=0, le=0xFFFFFF)
+
+
+class ChannelPreset(BaseModel):
+    name: str = Field(..., max_length=64)
+    channel_id: str = Field(..., max_length=32)

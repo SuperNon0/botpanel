@@ -86,6 +86,21 @@ async def _resolve_template(template: str) -> str:
 # ----------------------------------------------------------------------
 # Construction de l'embed
 # ----------------------------------------------------------------------
+_FR_MONTHS = [
+    "janvier", "fevrier", "mars", "avril", "mai", "juin",
+    "juillet", "aout", "septembre", "octobre", "novembre", "decembre",
+]
+
+
+def _format_fr_datetime(now: dt.datetime) -> str:
+    """Renvoie une date FR absolue : '28 avril 2026 a 14:05'.
+
+    On evite le rendu Discord auto ('aujourd'hui a ...') en n'utilisant
+    pas `embed.timestamp` mais en injectant la date directement dans le footer.
+    """
+    return f"{now.day} {_FR_MONTHS[now.month - 1]} {now.year} a {now:%H:%M}"
+
+
 async def build_embed(notif: Notification) -> discord.Embed:
     """Construit l'embed Discord d'une notification (resolution des placeholders incluse)."""
     description = await _resolve_template(notif.message)
@@ -97,10 +112,15 @@ async def build_embed(notif: Notification) -> discord.Embed:
     )
     if notif.icon_url:
         embed.set_thumbnail(url=notif.icon_url)
+
+    # Footer = footer texte + (optionnel) date absolue.
+    footer_parts: list[str] = []
     if notif.footer:
-        embed.set_footer(text=notif.footer)
+        footer_parts.append(notif.footer)
     if notif.show_timestamp:
-        embed.timestamp = dt.datetime.now(dt.timezone.utc)
+        footer_parts.append(_format_fr_datetime(dt.datetime.now()))
+    if footer_parts:
+        embed.set_footer(text=" \u00b7 ".join(footer_parts))
 
     # Fields custom (resolution des placeholders dans value)
     for fld in sorted(notif.fields, key=lambda f: (f.position, f.id or 0)):

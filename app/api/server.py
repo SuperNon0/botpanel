@@ -9,7 +9,16 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api.routes import ha_hook, notifications, slash_commands, monitoring, ha_proxy, web
+from app.api.routes import (
+    discord as discord_routes,
+    ha_hook,
+    ha_proxy,
+    monitoring,
+    notifications,
+    settings as settings_routes,
+    slash_commands,
+    web,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +40,8 @@ def create_app() -> FastAPI:
     app.include_router(slash_commands.router, prefix="/api/commands", tags=["commands"])
     app.include_router(monitoring.router, prefix="/api/monitoring", tags=["monitoring"])
     app.include_router(ha_proxy.router, prefix="/api/ha", tags=["ha"])
+    app.include_router(settings_routes.router, prefix="/api/settings", tags=["settings"])
+    app.include_router(discord_routes.router, prefix="/api/discord", tags=["discord"])
 
     # --- Site web (Jinja templates) ---
     app.include_router(web.router, tags=["web"])

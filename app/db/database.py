@@ -118,6 +118,17 @@ CREATE TABLE IF NOT EXISTS monitoring_blocks (
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- ==========================================================
+-- SETTINGS (key/value JSON)
+-- Stocke les preferences globales : presets de couleurs,
+-- presets de channels, etc.
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS settings (
+    key             TEXT PRIMARY KEY,
+    value_json      TEXT NOT NULL DEFAULT '[]',
+    updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 

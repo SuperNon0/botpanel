@@ -469,3 +469,179 @@ input[type="color"] {
   color: var(--muted);
   font-size: 0.8rem;
 }
+
+/* ---------- Guide repliable ---------- */
+.help-card {
+  border-color: rgba(232, 197, 71, 0.35);
+}
+.help-card > summary {
+  list-style: none;
+  cursor: pointer;
+  font-family: "DM Serif Display", serif;
+  font-size: 1.05rem;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  user-select: none;
+}
+.help-card > summary::-webkit-details-marker { display: none; }
+.help-card .help-arrow {
+  display: inline-block;
+  color: var(--accent2);
+  font-size: 1rem;
+  transition: transform 0.2s ease;
+}
+.help-card[open] .help-arrow { transform: rotate(90deg); }
+.help-card .help-body {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px dashed var(--border);
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--text);
+}
+.help-card .help-body h4 {
+  font-family: "DM Serif Display", serif;
+  color: var(--accent);
+  font-size: 0.95rem;
+  margin: 0.9rem 0 0.3rem;
+}
+.help-card .help-body h4:first-child { margin-top: 0; }
+.help-card .help-body p { margin-bottom: 0.4rem; }
+.help-card .help-body ul {
+  list-style: none;
+  margin: 0.3rem 0 0.5rem;
+  padding-left: 0.4rem;
+}
+.help-card .help-body ul li {
+  padding: 0.15rem 0;
+  border-left: 2px solid var(--border);
+  padding-left: 0.6rem;
+  margin-bottom: 0.2rem;
+}
+
+/* ---------- Toolbar markdown + boutons inline ---------- */
+.md-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.4rem;
+}
+.md-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.72rem;
+  padding: 0.32rem 0.55rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.md-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ---------- Couleur + preset cote a cote ---------- */
+.color-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* ---------- Preview enrichie ---------- */
+.embed-preview .embed-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.4rem;
+  margin-top: 0.6rem;
+}
+.embed-preview .embed-field { flex: 0 0 100%; }
+.embed-preview .embed-field.inline { flex: 1 1 30%; min-width: 120px; }
+.embed-preview .embed-field-name {
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.72rem;
+  margin-bottom: 0.15rem;
+}
+.embed-preview .embed-field-val {
+  color: #dbdee1;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+}
+.embed-preview .embed-footer-row {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0.6rem;
+}
+.embed-preview .embed-ts {
+  color: #949ba4;
+  font-size: 0.7rem;
+}
+.embed-preview .embed-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+}
+.embed-preview .d-btn {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #fff;
+  background: #5865f2;
+  padding: 0.32rem 0.65rem;
+  border-radius: 4px;
+}
+.embed-preview .d-btn-secondary { background: #4e5058; }
+
+/* ---------- Modal selecteur d'entite ---------- */
+.ent-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  z-index: 700;
+  padding: 1.2rem;
+  align-items: flex-start;
+  justify-content: center;
+}
+.ent-modal.open { display: flex; }
+.ent-modal-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  margin-top: 4vh;
+}
+.ent-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.7rem;
+}
+.ent-modal-list {
+  flex: 1;
+  overflow-y: auto;
+  margin-top: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.ent-item {
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.ent-item:last-child { border-bottom: none; }
+.ent-item:hover { background: rgba(232, 197, 71, 0.06); }
