@@ -170,8 +170,20 @@ async def _ha_entity_autocomplete(
         entities = await ha_client.list_entity_ids()
     except Exception:  # noqa: BLE001
         return []
-    q = (current or "").strip().lower()
 
+    # Filtre par domaine du service deja choisi (ex: light.turn_off -> light.*).
+    # `homeassistant.*` accepte n'importe quelle entite, donc on ne filtre pas.
+    service_value = getattr(interaction.namespace, "service", None)
+    domain_filter: str | None = None
+    if isinstance(service_value, str) and "." in service_value:
+        domain = service_value.split(".", 1)[0]
+        if domain and domain != "homeassistant":
+            domain_filter = domain
+
+    if domain_filter:
+        entities = [e for e in entities if e["entity_id"].startswith(f"{domain_filter}.")]
+
+    q = (current or "").strip().lower()
     matches = [
         e for e in entities
         if not q or q in e["entity_id"].lower() or q in (e.get("friendly_name") or "").lower()
