@@ -178,11 +178,9 @@ async def send_notification_object(notif: Notification) -> discord.Message | Non
         return None
 
     embed = await build_embed(notif)
-    # Une view persistante n'est possible que si la notif est en DB
-    # (les boutons sont identifies par notif.id + button.id).
-    view = build_notification_view(notif) if notif.id else None
+    view = build_notification_view(notif)  # gere aussi le mode preview
     try:
-        message = await channel.send(embed=embed, view=view) if view else await channel.send(embed=embed)
+        message = await channel.send(embed=embed, view=view)
     except discord.HTTPException as exc:
         logger.error("Echec envoi notification %s : %s", notif.slug, exc)
         await log_repo.add(

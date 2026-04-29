@@ -46,6 +46,10 @@ def _cid_custom(notif_id: int, button_id: int) -> str:
     return f"{CUSTOM_ID_PREFIX}:btn:{notif_id}:{button_id}"
 
 
+def _cid_preview(idx: int) -> str:
+    return f"{CUSTOM_ID_PREFIX}:preview:{idx}"
+
+
 DISCORD_STYLES: dict[str, discord.ButtonStyle] = {
     "primary": discord.ButtonStyle.primary,
     "secondary": discord.ButtonStyle.secondary,
@@ -58,17 +62,27 @@ DISCORD_STYLES: dict[str, discord.ButtonStyle] = {
 # View construite a l'envoi d'une notification
 # -----------------------------------------------------------------
 def build_notification_view(notif: Notification) -> View:
-    """Cree une View persistante avec les boutons configures."""
-    view = View(timeout=None)
+    """Cree une View persistante avec les boutons configures.
 
-    for btn in notif.buttons:
-        assert btn.id is not None, "button must be persisted"
+    Si la notif n'est pas persistee (notif.id falsy), on construit quand meme
+    les boutons mais avec des custom_id "preview" qui repondent "test, bouton
+    non actif" au clic. Pratique pour tester le rendu depuis l'editeur.
+    """
+    view = View(timeout=None)
+    is_preview = not notif.id
+
+    for idx, btn in enumerate(notif.buttons):
+        if is_preview:
+            cid = _cid_preview(idx)
+        else:
+            assert btn.id is not None, "button must be persisted"
+            cid = _cid_custom(notif.id, btn.id)
         view.add_item(
             Button(
                 style=DISCORD_STYLES.get(btn.style, discord.ButtonStyle.primary),
                 label=btn.label,
                 emoji=btn.emoji or None,
-                custom_id=_cid_custom(notif.id, btn.id),
+                custom_id=cid,
             )
         )
 
@@ -78,7 +92,7 @@ def build_notification_view(notif: Notification) -> View:
                 style=discord.ButtonStyle.secondary,
                 label=f"Snooze {notif.snooze_minutes}min",
                 emoji="\U0001f514",  # bell
-                custom_id=_cid_snooze(notif.id),
+                custom_id=_cid_preview(900) if is_preview else _cid_snooze(notif.id),
             )
         )
 
@@ -88,7 +102,7 @@ def build_notification_view(notif: Notification) -> View:
                 style=discord.ButtonStyle.danger,
                 label="Supprimer",
                 emoji="\U0001f5d1",  # wastebasket
-                custom_id=_cid_delete(notif.id),
+                custom_id=_cid_preview(901) if is_preview else _cid_delete(notif.id),
             )
         )
 
@@ -271,6 +285,12 @@ async def dispatch_interaction(interaction: discord.Interaction) -> bool:
     except ValueError:
         return False
 
+    if action == "preview":
+        await interaction.response.send_message(
+            "🧪 Bouton de **test** : non actif tant que la notification n'est pas enregistree.",
+            ephemeral=True,
+        )
+        return True
     if action == "del":
         await _handle_delete(interaction, notif_id)
         return True
