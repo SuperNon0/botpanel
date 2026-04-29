@@ -105,6 +105,28 @@ async def _execute_action(cmd: SlashCommand) -> None:
 # ----------------------------------------------------------------------
 # Commande generique /ha — appel libre de n'importe quel service HA
 # ----------------------------------------------------------------------
+# Discord cappe les autocompletes a 25 entrees -> on prefere afficher les
+# domaines les plus courants en tete quand le champ est vide, et trier
+# les correspondances par pertinence (prefixe puis substring).
+_PREFERRED_SERVICE_DOMAINS = [
+    "light", "switch", "script", "scene", "automation", "climate",
+    "media_player", "fan", "cover", "lock", "input_boolean", "input_select",
+    "vacuum", "notify", "homeassistant", "remote", "humidifier",
+]
+
+
+def _rank(value: str, query: str) -> int:
+    """Plus petit = plus pertinent."""
+    v = value.lower()
+    if not query:
+        return 0
+    if v.startswith(query):
+        return 0
+    if f".{query}" in v:
+        return 1
+    return 2
+
+
 async def _ha_service_autocomplete(
     interaction: discord.Interaction, current: str
 ) -> list[app_commands.Choice[str]]:
@@ -112,9 +134,29 @@ async def _ha_service_autocomplete(
         services = await ha_client.list_services_flat()
     except Exception:  # noqa: BLE001
         return []
-    q = (current or "").lower()
-    matches = [s for s in services if not q or q in s["service"].lower()]
-    # Discord limite a 25 choix
+
+    q = (current or "").strip().lower()
+
+    if not q:
+        # Aucune saisie : on ramene en tete les domaines courants
+        head: list[dict] = []
+        seen: set[str] = set()
+        for domain in _PREFERRED_SERVICE_DOMAINS:
+            for s in services:
+                svc = s["service"]
+                if svc.startswith(f"{domain}.") and svc not in seen:
+                    head.append(s)
+                    seen.add(svc)
+        # Complete avec les autres
+        rest = [s for s in services if s["service"] not in seen]
+        ordered = head + rest
+        return [
+            app_commands.Choice(name=s["service"][:100], value=s["service"][:100])
+            for s in ordered[:25]
+        ]
+
+    matches = [s for s in services if q in s["service"].lower()]
+    matches.sort(key=lambda s: (_rank(s["service"], q), s["service"]))
     return [
         app_commands.Choice(name=s["service"][:100], value=s["service"][:100])
         for s in matches[:25]
@@ -128,11 +170,18 @@ async def _ha_entity_autocomplete(
         entities = await ha_client.list_entity_ids()
     except Exception:  # noqa: BLE001
         return []
-    q = (current or "").lower()
+    q = (current or "").strip().lower()
+
     matches = [
         e for e in entities
-        if not q or q in e["entity_id"].lower() or q in e["friendly_name"].lower()
+        if not q or q in e["entity_id"].lower() or q in (e.get("friendly_name") or "").lower()
     ]
+    if q:
+        matches.sort(key=lambda e: (
+            _rank(e["entity_id"], q),
+            _rank((e.get("friendly_name") or "").lower(), q),
+            e["entity_id"],
+        ))
     return [
         app_commands.Choice(
             name=f"{e['friendly_name']} ({e['entity_id']})"[:100],
