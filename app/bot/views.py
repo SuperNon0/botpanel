@@ -17,7 +17,7 @@ import discord
 from discord.ui import Button, View
 
 from app.db.models import Notification, NotificationButton
-from app.db.repositories import NotificationRepository
+from app.db.repositories import LogRepository, NotificationRepository
 from app.ha import ha_client
 
 logger = logging.getLogger(__name__)
@@ -111,14 +111,42 @@ class PersistentDispatcher(View):
         super().__init__(timeout=None)
 
 
+async def _log_click(
+    interaction: discord.Interaction,
+    *,
+    notif_id: int,
+    kind: str,
+    button_label: str,
+    detail: str | None = None,
+    success: bool = True,
+) -> None:
+    user = interaction.user
+    await LogRepository().add(
+        kind=kind,
+        notification_id=notif_id,
+        channel_id=str(interaction.channel_id) if interaction.channel_id else None,
+        message_id=str(interaction.message.id) if interaction.message else None,
+        user_id=str(user.id) if user else None,
+        user_name=str(user) if user else None,
+        button_label=button_label,
+        detail=detail,
+        success=success,
+    )
+
+
 async def _handle_delete(interaction: discord.Interaction, notif_id: int) -> None:
     if interaction.message is None:
         await interaction.response.send_message("Message introuvable.", ephemeral=True)
         return
     try:
         await interaction.message.delete()
+        await _log_click(interaction, notif_id=notif_id, kind="delete", button_label="Supprimer")
     except discord.HTTPException as exc:
         logger.error("Echec suppression message : %s", exc)
+        await _log_click(
+            interaction, notif_id=notif_id, kind="delete",
+            button_label="Supprimer", detail=str(exc)[:200], success=False,
+        )
         await interaction.response.send_message(
             "Impossible de supprimer le message.", ephemeral=True
         )
@@ -145,6 +173,11 @@ async def _handle_snooze(interaction: discord.Interaction, notif_id: int) -> Non
     await interaction.response.send_message(
         f"Snooze : je te repingue dans {notif.snooze_minutes} min.",
         ephemeral=True,
+    )
+    await _log_click(
+        interaction, notif_id=notif_id, kind="snooze",
+        button_label=f"Snooze {notif.snooze_minutes}min",
+        detail=f"Re-envoi dans {notif.snooze_minutes} min",
     )
 
     async def _resend() -> None:
@@ -198,11 +231,20 @@ async def _handle_custom_button(
         await ha_client.call_service(domain, srv, data)
     except Exception as exc:  # HomeAssistantError remonte ici
         logger.error("Erreur appel HA depuis bouton : %s", exc)
+        await _log_click(
+            interaction, notif_id=notif_id, kind="button",
+            button_label=target.label,
+            detail=f"{service} -> {exc}"[:300], success=False,
+        )
         await interaction.followup.send(
             f"\u274c Erreur : {exc}", ephemeral=True
         )
         return
 
+    await _log_click(
+        interaction, notif_id=notif_id, kind="button",
+        button_label=target.label, detail=service,
+    )
     await interaction.followup.send(
         f"\u2705 {target.label} execute.", ephemeral=True
     )

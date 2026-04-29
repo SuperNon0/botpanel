@@ -64,3 +64,43 @@ async def test_notification(notif_id: int) -> dict[str, str]:
     if msg is None:
         raise HTTPException(500, "Echec d'envoi (voir logs)")
     return {"status": "sent", "message_id": str(msg.id)}
+
+
+@router.post("/preview", status_code=202)
+async def preview_notification(payload: NotificationIn) -> dict[str, str]:
+    """Envoie une notification non persistee pour test depuis l'editeur.
+
+    Les boutons custom sont ignores (ils requierent un ID persistant).
+    """
+    from app.bot.notifications import send_notification_object
+
+    # On construit une Notification avec id=0 (sentinel "ephemere")
+    ephemeral = Notification(id=0, **payload.model_dump())
+    msg = await send_notification_object(ephemeral)
+    if msg is None:
+        raise HTTPException(500, "Echec d'envoi (voir logs)")
+    return {"status": "sent", "message_id": str(msg.id)}
+
+
+@router.post("/{notif_id}/duplicate", response_model=Notification, status_code=201)
+async def duplicate_notification(notif_id: int) -> Notification:
+    """Duplique une notification existante (slug `<original>_copy`).
+
+    Si le slug `_copy` existe deja, on incremente : `_copy2`, `_copy3`, ...
+    """
+    src = await repo.get_by_id(notif_id)
+    if src is None:
+        raise HTTPException(404, "Notification introuvable")
+
+    # Trouve un slug libre
+    base = f"{src.slug}_copy"
+    slug = base
+    n = 2
+    while await repo.get_by_slug(slug) is not None:
+        slug = f"{base}{n}"
+        n += 1
+
+    payload = NotificationIn(
+        **{**src.model_dump(exclude={"id"}), "slug": slug, "title": f"{src.title} (copie)"}
+    )
+    return await repo.create(payload)

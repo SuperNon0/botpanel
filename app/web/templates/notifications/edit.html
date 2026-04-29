@@ -175,8 +175,9 @@
     <button type="button" class="btn btn-secondary" id="field-add" style="margin-top: 0.8rem;">+ Ajouter un champ</button>
   </div>
 
-  <div style="display:flex; gap:0.7rem; justify-content:flex-end;">
+  <div style="display:flex; gap:0.7rem; justify-content:flex-end; flex-wrap:wrap;">
     <a href="/notifications" class="btn btn-secondary">Annuler</a>
+    <button type="button" class="btn btn-purple" id="btn-test-now">Tester maintenant</button>
     <button type="submit" class="btn btn-primary">Enregistrer</button>
   </div>
 </form>
@@ -579,12 +580,11 @@ async function loadExisting() {
 }
 
 // ============================================================
-// Submit
+// Submit / Test
 // ============================================================
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
+function buildPayload() {
   const fd = new FormData(form);
-  const payload = {
+  return {
     slug: fd.get("slug"),
     channel_id: fd.get("channel_id"),
     title: fd.get("title"),
@@ -612,6 +612,11 @@ form.addEventListener("submit", async (e) => {
       inline: f.inline !== false,
     })),
   };
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const payload = buildPayload();
   try {
     if (NOTIF_ID) {
       await API.put(`/notifications/${NOTIF_ID}`, payload);
@@ -620,6 +625,21 @@ form.addEventListener("submit", async (e) => {
     }
     toast("Enregistre !");
     setTimeout(() => { window.location.href = "/notifications"; }, 600);
+  } catch (err) {
+    toast(err.message, "error");
+  }
+});
+
+document.getElementById("btn-test-now").addEventListener("click", async () => {
+  // Validation minimale (sans soumettre le form)
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
+  const payload = buildPayload();
+  try {
+    await API.post("/notifications/preview", payload);
+    toast("Test envoye sur Discord");
   } catch (err) {
     toast(err.message, "error");
   }

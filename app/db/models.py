@@ -137,3 +137,21 @@ class ColorPreset(BaseModel):
 class ChannelPreset(BaseModel):
     name: str = Field(..., max_length=64)
     channel_id: str = Field(..., max_length=32)
+
+
+# ==========================================================
+#  Historique
+# ==========================================================
+class NotificationLog(BaseModel):
+    id: int
+    notification_id: Optional[int] = None
+    notification_slug: Optional[str] = None
+    channel_id: Optional[str] = None
+    message_id: Optional[str] = None
+    kind: str
+    user_id: Optional[str] = None
+    user_name: Optional[str] = None
+    button_label: Optional[str] = None
+    detail: Optional[str] = None
+    success: bool = True
+    created_at: str

@@ -13,6 +13,7 @@ from app.api.routes import (
     discord as discord_routes,
     ha_hook,
     ha_proxy,
+    logs,
     monitoring,
     notifications,
     settings as settings_routes,
@@ -42,6 +43,7 @@ def create_app() -> FastAPI:
     app.include_router(ha_proxy.router, prefix="/api/ha", tags=["ha"])
     app.include_router(settings_routes.router, prefix="/api/settings", tags=["settings"])
     app.include_router(discord_routes.router, prefix="/api/discord", tags=["discord"])
+    app.include_router(logs.router, prefix="/api/logs", tags=["logs"])
 
     # --- Site web (Jinja templates) ---
     app.include_router(web.router, tags=["web"])

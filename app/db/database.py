@@ -129,6 +129,31 @@ CREATE TABLE IF NOT EXISTS settings (
     value_json      TEXT NOT NULL DEFAULT '[]',
     updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- ==========================================================
+-- HISTORIQUE
+-- Log des notifications envoyees et des clics sur les boutons.
+-- kind = 'send' | 'button' | 'snooze' | 'delete'
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS notification_logs (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    notification_id INTEGER,                          -- nullable (notif supprimee)
+    notification_slug TEXT,
+    channel_id      TEXT,
+    message_id      TEXT,
+    kind            TEXT NOT NULL,                    -- send / button / snooze / delete
+    user_id         TEXT,                             -- pour les clics
+    user_name       TEXT,
+    button_label    TEXT,
+    detail          TEXT,                             -- libre (service appele, erreur, ...)
+    success         INTEGER NOT NULL DEFAULT 1,       -- 0 si erreur
+    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_logs_notif
+    ON notification_logs(notification_id);
+CREATE INDEX IF NOT EXISTS idx_logs_kind_created
+    ON notification_logs(kind, created_at);
 """
 
 

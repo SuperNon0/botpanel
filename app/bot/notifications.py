@@ -12,7 +12,7 @@ from app.bot.client import bot
 from app.bot.views import build_notification_view
 from app.config import settings
 from app.db.models import Notification
-from app.db.repositories import NotificationRepository
+from app.db.repositories import LogRepository, NotificationRepository
 from app.ha import ha_client
 
 logger = logging.getLogger(__name__)
@@ -154,19 +154,59 @@ async def send_notification(slug: str) -> discord.Message | None:
     if notif is None:
         logger.warning("Notification inconnue : %s", slug)
         return None
+    return await send_notification_object(notif)
 
+
+async def send_notification_object(notif: Notification) -> discord.Message | None:
+    """Envoie une notification (deja chargee) dans son channel Discord.
+
+    Sert au test depuis l'editeur (notif non persistee) et a l'envoi normal.
+    """
     channel_id = notif.channel_id or str(settings.discord_default_channel_id)
     channel = await _resolve_channel(channel_id)
+    log_repo = LogRepository()
+
     if channel is None:
+        await log_repo.add(
+            kind="send",
+            notification_id=notif.id or None,
+            notification_slug=notif.slug,
+            channel_id=channel_id,
+            success=False,
+            detail=f"Channel {channel_id} introuvable",
+        )
         return None
 
     embed = await build_embed(notif)
-    view = build_notification_view(notif)
+    # Une view persistante n'est possible que si la notif est en DB
+    # (les boutons sont identifies par notif.id + button.id).
+    view = build_notification_view(notif) if notif.id else None
     try:
-        message = await channel.send(embed=embed, view=view)
+        message = await channel.send(embed=embed, view=view) if view else await channel.send(embed=embed)
     except discord.HTTPException as exc:
-        logger.error("Echec envoi notification %s : %s", slug, exc)
+        logger.error("Echec envoi notification %s : %s", notif.slug, exc)
+        await log_repo.add(
+            kind="send",
+            notification_id=notif.id or None,
+            notification_slug=notif.slug,
+            channel_id=channel_id,
+            success=False,
+            detail=str(exc)[:300],
+        )
         return None
 
-    logger.info("Notification '%s' envoyee dans #%s (msg=%s)", slug, channel_id, message.id)
+    logger.info(
+        "Notification '%s' envoyee dans #%s (msg=%s)%s",
+        notif.slug, channel_id, message.id,
+        "" if notif.id else " [test ephemere]",
+    )
+    await log_repo.add(
+        kind="send",
+        notification_id=notif.id or None,
+        notification_slug=notif.slug,
+        channel_id=channel_id,
+        message_id=str(message.id),
+        success=True,
+        detail="ephemere (test)" if not notif.id else None,
+    )
     return message

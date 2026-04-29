@@ -88,3 +88,10 @@ async def page_settings(request: Request):
     return templates.TemplateResponse(
         "settings/index.html", {"request": request, "active_page": "settings"}
     )
+
+
+@router.get("/historique", response_class=HTMLResponse)
+async def page_history(request: Request):
+    return templates.TemplateResponse(
+        "history/index.html", {"request": request, "active_page": "historique"}
+    )

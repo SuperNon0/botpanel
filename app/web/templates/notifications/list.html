@@ -44,6 +44,7 @@ async function loadNotifications() {
         <div class="row-actions">
           <button class="btn btn-purple btn-small" data-test="${n.id}">TESTER</button>
           <a class="btn btn-edit btn-small" href="/notifications/${n.id}">EDITER</a>
+          <button class="btn btn-secondary btn-small" data-dup="${n.id}">CLONER</button>
           <button class="btn btn-danger btn-small" data-del="${n.id}">SUPPR</button>
         </div>
       </div>
@@ -65,6 +66,17 @@ async function loadNotifications() {
         try {
           await API.post(`/notifications/${btn.dataset.test}/test`);
           toast("Notification envoyee !");
+        } catch (e) { toast(e.message, "error"); }
+      });
+    });
+
+    list.querySelectorAll("[data-dup]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        try {
+          const copy = await API.post(`/notifications/${btn.dataset.dup}/duplicate`);
+          toast("Notification clonee");
+          // Redirige vers l'editeur pour ajuster slug/contenu
+          window.location.href = `/notifications/${copy.id}`;
         } catch (e) { toast(e.message, "error"); }
       });
     });
