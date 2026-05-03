@@ -265,7 +265,6 @@ def _build_clear_command() -> app_commands.Command:
 
     @app_commands.command(name="clear", description="Supprime les N derniers messages du channel courant")
     @app_commands.describe(count="Nombre de messages a supprimer (1-1000)")
-    @app_commands.default_permissions(manage_messages=True)
     async def _clear(interaction: discord.Interaction, count: app_commands.Range[int, 1, 1000]) -> None:
         channel = interaction.channel
         if channel is None or not isinstance(channel, discord.TextChannel):
@@ -274,18 +273,26 @@ def _build_clear_command() -> app_commands.Command:
             )
             return
 
-        # Verifie les permissions du bot
+        # Permission cote utilisateur
+        member = interaction.user
+        if isinstance(member, discord.Member) and not channel.permissions_for(member).manage_messages:
+            await interaction.response.send_message(
+                "❌ Tu as besoin de la permission `Manage Messages` pour utiliser cette commande.",
+                ephemeral=True,
+            )
+            return
+
+        # Permission cote bot
         me = channel.guild.me if channel.guild else None
         if me and not channel.permissions_for(me).manage_messages:
             await interaction.response.send_message(
-                "❌ Permission manquante : le bot a besoin de `Manage Messages`.",
+                "❌ Le bot n'a pas la permission `Manage Messages` sur ce channel. "
+                "Ajoute-la dans Server Settings > Roles ou re-invite le bot.",
                 ephemeral=True,
             )
             return
 
         await interaction.response.defer(ephemeral=True, thinking=True)
-        # `purge` peut etre lent : Discord limite le bulk delete a 100 par appel
-        # et refuse les messages > 14 jours (purge se rabat sur du delete unitaire).
         try:
             deleted = await channel.purge(limit=count, reason=f"/clear par {interaction.user}")
         except discord.HTTPException as exc:
@@ -341,6 +348,10 @@ async def sync_slash_commands(bot_: discord.Client) -> None:
 
     try:
         synced = await tree.sync(guild=guild)
-        logger.info("%d commandes slash synchronisees sur la guild %s", len(synced), settings.discord_guild_id)
+        names = ", ".join(c.name for c in synced) or "(aucune)"
+        logger.info(
+            "%d commandes slash synchronisees sur la guild %s : %s",
+            len(synced), settings.discord_guild_id, names,
+        )
     except discord.HTTPException as exc:
         logger.error("Echec sync slash commands : %s", exc)
