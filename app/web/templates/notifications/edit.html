@@ -34,14 +34,26 @@
     <h4>Champs (fields) &mdash; placeholders Home Assistant</h4>
     <p>Les fields sont affiches en grille dans l'embed (un par carre quand
        <em>"En grille"</em> est coche, sinon une ligne pleine).</p>
-    <p>Dans la <strong>valeur</strong> tu peux melanger du texte et des placeholders qui seront
-       remplaces a l'envoi par les etats Home Assistant :</p>
+    <p>Dans le <strong>message</strong> ou la <strong>valeur d'un field</strong>, deux syntaxes
+       sont supportees, melangeables :</p>
+
+    <p><strong>Syntaxe BotPanel</strong> (rapide, pas de round-trip) :</p>
     <ul>
       <li><code>{state:sensor.temp}</code> &mdash; etat brut</li>
       <li><code>{state:sensor.temp|--}</code> &mdash; avec fallback si HA est down</li>
       <li><code>{attr:sensor.temp:friendly_name}</code> &mdash; un attribut precis</li>
       <li><code>{unit:sensor.temp}</code> &mdash; l'unite (ex. <em>&deg;C</em>)</li>
     </ul>
+
+    <p><strong>Syntaxe Jinja Home Assistant</strong> (toute la puissance HA) :</p>
+    {% raw %}
+    <ul>
+      <li><code>{{ states('sensor.temp') }}</code></li>
+      <li><code>{{ state_attr('sensor.x', 'attr') }}</code></li>
+      <li><code>{% if states('binary_sensor.porte') == 'on' %}ouverte{% else %}fermee{% endif %}</code></li>
+    </ul>
+    {% endraw %}
+
     <p>Exemple : <code>{state:sensor.temp_salon} {unit:sensor.temp_salon}</code> affichera
        <em>21.5 &deg;C</em>. Tu peux utiliser <strong>"Inserer une entite"</strong> sous le
        message ou la valeur d'un field pour piocher une entite directement.</p>

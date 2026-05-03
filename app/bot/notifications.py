@@ -42,45 +42,67 @@ PLACEHOLDER_RE = re.compile(
 
 
 async def _resolve_template(template: str) -> str:
-    """Remplace les placeholders {state:..} etc. dans une string."""
+    """Remplace les placeholders dans une string.
+
+    Deux syntaxes supportees :
+      1. Syntaxe BotPanel (rapide, no round-trip si pas utilisee) :
+         {state:sensor.x}  {state:sensor.x|--}
+         {attr:sensor.x:friendly_name}  {unit:sensor.x}
+      2. Syntaxe Jinja Home Assistant (envoyee a /api/template) :
+         {{ states('sensor.x') }}
+         {{ state_attr('sensor.x', 'attr') }}
+         {% if ... %}...{% endif %}
+
+    Si les deux sont presentes : on resout d'abord les placeholders BotPanel,
+    puis on envoie le resultat a HA pour rendre le Jinja restant.
+    """
     if not template or "{" not in template:
         return template
 
-    # On collecte d'abord toutes les entites a fetch (dedoublonne)
-    entities: dict[str, dict | None] = {}
-    for match in PLACEHOLDER_RE.finditer(template):
-        entity_id = match.group(2)
-        if entity_id not in entities:
-            entities[entity_id] = None  # placeholder
+    # 1) Resolution des placeholders BotPanel (rapide, fetch en local)
+    if PLACEHOLDER_RE.search(template):
+        entities: dict[str, dict | None] = {}
+        for match in PLACEHOLDER_RE.finditer(template):
+            entity_id = match.group(2)
+            if entity_id not in entities:
+                entities[entity_id] = None
 
-    # Fetch en parallele aurait ete plus rapide, mais on garde simple ici.
-    for entity_id in entities:
-        try:
-            entities[entity_id] = await ha_client.get_state(entity_id)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("HA get_state(%s) a echoue : %s", entity_id, exc)
-            entities[entity_id] = None
+        for entity_id in entities:
+            try:
+                entities[entity_id] = await ha_client.get_state(entity_id)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("HA get_state(%s) a echoue : %s", entity_id, exc)
+                entities[entity_id] = None
 
-    def replace(match: re.Match) -> str:
-        kind = match.group(1)
-        entity_id = match.group(2)
-        attr = match.group(3)
-        fallback = match.group(4) if match.group(4) is not None else "?"
-        state = entities.get(entity_id)
-        if state is None:
-            return fallback
-        if kind == "state":
-            return str(state.get("state", fallback))
-        if kind == "unit":
-            return str(state.get("attributes", {}).get("unit_of_measurement", fallback))
-        if kind == "attr":
-            if not attr:
+        def replace(match: re.Match) -> str:
+            kind = match.group(1)
+            entity_id = match.group(2)
+            attr = match.group(3)
+            fallback = match.group(4) if match.group(4) is not None else "?"
+            state = entities.get(entity_id)
+            if state is None:
                 return fallback
-            value = state.get("attributes", {}).get(attr)
-            return str(value) if value is not None else fallback
-        return fallback
+            if kind == "state":
+                return str(state.get("state", fallback))
+            if kind == "unit":
+                return str(state.get("attributes", {}).get("unit_of_measurement", fallback))
+            if kind == "attr":
+                if not attr:
+                    return fallback
+                value = state.get("attributes", {}).get(attr)
+                return str(value) if value is not None else fallback
+            return fallback
 
-    return PLACEHOLDER_RE.sub(replace, template)
+        template = PLACEHOLDER_RE.sub(replace, template)
+
+    # 2) Si la string contient encore du Jinja HA, on demande a HA de la rendre.
+    if "{{" in template or "{%" in template:
+        try:
+            template = await ha_client.render_template(template)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Rendu Jinja HA echoue : %s", exc)
+
+    return template
 
 
 # ----------------------------------------------------------------------
