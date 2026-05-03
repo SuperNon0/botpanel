@@ -688,3 +688,58 @@ input[type="color"] {
 }
 .ent-item:last-child { border-bottom: none; }
 .ent-item:hover { background: rgba(232, 197, 71, 0.06); }
+
+/* ---------- Progress bar ---------- */
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progress-bar-inner {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent2), var(--accent));
+  transition: width 0.4s ease;
+}
+
+/* ---------- Emoji picker ---------- */
+.emoji-grid {
+  flex: 1;
+  overflow-y: auto;
+  margin-top: 0.6rem;
+  padding: 0.4rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.emoji-group-name {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  margin: 0.6rem 0 0.3rem;
+}
+.emoji-group-name:first-child { margin-top: 0; }
+.emoji-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+  gap: 0.2rem;
+}
+.emoji-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0.3rem 0;
+  color: var(--text);
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.emoji-btn:hover {
+  background: rgba(232, 197, 71, 0.08);
+  border-color: var(--accent);
+}

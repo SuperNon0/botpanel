@@ -15,6 +15,7 @@
     <option value="button">Clics boutons</option>
     <option value="snooze">Snooze</option>
     <option value="delete">Suppressions</option>
+    <option value="monitoring">Monitoring</option>
   </select>
   <select class="form-select" id="filter-limit" style="flex:0 0 140px;">
     <option value="100">100 dernieres</option>
@@ -35,10 +36,11 @@
 {% block scripts %}
 <script>
 const KIND_TAG = {
-  send:   { label: "ENVOI",   cls: "tag-purple" },
-  button: { label: "BOUTON",  cls: "tag-yellow" },
-  snooze: { label: "SNOOZE",  cls: "tag-orange" },
-  delete: { label: "DELETE",  cls: "tag-red" },
+  send:       { label: "ENVOI",      cls: "tag-purple" },
+  button:     { label: "BOUTON",     cls: "tag-yellow" },
+  snooze:     { label: "SNOOZE",     cls: "tag-orange" },
+  delete:     { label: "DELETE",     cls: "tag-red" },
+  monitoring: { label: "MONITORING", cls: "tag-green" },
 };
 
 function fmtDate(s) {

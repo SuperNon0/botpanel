@@ -18,6 +18,7 @@ from app.api.routes import (
     notifications,
     settings as settings_routes,
     slash_commands,
+    system as system_routes,
     web,
 )
 
@@ -44,6 +45,7 @@ def create_app() -> FastAPI:
     app.include_router(settings_routes.router, prefix="/api/settings", tags=["settings"])
     app.include_router(discord_routes.router, prefix="/api/discord", tags=["discord"])
     app.include_router(logs.router, prefix="/api/logs", tags=["logs"])
+    app.include_router(system_routes.router, prefix="/api/system", tags=["system"])
 
     # --- Site web (Jinja templates) ---
     app.include_router(web.router, tags=["web"])

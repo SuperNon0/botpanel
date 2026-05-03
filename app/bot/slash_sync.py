@@ -260,6 +260,47 @@ def _build_generic_ha_command() -> app_commands.Command:
     return _generic_ha_command
 
 
+def _build_clear_command() -> app_commands.Command:
+    """Factory : commande /clear count:<n> pour purger un channel."""
+
+    @app_commands.command(name="clear", description="Supprime les N derniers messages du channel courant")
+    @app_commands.describe(count="Nombre de messages a supprimer (1-1000)")
+    @app_commands.default_permissions(manage_messages=True)
+    async def _clear(interaction: discord.Interaction, count: app_commands.Range[int, 1, 1000]) -> None:
+        channel = interaction.channel
+        if channel is None or not isinstance(channel, discord.TextChannel):
+            await interaction.response.send_message(
+                "❌ Cette commande ne marche que dans un channel texte.", ephemeral=True
+            )
+            return
+
+        # Verifie les permissions du bot
+        me = channel.guild.me if channel.guild else None
+        if me and not channel.permissions_for(me).manage_messages:
+            await interaction.response.send_message(
+                "❌ Permission manquante : le bot a besoin de `Manage Messages`.",
+                ephemeral=True,
+            )
+            return
+
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        # `purge` peut etre lent : Discord limite le bulk delete a 100 par appel
+        # et refuse les messages > 14 jours (purge se rabat sur du delete unitaire).
+        try:
+            deleted = await channel.purge(limit=count, reason=f"/clear par {interaction.user}")
+        except discord.HTTPException as exc:
+            await interaction.followup.send(
+                f"❌ Erreur lors de la suppression : {exc}", ephemeral=True
+            )
+            return
+
+        await interaction.followup.send(
+            f"🧹 {len(deleted)} message(s) supprime(s).", ephemeral=True
+        )
+
+    return _clear
+
+
 async def sync_slash_commands(bot_: discord.Client) -> None:
     """(Re)construit et pousse toutes les slash commands vers Discord.
 
@@ -272,19 +313,21 @@ async def sync_slash_commands(bot_: discord.Client) -> None:
     # Reset des commandes de la guild
     tree.clear_commands(guild=guild)
 
-    # 1) Commande generique /ha (toujours presente)
-    try:
-        tree.add_command(_build_generic_ha_command(), guild=guild)
-    except app_commands.CommandAlreadyRegistered:
-        logger.warning("Commande /ha deja enregistree")
+    # 1) Commandes generiques (toujours presentes)
+    for builder in (_build_generic_ha_command, _build_clear_command):
+        try:
+            tree.add_command(builder(), guild=guild)
+        except app_commands.CommandAlreadyRegistered as exc:
+            logger.warning("Commande generique deja enregistree : %s", exc)
 
     # 2) Commandes dynamiques de la DB
     repo = SlashCommandRepository()
     commands = await repo.list_all(only_enabled=True)
 
+    RESERVED = {"ha", "clear"}
     for cmd in commands:
-        if cmd.name == "ha":
-            logger.warning("Commande DB ignoree (nom reserve) : ha")
+        if cmd.name in RESERVED:
+            logger.warning("Commande DB ignoree (nom reserve) : %s", cmd.name)
             continue
         dynamic_cmd = app_commands.Command(
             name=cmd.name,

@@ -112,6 +112,7 @@
         <button type="button" class="md-btn" data-wrap="__" title="Souligne"><u>U</u></button>
         <button type="button" class="md-btn" data-wrap="~~" title="Barre"><s>S</s></button>
         <button type="button" class="md-btn" data-wrap="`" title="Code">&lt;/&gt;</button>
+        <button type="button" class="md-btn" id="msg-insert-emoji" title="Inserer un emoji">😀</button>
         <button type="button" class="md-btn" id="msg-insert-entity" title="Inserer une entite HA">+ entite</button>
       </div>
       <textarea class="form-textarea" name="message" required maxlength="4000" id="f-message"></textarea>
@@ -310,6 +311,10 @@ entList.addEventListener("click", (e) => {
   if (!item || !entOnPick) return;
   entOnPick(item.dataset.eid);
   closeEntityPicker();
+});
+
+document.getElementById("msg-insert-emoji").addEventListener("click", () => {
+  openEmojiPicker((e) => insertAtCursor(document.getElementById("f-message"), e));
 });
 
 document.getElementById("msg-insert-entity").addEventListener("click", () => {

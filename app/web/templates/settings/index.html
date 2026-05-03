@@ -6,6 +6,21 @@
   <h2>Parametres</h2>
 </div>
 
+<div class="card" id="update-card">
+  <h3>Mise a jour</h3>
+  <div id="update-info" class="hint">Chargement des infos...</div>
+  <div id="update-progress-wrap" style="display:none; margin-top:0.8rem;">
+    <div class="progress-bar"><div class="progress-bar-inner" id="update-progress"></div></div>
+    <div class="form-hint" id="update-step" style="margin-top:0.4rem;">Initialisation...</div>
+  </div>
+  <pre id="update-log" style="display:none; max-height:240px; overflow:auto; background:var(--bg);
+       border:1px solid var(--border); padding:0.7rem; border-radius:8px; font-size:0.7rem;
+       margin-top:0.7rem; white-space:pre-wrap;"></pre>
+  <div style="display:flex; gap:0.7rem; justify-content:flex-end; margin-top:1rem;">
+    <button type="button" class="btn btn-purple" id="btn-update">Mettre a jour</button>
+  </div>
+</div>
+
 <div class="card">
   <h3>Couleurs preconfigurees</h3>
   <p class="hint">
@@ -139,6 +154,105 @@ document.getElementById("channels-save").addEventListener("click", async () => {
   } catch (e) { toast(e.message, "error"); }
 });
 
+// ============================================================
+// Mise a jour systeme
+// ============================================================
+async function loadSystemInfo() {
+  try {
+    const i = await API.get("/system/info");
+    const where = `<code>${esc(i.install_dir)}</code>`;
+    if (i.is_git) {
+      document.getElementById("update-info").innerHTML =
+        `Branche <code>${esc(i.branch || "?")}</code> &middot; commit <code>${esc(i.commit || "?")}</code> &middot; ${where}`;
+    } else {
+      document.getElementById("update-info").textContent =
+        `Pas un depot git : ${i.install_dir}. Mise a jour automatique impossible.`;
+      document.getElementById("btn-update").disabled = true;
+    }
+  } catch (e) {
+    document.getElementById("update-info").textContent = "Erreur : " + e.message;
+  }
+}
+
+function setProgress(pct, step) {
+  document.getElementById("update-progress-wrap").style.display = "block";
+  document.getElementById("update-progress").style.width = pct + "%";
+  if (step) document.getElementById("update-step").textContent = step;
+}
+
+function appendLog(text) {
+  const el = document.getElementById("update-log");
+  el.style.display = "block";
+  el.textContent += text;
+  el.scrollTop = el.scrollHeight;
+}
+
+async function waitForRestart() {
+  // Pendant le restart, /api/system/info devient injoignable puis revient.
+  setProgress(70, "Redemarrage du service...");
+  // Attente initiale pour laisser le temps au process de se kill
+  await new Promise(r => setTimeout(r, 2500));
+
+  const start = Date.now();
+  let pct = 70;
+  while (Date.now() - start < 60000) {  // 60s max
+    try {
+      const r = await fetch("/api/system/info", { cache: "no-store" });
+      if (r.ok) {
+        setProgress(100, "OK ! Rechargement de la page...");
+        await new Promise(r => setTimeout(r, 800));
+        location.reload();
+        return;
+      }
+    } catch { /* still down */ }
+    pct = Math.min(95, pct + 1);
+    setProgress(pct, "En attente du retour du service...");
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  setProgress(100, "Le service ne repond pas. Verifie les logs (journalctl -u botpanel).");
+  toast("Restart timeout", "error");
+}
+
+document.getElementById("btn-update").addEventListener("click", async () => {
+  if (!confirm("Lancer git pull ? Le bot sera redemarre apres.")) return;
+  const btn = document.getElementById("btn-update");
+  btn.disabled = true;
+  document.getElementById("update-log").textContent = "";
+  setProgress(10, "git fetch...");
+
+  let result;
+  try {
+    result = await API.post("/system/update");
+  } catch (e) {
+    appendLog("Erreur : " + e.message);
+    setProgress(100, "Echec");
+    btn.disabled = false;
+    return;
+  }
+  setProgress(40, "git pull...");
+  appendLog(`$ ${result.fetch?.command || "git fetch"}\n`);
+  appendLog((result.fetch?.stdout || "") + (result.fetch?.stderr || "") + "\n");
+  appendLog(`$ ${result.pull?.command || "git pull"}\n`);
+  appendLog((result.pull?.stdout || "") + (result.pull?.stderr || "") + "\n");
+
+  if (!result.ok) {
+    setProgress(100, "Echec du git pull (voir log)");
+    btn.disabled = false;
+    return;
+  }
+
+  setProgress(60, "Redemarrage demande...");
+  try {
+    await API.post("/system/restart");
+  } catch (e) {
+    appendLog("\nRestart KO : " + e.message + "\nRedemarre manuellement avec : sudo systemctl restart botpanel");
+    setProgress(100, "Redemarrage echoue");
+    btn.disabled = false;
+    return;
+  }
+  await waitForRestart();
+});
+
 async function loadAll() {
   try {
     colors = await API.get("/settings/colors");
@@ -182,6 +296,7 @@ async function loadAll() {
   }
 }
 
+loadSystemInfo();
 loadAll();
 </script>
 {% endblock %}
