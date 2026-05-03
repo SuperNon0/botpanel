@@ -7,50 +7,112 @@
   <span class="card-row-meta" id="notif-count">0 notification</span>
 </div>
 
-<div class="card" style="padding: 0;">
-  <div id="notif-list"></div>
-</div>
+<div id="groups-root"></div>
 
 <a href="/notifications/new" class="fab" title="Nouvelle notification">+</a>
 {% endblock %}
 
 {% block scripts %}
 <script>
+const GROUP_OPEN_KEY = "bp_groups_open";
+
+function getOpenGroups() {
+  try { return new Set(JSON.parse(localStorage.getItem(GROUP_OPEN_KEY) || "[]")); }
+  catch { return new Set(); }
+}
+function saveOpenGroups(set) {
+  localStorage.setItem(GROUP_OPEN_KEY, JSON.stringify([...set]));
+}
+
+function rowHtml(n) {
+  return `
+    <div class="card-row">
+      <div>
+        <div><strong>${esc(n.title)}</strong></div>
+        <div class="card-row-meta">
+          <code>${esc(n.slug)}</code>
+          &nbsp;&middot;&nbsp; ${n.buttons.length} bouton${n.buttons.length > 1 ? "s" : ""}
+          ${n.delete_button ? '<span class="tag tag-red">DEL</span>' : ''}
+          ${n.snooze_button ? '<span class="tag tag-purple">SNOOZE</span>' : ''}
+        </div>
+      </div>
+      <div class="row-actions">
+        <button class="btn btn-purple btn-small" data-test="${n.id}">TESTER</button>
+        <a class="btn btn-edit btn-small" href="/notifications/${n.id}">EDITER</a>
+        <button class="btn btn-secondary btn-small" data-dup="${n.id}">CLONER</button>
+        <button class="btn btn-danger btn-small" data-del="${n.id}">SUPPR</button>
+      </div>
+    </div>
+  `;
+}
+
+function groupHtml(name, notifs, isOpen) {
+  const label = name || "Sans groupe";
+  const id = `g-${(name || "_none").replace(/[^a-z0-9]/gi, "_")}`;
+  return `
+    <details class="card group-card" id="${esc(id)}" data-group="${esc(name || "")}" ${isOpen ? "open" : ""}>
+      <summary>
+        <span class="group-arrow">&#9656;</span>
+        <span class="group-name">${esc(label)}</span>
+        <span class="group-count">${notifs.length}</span>
+      </summary>
+      <div class="group-list">
+        ${notifs.map(rowHtml).join("")}
+      </div>
+    </details>
+  `;
+}
+
 async function loadNotifications() {
-  const list = document.getElementById("notif-list");
+  const root = document.getElementById("groups-root");
   const count = document.getElementById("notif-count");
   try {
     const notifs = await API.get("/notifications");
     count.textContent = `${notifs.length} notification${notifs.length > 1 ? "s" : ""}`;
 
     if (notifs.length === 0) {
-      list.innerHTML = `<div class="empty-state">
+      root.innerHTML = `<div class="card"><div class="empty-state">
         Aucune notification configuree.<br>Clique sur <strong>+</strong> pour en creer une.
-      </div>`;
+      </div></div>`;
       return;
     }
 
-    list.innerHTML = notifs.map(n => `
-      <div class="card-row">
-        <div>
-          <div><strong>${esc(n.title)}</strong></div>
-          <div class="card-row-meta">
-            <code>${esc(n.slug)}</code>
-            &nbsp;&middot;&nbsp; ${n.buttons.length} bouton${n.buttons.length > 1 ? "s" : ""}
-            ${n.delete_button ? '<span class="tag tag-red">DEL</span>' : ''}
-            ${n.snooze_button ? '<span class="tag tag-purple">SNOOZE</span>' : ''}
-          </div>
-        </div>
-        <div class="row-actions">
-          <button class="btn btn-purple btn-small" data-test="${n.id}">TESTER</button>
-          <a class="btn btn-edit btn-small" href="/notifications/${n.id}">EDITER</a>
-          <button class="btn btn-secondary btn-small" data-dup="${n.id}">CLONER</button>
-          <button class="btn btn-danger btn-small" data-del="${n.id}">SUPPR</button>
-        </div>
-      </div>
-    `).join("");
+    // Regroupement
+    const byGroup = new Map();
+    for (const n of notifs) {
+      const key = n.group_name || "";
+      if (!byGroup.has(key)) byGroup.set(key, []);
+      byGroup.get(key).push(n);
+    }
+    // Ordre : groupes nommes (alpha), puis "Sans groupe" en dernier
+    const names = [...byGroup.keys()].sort((a, b) => {
+      if (a === "" && b !== "") return 1;
+      if (b === "" && a !== "") return -1;
+      return a.localeCompare(b);
+    });
 
-    list.querySelectorAll("[data-del]").forEach(btn => {
+    const open = getOpenGroups();
+    // Par defaut : tous les groupes nommes ouverts au premier chargement
+    if (open.size === 0) {
+      names.forEach(n => { if (n) open.add(n); });
+      saveOpenGroups(open);
+    }
+
+    root.innerHTML = names
+      .map(n => groupHtml(n, byGroup.get(n), open.has(n)))
+      .join("");
+
+    // Persistance ouvert/ferme
+    root.querySelectorAll("details.group-card").forEach(d => {
+      d.addEventListener("toggle", () => {
+        const set = getOpenGroups();
+        const g = d.dataset.group;
+        if (d.open) set.add(g); else set.delete(g);
+        saveOpenGroups(set);
+      });
+    });
+
+    root.querySelectorAll("[data-del]").forEach(btn => {
       btn.addEventListener("click", async () => {
         if (!confirm("Supprimer cette notification ?")) return;
         try {
@@ -61,7 +123,7 @@ async function loadNotifications() {
       });
     });
 
-    list.querySelectorAll("[data-test]").forEach(btn => {
+    root.querySelectorAll("[data-test]").forEach(btn => {
       btn.addEventListener("click", async () => {
         try {
           await API.post(`/notifications/${btn.dataset.test}/test`);
@@ -70,18 +132,17 @@ async function loadNotifications() {
       });
     });
 
-    list.querySelectorAll("[data-dup]").forEach(btn => {
+    root.querySelectorAll("[data-dup]").forEach(btn => {
       btn.addEventListener("click", async () => {
         try {
           const copy = await API.post(`/notifications/${btn.dataset.dup}/duplicate`);
           toast("Notification clonee");
-          // Redirige vers l'editeur pour ajuster slug/contenu
           window.location.href = `/notifications/${copy.id}`;
         } catch (e) { toast(e.message, "error"); }
       });
     });
   } catch (e) {
-    list.innerHTML = `<div class="empty-state">Erreur : ${esc(e.message)}</div>`;
+    root.innerHTML = `<div class="card"><div class="empty-state">Erreur : ${esc(e.message)}</div></div>`;
   }
 }
 

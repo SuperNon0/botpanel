@@ -58,14 +58,16 @@ class NotificationRepository:
                 """
                 INSERT INTO notifications (
                     slug, channel_id, title, message, color, icon_url, footer,
-                    show_timestamp, delete_button, snooze_button, snooze_minutes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    show_timestamp, delete_button, snooze_button, snooze_minutes,
+                    group_name
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     payload.slug, payload.channel_id, payload.title, payload.message,
                     payload.color, payload.icon_url, payload.footer,
                     int(payload.show_timestamp), int(payload.delete_button),
                     int(payload.snooze_button), payload.snooze_minutes,
+                    payload.group_name or None,
                 ),
             )
             notif_id = cursor.lastrowid
@@ -83,14 +85,16 @@ class NotificationRepository:
                 UPDATE notifications SET
                     slug = ?, channel_id = ?, title = ?, message = ?, color = ?,
                     icon_url = ?, footer = ?, show_timestamp = ?, delete_button = ?,
-                    snooze_button = ?, snooze_minutes = ?, updated_at = datetime('now')
+                    snooze_button = ?, snooze_minutes = ?, group_name = ?,
+                    updated_at = datetime('now')
                 WHERE id = ?
                 """,
                 (
                     payload.slug, payload.channel_id, payload.title, payload.message,
                     payload.color, payload.icon_url, payload.footer,
                     int(payload.show_timestamp), int(payload.delete_button),
-                    int(payload.snooze_button), payload.snooze_minutes, notif_id,
+                    int(payload.snooze_button), payload.snooze_minutes,
+                    payload.group_name or None, notif_id,
                 ),
             )
             if cursor.rowcount == 0:
@@ -185,6 +189,9 @@ class NotificationRepository:
         buttons: list[NotificationButton],
         fields: list[NotificationField],
     ) -> Notification:
+        # group_name peut etre absent sur les bases anterieures a la migration
+        keys = row.keys() if hasattr(row, "keys") else []
+        group_name = row["group_name"] if "group_name" in keys else None
         return Notification(
             id=row["id"],
             slug=row["slug"],
@@ -198,6 +205,7 @@ class NotificationRepository:
             delete_button=bool(row["delete_button"]),
             snooze_button=bool(row["snooze_button"]),
             snooze_minutes=row["snooze_minutes"],
+            group_name=group_name,
             buttons=buttons,
             fields=fields,
         )

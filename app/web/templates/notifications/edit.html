@@ -76,6 +76,13 @@
         <div class="form-hint">choisis un preset ou colle un ID brut</div>
       </div>
     </div>
+    <div class="form-group">
+      <label class="form-label">Groupe (optionnel)</label>
+      <input class="form-input" name="group_name" id="f-group" list="group-list"
+             maxlength="64" placeholder="Maison / Securite / ...">
+      <datalist id="group-list"></datalist>
+      <div class="form-hint">tape un nom existant pour rejoindre le groupe, ou un nouveau nom pour en creer un</div>
+    </div>
   </div>
 
   <div class="card">
@@ -596,6 +603,7 @@ function buildPayload() {
     delete_button: fd.get("delete_button") === "on",
     snooze_button: fd.get("snooze_button") === "on",
     snooze_minutes: parseInt(fd.get("snooze_minutes") || "15", 10),
+    group_name: (fd.get("group_name") || "").trim() || null,
     buttons: buttons.map((b, i) => ({
       position: i,
       label: b.label,
@@ -646,12 +654,24 @@ document.getElementById("btn-test-now").addEventListener("click", async () => {
 });
 
 // ============================================================
+// Datalist des groupes existants (pour aider la saisie)
+// ============================================================
+async function bindGroupDatalist() {
+  try {
+    const all = await API.get("/notifications");
+    const groups = [...new Set(all.map(n => n.group_name).filter(Boolean))].sort();
+    const dl = document.getElementById("group-list");
+    dl.innerHTML = groups.map(g => `<option value="${esc(g)}">`).join("");
+  } catch { /* ignore */ }
+}
+
+// ============================================================
 // Boot
 // ============================================================
 async function boot() {
   bindPreview();
   // On attend les selects pour que loadExisting puisse les pre-selectionner.
-  await Promise.all([bindChannelSelect(), bindColorPresets()]);
+  await Promise.all([bindChannelSelect(), bindColorPresets(), bindGroupDatalist()]);
   await loadExisting();
 }
 boot();

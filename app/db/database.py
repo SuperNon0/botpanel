@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     delete_button   INTEGER NOT NULL DEFAULT 0,       -- 0/1
     snooze_button   INTEGER NOT NULL DEFAULT 0,       -- 0/1
     snooze_minutes  INTEGER NOT NULL DEFAULT 15,
+    group_name      TEXT,                             -- regroupement libre sur le site
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -165,6 +166,7 @@ _MIGRATIONS_ALTER: list[str] = [
     "ALTER TABLE monitoring_blocks ADD COLUMN color INTEGER NOT NULL DEFAULT 4827743",
     "ALTER TABLE monitoring_blocks ADD COLUMN footer TEXT",
     "ALTER TABLE monitoring_blocks ADD COLUMN created_at TEXT",
+    "ALTER TABLE notifications ADD COLUMN group_name TEXT",
 ]
 
 

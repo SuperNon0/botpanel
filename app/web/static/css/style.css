@@ -599,6 +599,49 @@ input[type="color"] {
 }
 .embed-preview .d-btn-secondary { background: #4e5058; }
 
+/* ---------- Groupes de notifications (repliables) ---------- */
+.group-card {
+  padding: 0;
+  margin-bottom: 0.9rem;
+  overflow: hidden;
+}
+.group-card > summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1rem 1.2rem;
+  font-family: "DM Serif Display", serif;
+  font-size: 1.05rem;
+  color: var(--accent);
+  background: rgba(232, 197, 71, 0.04);
+  border-bottom: 1px solid transparent;
+  transition: background 0.15s ease;
+}
+.group-card > summary::-webkit-details-marker { display: none; }
+.group-card > summary:hover { background: rgba(232, 197, 71, 0.08); }
+.group-card[open] > summary { border-bottom-color: var(--border); }
+.group-card .group-arrow {
+  display: inline-block;
+  color: var(--accent2);
+  font-size: 1rem;
+  transition: transform 0.18s ease;
+}
+.group-card[open] .group-arrow { transform: rotate(90deg); }
+.group-card .group-name { flex: 1; }
+.group-card .group-count {
+  font-family: "DM Mono", monospace;
+  font-size: 0.7rem;
+  color: var(--muted);
+  background: var(--bg);
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+.group-card .group-list .card-row { padding-left: 1.2rem; padding-right: 1.2rem; }
+
 /* ---------- Modal selecteur d'entite ---------- */
 .ent-modal {
   display: none;
