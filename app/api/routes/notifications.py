@@ -67,15 +67,35 @@ async def test_notification(notif_id: int) -> dict[str, str]:
 
 
 @router.post("/preview", status_code=202)
-async def preview_notification(payload: NotificationIn) -> dict[str, str]:
+async def preview_notification(
+    payload: NotificationIn,
+    as_id: int | None = None,
+) -> dict[str, str]:
     """Envoie une notification non persistee pour test depuis l'editeur.
 
-    Les boutons custom sont ignores (ils requierent un ID persistant).
+    Si `as_id` est fourni (= edition d'une notif existante), on reutilise
+    cet ID + les IDs des boutons par position pour que les clics fonctionnent
+    (ils executeront la version SAUVEGARDEE de l'action).
+    Sinon, les boutons sont en mode "preview" et repondent en ephemere.
     """
     from app.bot.notifications import send_notification_object
 
-    # On construit une Notification avec id=0 (sentinel "ephemere")
-    ephemeral = Notification(id=0, **payload.model_dump())
+    notif_id = 0
+    saved_button_ids: list[int | None] = []
+    if as_id is not None:
+        existing = await repo.get_by_id(as_id)
+        if existing is not None:
+            notif_id = existing.id
+            saved_button_ids = [b.id for b in existing.buttons]
+
+    # On reconstruit la notif a partir du payload, mais en injectant les IDs
+    # sauvegardes sur les boutons par position.
+    payload_dict = payload.model_dump()
+    for idx, btn in enumerate(payload_dict.get("buttons", [])):
+        if idx < len(saved_button_ids) and saved_button_ids[idx] is not None:
+            btn["id"] = saved_button_ids[idx]
+    ephemeral = Notification(id=notif_id, **payload_dict)
+
     msg = await send_notification_object(ephemeral)
     if msg is None:
         raise HTTPException(500, "Echec d'envoi (voir logs)")

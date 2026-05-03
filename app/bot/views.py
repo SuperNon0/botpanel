@@ -64,18 +64,19 @@ DISCORD_STYLES: dict[str, discord.ButtonStyle] = {
 def build_notification_view(notif: Notification) -> View:
     """Cree une View persistante avec les boutons configures.
 
-    Si la notif n'est pas persistee (notif.id falsy), on construit quand meme
-    les boutons mais avec des custom_id "preview" qui repondent "test, bouton
-    non actif" au clic. Pratique pour tester le rendu depuis l'editeur.
+    - Si notif.id est falsy (test ephemere d'une notif non sauvegardee) :
+      tous les boutons sont en mode 'preview' et repondent "test, non actif".
+    - Si notif.id est set : les boutons avec un id en DB sont interactifs,
+      ceux sans id (nouveaux dans l'editeur, pas encore sauves) restent
+      en mode preview.
     """
     view = View(timeout=None)
-    is_preview = not notif.id
+    is_preview_notif = not notif.id
 
     for idx, btn in enumerate(notif.buttons):
-        if is_preview:
+        if is_preview_notif or btn.id is None:
             cid = _cid_preview(idx)
         else:
-            assert btn.id is not None, "button must be persisted"
             cid = _cid_custom(notif.id, btn.id)
         view.add_item(
             Button(
@@ -92,7 +93,7 @@ def build_notification_view(notif: Notification) -> View:
                 style=discord.ButtonStyle.secondary,
                 label=f"Snooze {notif.snooze_minutes}min",
                 emoji="\U0001f514",  # bell
-                custom_id=_cid_preview(900) if is_preview else _cid_snooze(notif.id),
+                custom_id=_cid_preview(900) if is_preview_notif else _cid_snooze(notif.id),
             )
         )
 
@@ -102,7 +103,7 @@ def build_notification_view(notif: Notification) -> View:
                 style=discord.ButtonStyle.danger,
                 label="Supprimer",
                 emoji="\U0001f5d1",  # wastebasket
-                custom_id=_cid_preview(901) if is_preview else _cid_delete(notif.id),
+                custom_id=_cid_preview(901) if is_preview_notif else _cid_delete(notif.id),
             )
         )
 

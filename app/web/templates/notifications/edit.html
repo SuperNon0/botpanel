@@ -657,9 +657,17 @@ document.getElementById("btn-test-now").addEventListener("click", async () => {
     return;
   }
   const payload = buildPayload();
+  // En mode edition on passe ?as_id=NOTIF_ID : les boutons utilisent les IDs
+  // sauvegardes en DB pour rester interactifs (ils executent la version
+  // SAUVEGARDEE de l'action, pas celle du formulaire en cours).
+  const url = NOTIF_ID
+    ? `/notifications/preview?as_id=${NOTIF_ID}`
+    : "/notifications/preview";
   try {
-    await API.post("/notifications/preview", payload);
-    toast("Test envoye sur Discord");
+    await API.post(url, payload);
+    toast(NOTIF_ID
+      ? "Test envoye (boutons = version sauvegardee)"
+      : "Test envoye sur Discord");
   } catch (err) {
     toast(err.message, "error");
   }
