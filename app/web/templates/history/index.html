@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Historique — BotPanel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Historique</h2>
+  <span class="card-row-meta" id="log-count">0 evenement</span>
+</div>
+
+<div class="card" style="display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap;">
+  <label class="form-label" style="margin:0;">Filtrer :</label>
+  <select class="form-select" id="filter-kind" style="flex:0 0 200px;">
+    <option value="">Tous les types</option>
+    <option value="send">Envois</option>
+    <option value="button">Clics boutons</option>
+    <option value="snooze">Snooze</option>
+    <option value="delete">Suppressions</option>
+    <option value="monitoring">Monitoring</option>
+  </select>
+  <select class="form-select" id="filter-limit" style="flex:0 0 140px;">
+    <option value="100">100 dernieres</option>
+    <option value="200" selected>200 dernieres</option>
+    <option value="500">500 dernieres</option>
+    <option value="1000">1000 dernieres</option>
+  </select>
+  <button type="button" class="btn btn-secondary btn-small" id="refresh">Actualiser</button>
+  <span style="flex:1;"></span>
+  <button type="button" class="btn btn-danger btn-small" id="purge">Purger &gt; 30 jours</button>
+</div>
+
+<div class="card" style="padding:0;">
+  <div id="log-list"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const KIND_TAG = {
+  send:       { label: "ENVOI",      cls: "tag-purple" },
+  button:     { label: "BOUTON",     cls: "tag-yellow" },
+  snooze:     { label: "SNOOZE",     cls: "tag-orange" },
+  delete:     { label: "DELETE",     cls: "tag-red" },
+  monitoring: { label: "MONITORING", cls: "tag-green" },
+};
+
+function fmtDate(s) {
+  // s = "2026-04-28 14:05:12"
+  if (!s) return "";
+  const [d, t] = s.split(" ");
+  return `${d} ${t || ""}`.trim();
+}
+
+async function loadLogs() {
+  const list = document.getElementById("log-list");
+  const count = document.getElementById("log-count");
+  const kind = document.getElementById("filter-kind").value;
+  const limit = document.getElementById("filter-limit").value;
+  let url = `/logs?limit=${limit}`;
+  if (kind) url += `&kind=${kind}`;
+  try {
+    const logs = await API.get(url);
+    count.textContent = `${logs.length} evenement${logs.length > 1 ? "s" : ""}`;
+    if (!logs.length) {
+      list.innerHTML = `<div class="empty-state">Aucun evenement.</div>`;
+      return;
+    }
+    list.innerHTML = logs.map(l => {
+      const tag = KIND_TAG[l.kind] || { label: l.kind.toUpperCase(), cls: "tag-muted" };
+      const status = l.success
+        ? ""
+        : `<span class="tag tag-red" style="margin-left:0.3rem;">ERREUR</span>`;
+      const who = l.user_name
+        ? `&middot; <strong>${esc(l.user_name)}</strong>`
+        : "";
+      const btn = l.button_label ? `&middot; bouton <code>${esc(l.button_label)}</code>` : "";
+      const slug = l.notification_slug ? `&middot; <code>${esc(l.notification_slug)}</code>` : "";
+      const detail = l.detail ? `<div class="card-row-meta" style="margin-top:0.2rem;">${esc(l.detail)}</div>` : "";
+      return `
+        <div class="card-row">
+          <div style="flex:1; min-width:0;">
+            <div>
+              <span class="tag ${tag.cls}">${tag.label}</span>
+              ${status}
+              ${slug}
+              ${btn}
+              ${who}
+            </div>
+            ${detail}
+          </div>
+          <div class="card-row-meta">${fmtDate(l.created_at)}</div>
+        </div>
+      `;
+    }).join("");
+  } catch (e) {
+    list.innerHTML = `<div class="empty-state">Erreur : ${esc(e.message)}</div>`;
+  }
+}
+
+document.getElementById("filter-kind").addEventListener("change", loadLogs);
+document.getElementById("filter-limit").addEventListener("change", loadLogs);
+document.getElementById("refresh").addEventListener("click", loadLogs);
+
+document.getElementById("purge").addEventListener("click", async () => {
+  if (!confirm("Supprimer tous les evenements vieux de plus de 30 jours ?")) return;
+  try {
+    await API.del("/logs/older/30");
+    toast("Lignes supprimees");
+    loadLogs();
+  } catch (e) { toast(e.message, "error"); }
+});
+
+loadLogs();
+</script>
+{% endblock %}

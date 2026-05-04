@@ -37,7 +37,7 @@ import discord
 
 from app.config import settings
 from app.db.models import MonitoringBlock
-from app.db.repositories import MonitoringRepository
+from app.db.repositories import LogRepository, MonitoringRepository
 from app.ha import ha_client
 from app.ha.client import HomeAssistantError
 
@@ -164,6 +164,7 @@ async def _ensure_message(
 # -------------------------------------------------------------------
 async def _block_loop(bot_: discord.Client, block_id: int) -> None:
     repo = MonitoringRepository()
+    log_repo = LogRepository()
     logger.info("Demarrage task monitoring bloc=%s", block_id)
     while True:
         block = await repo.get_by_id(block_id)
@@ -172,14 +173,30 @@ async def _block_loop(bot_: discord.Client, block_id: int) -> None:
             return
 
         message = await _ensure_message(bot_, block)
+        ok = False
+        detail: str | None = None
         if message is not None:
             try:
                 embed = await _build_embed(block)
                 await message.edit(embed=embed)
+                ok = True
             except discord.HTTPException as exc:
                 logger.error("Edit du message monitoring %s echoue : %s", block_id, exc)
+                detail = f"Edit Discord : {exc}"[:300]
             except HomeAssistantError as exc:
                 logger.warning("HA indisponible pour bloc %s : %s", block_id, exc)
+                detail = f"HA indisponible : {exc}"[:300]
+        else:
+            detail = "Channel/message introuvable"
+
+        await log_repo.add(
+            kind="monitoring",
+            notification_slug=block.name,
+            channel_id=block.channel_id,
+            message_id=str(message.id) if message else None,
+            detail=detail,
+            success=ok,
+        )
 
         await asyncio.sleep(max(30, block.interval_seconds))
 

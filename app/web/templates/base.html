@@ -23,6 +23,8 @@
   <a href="/notifications"  class="{% if active_page == 'notifications' %}active{% endif %}">Notifications</a>
   <a href="/commands"       class="{% if active_page == 'commands'      %}active{% endif %}">Commandes /</a>
   <a href="/monitoring"     class="{% if active_page == 'monitoring'    %}active{% endif %}">Monitoring</a>
+  <a href="/historique"     class="{% if active_page == 'historique'    %}active{% endif %}">Historique</a>
+  <a href="/settings"       class="{% if active_page == 'settings'      %}active{% endif %}">Parametres</a>
 </nav>
 
 <main>
@@ -33,6 +35,7 @@
 
 <script src="/static/js/api.js"></script>
 <script src="/static/js/ui.js"></script>
+<script src="/static/js/emoji.js"></script>
 {% block scripts %}{% endblock %}
 
 </body>

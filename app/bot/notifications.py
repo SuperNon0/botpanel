@@ -12,7 +12,7 @@ from app.bot.client import bot
 from app.bot.views import build_notification_view
 from app.config import settings
 from app.db.models import Notification
-from app.db.repositories import NotificationRepository
+from app.db.repositories import LogRepository, NotificationRepository
 from app.ha import ha_client
 
 logger = logging.getLogger(__name__)
@@ -42,50 +42,87 @@ PLACEHOLDER_RE = re.compile(
 
 
 async def _resolve_template(template: str) -> str:
-    """Remplace les placeholders {state:..} etc. dans une string."""
+    """Remplace les placeholders dans une string.
+
+    Deux syntaxes supportees :
+      1. Syntaxe BotPanel (rapide, no round-trip si pas utilisee) :
+         {state:sensor.x}  {state:sensor.x|--}
+         {attr:sensor.x:friendly_name}  {unit:sensor.x}
+      2. Syntaxe Jinja Home Assistant (envoyee a /api/template) :
+         {{ states('sensor.x') }}
+         {{ state_attr('sensor.x', 'attr') }}
+         {% if ... %}...{% endif %}
+
+    Si les deux sont presentes : on resout d'abord les placeholders BotPanel,
+    puis on envoie le resultat a HA pour rendre le Jinja restant.
+    """
     if not template or "{" not in template:
         return template
 
-    # On collecte d'abord toutes les entites a fetch (dedoublonne)
-    entities: dict[str, dict | None] = {}
-    for match in PLACEHOLDER_RE.finditer(template):
-        entity_id = match.group(2)
-        if entity_id not in entities:
-            entities[entity_id] = None  # placeholder
+    # 1) Resolution des placeholders BotPanel (rapide, fetch en local)
+    if PLACEHOLDER_RE.search(template):
+        entities: dict[str, dict | None] = {}
+        for match in PLACEHOLDER_RE.finditer(template):
+            entity_id = match.group(2)
+            if entity_id not in entities:
+                entities[entity_id] = None
 
-    # Fetch en parallele aurait ete plus rapide, mais on garde simple ici.
-    for entity_id in entities:
-        try:
-            entities[entity_id] = await ha_client.get_state(entity_id)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("HA get_state(%s) a echoue : %s", entity_id, exc)
-            entities[entity_id] = None
+        for entity_id in entities:
+            try:
+                entities[entity_id] = await ha_client.get_state(entity_id)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("HA get_state(%s) a echoue : %s", entity_id, exc)
+                entities[entity_id] = None
 
-    def replace(match: re.Match) -> str:
-        kind = match.group(1)
-        entity_id = match.group(2)
-        attr = match.group(3)
-        fallback = match.group(4) if match.group(4) is not None else "?"
-        state = entities.get(entity_id)
-        if state is None:
-            return fallback
-        if kind == "state":
-            return str(state.get("state", fallback))
-        if kind == "unit":
-            return str(state.get("attributes", {}).get("unit_of_measurement", fallback))
-        if kind == "attr":
-            if not attr:
+        def replace(match: re.Match) -> str:
+            kind = match.group(1)
+            entity_id = match.group(2)
+            attr = match.group(3)
+            fallback = match.group(4) if match.group(4) is not None else "?"
+            state = entities.get(entity_id)
+            if state is None:
                 return fallback
-            value = state.get("attributes", {}).get(attr)
-            return str(value) if value is not None else fallback
-        return fallback
+            if kind == "state":
+                return str(state.get("state", fallback))
+            if kind == "unit":
+                return str(state.get("attributes", {}).get("unit_of_measurement", fallback))
+            if kind == "attr":
+                if not attr:
+                    return fallback
+                value = state.get("attributes", {}).get(attr)
+                return str(value) if value is not None else fallback
+            return fallback
 
-    return PLACEHOLDER_RE.sub(replace, template)
+        template = PLACEHOLDER_RE.sub(replace, template)
+
+    # 2) Si la string contient encore du Jinja HA, on demande a HA de la rendre.
+    if "{{" in template or "{%" in template:
+        try:
+            template = await ha_client.render_template(template)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Rendu Jinja HA echoue : %s", exc)
+
+    return template
 
 
 # ----------------------------------------------------------------------
 # Construction de l'embed
 # ----------------------------------------------------------------------
+_FR_MONTHS = [
+    "janvier", "fevrier", "mars", "avril", "mai", "juin",
+    "juillet", "aout", "septembre", "octobre", "novembre", "decembre",
+]
+
+
+def _format_fr_datetime(now: dt.datetime) -> str:
+    """Renvoie une date FR absolue : '28 avril 2026 a 14:05'.
+
+    On evite le rendu Discord auto ('aujourd'hui a ...') en n'utilisant
+    pas `embed.timestamp` mais en injectant la date directement dans le footer.
+    """
+    return f"{now.day} {_FR_MONTHS[now.month - 1]} {now.year} a {now:%H:%M}"
+
+
 async def build_embed(notif: Notification) -> discord.Embed:
     """Construit l'embed Discord d'une notification (resolution des placeholders incluse)."""
     description = await _resolve_template(notif.message)
@@ -97,10 +134,15 @@ async def build_embed(notif: Notification) -> discord.Embed:
     )
     if notif.icon_url:
         embed.set_thumbnail(url=notif.icon_url)
+
+    # Footer = footer texte + (optionnel) date absolue.
+    footer_parts: list[str] = []
     if notif.footer:
-        embed.set_footer(text=notif.footer)
+        footer_parts.append(notif.footer)
     if notif.show_timestamp:
-        embed.timestamp = dt.datetime.now(dt.timezone.utc)
+        footer_parts.append(_format_fr_datetime(dt.datetime.now()))
+    if footer_parts:
+        embed.set_footer(text=" \u00b7 ".join(footer_parts))
 
     # Fields custom (resolution des placeholders dans value)
     for fld in sorted(notif.fields, key=lambda f: (f.position, f.id or 0)):
@@ -134,19 +176,57 @@ async def send_notification(slug: str) -> discord.Message | None:
     if notif is None:
         logger.warning("Notification inconnue : %s", slug)
         return None
+    return await send_notification_object(notif)
 
+
+async def send_notification_object(notif: Notification) -> discord.Message | None:
+    """Envoie une notification (deja chargee) dans son channel Discord.
+
+    Sert au test depuis l'editeur (notif non persistee) et a l'envoi normal.
+    """
     channel_id = notif.channel_id or str(settings.discord_default_channel_id)
     channel = await _resolve_channel(channel_id)
+    log_repo = LogRepository()
+
     if channel is None:
+        await log_repo.add(
+            kind="send",
+            notification_id=notif.id or None,
+            notification_slug=notif.slug,
+            channel_id=channel_id,
+            success=False,
+            detail=f"Channel {channel_id} introuvable",
+        )
         return None
 
     embed = await build_embed(notif)
-    view = build_notification_view(notif)
+    view = build_notification_view(notif)  # gere aussi le mode preview
     try:
         message = await channel.send(embed=embed, view=view)
     except discord.HTTPException as exc:
-        logger.error("Echec envoi notification %s : %s", slug, exc)
+        logger.error("Echec envoi notification %s : %s", notif.slug, exc)
+        await log_repo.add(
+            kind="send",
+            notification_id=notif.id or None,
+            notification_slug=notif.slug,
+            channel_id=channel_id,
+            success=False,
+            detail=str(exc)[:300],
+        )
         return None
 
-    logger.info("Notification '%s' envoyee dans #%s (msg=%s)", slug, channel_id, message.id)
+    logger.info(
+        "Notification '%s' envoyee dans #%s (msg=%s)%s",
+        notif.slug, channel_id, message.id,
+        "" if notif.id else " [test ephemere]",
+    )
+    await log_repo.add(
+        kind="send",
+        notification_id=notif.id or None,
+        notification_slug=notif.slug,
+        channel_id=channel_id,
+        message_id=str(message.id),
+        success=True,
+        detail="ephemere (test)" if not notif.id else None,
+    )
     return message

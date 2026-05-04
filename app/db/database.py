@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     delete_button   INTEGER NOT NULL DEFAULT 0,       -- 0/1
     snooze_button   INTEGER NOT NULL DEFAULT 0,       -- 0/1
     snooze_minutes  INTEGER NOT NULL DEFAULT 15,
+    group_name      TEXT,                             -- regroupement libre sur le site
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -118,6 +119,42 @@ CREATE TABLE IF NOT EXISTS monitoring_blocks (
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- ==========================================================
+-- SETTINGS (key/value JSON)
+-- Stocke les preferences globales : presets de couleurs,
+-- presets de channels, etc.
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS settings (
+    key             TEXT PRIMARY KEY,
+    value_json      TEXT NOT NULL DEFAULT '[]',
+    updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- ==========================================================
+-- HISTORIQUE
+-- Log des notifications envoyees et des clics sur les boutons.
+-- kind = 'send' | 'button' | 'snooze' | 'delete'
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS notification_logs (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    notification_id INTEGER,                          -- nullable (notif supprimee)
+    notification_slug TEXT,
+    channel_id      TEXT,
+    message_id      TEXT,
+    kind            TEXT NOT NULL,                    -- send / button / snooze / delete
+    user_id         TEXT,                             -- pour les clics
+    user_name       TEXT,
+    button_label    TEXT,
+    detail          TEXT,                             -- libre (service appele, erreur, ...)
+    success         INTEGER NOT NULL DEFAULT 1,       -- 0 si erreur
+    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_logs_notif
+    ON notification_logs(notification_id);
+CREATE INDEX IF NOT EXISTS idx_logs_kind_created
+    ON notification_logs(kind, created_at);
 """
 
 
@@ -129,6 +166,7 @@ _MIGRATIONS_ALTER: list[str] = [
     "ALTER TABLE monitoring_blocks ADD COLUMN color INTEGER NOT NULL DEFAULT 4827743",
     "ALTER TABLE monitoring_blocks ADD COLUMN footer TEXT",
     "ALTER TABLE monitoring_blocks ADD COLUMN created_at TEXT",
+    "ALTER TABLE notifications ADD COLUMN group_name TEXT",
 ]
 
 

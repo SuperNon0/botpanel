@@ -17,17 +17,28 @@
       </div>
       <div class="form-group">
         <label class="form-label">Icone (emoji ou URL)</label>
-        <input class="form-input" name="icon" id="f-icon" placeholder="🌡️ ou https://...">
+        <div style="display:flex; gap:0.4rem;">
+          <input class="form-input" name="icon" id="f-icon" placeholder="🌡️ ou https://..." style="flex:1;">
+          <button type="button" class="md-btn" id="icon-pick">😀</button>
+        </div>
       </div>
     </div>
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Couleur</label>
-        <input type="color" name="color" id="f-color" value="#49a0df">
+        <div class="color-row">
+          <input type="color" name="color" id="f-color" value="#49a0df">
+          <select class="form-select" id="color-presets" style="flex:1;">
+            <option value="">— Preset —</option>
+          </select>
+        </div>
+        <div class="form-hint"><a href="/settings">Gerer les presets</a></div>
       </div>
       <div class="form-group">
-        <label class="form-label">Channel Discord (ID, vide = channel monitoring du .env)</label>
-        <input class="form-input" name="channel_id" placeholder="123456789012345678">
+        <label class="form-label">Channel Discord</label>
+        <select class="form-select" id="channel-select"></select>
+        <input class="form-input" name="channel_id" id="f-channel-id" inputmode="numeric"
+               placeholder="vide = channel monitoring du .env" style="margin-top:0.4rem;">
       </div>
     </div>
     <div class="form-row">
@@ -85,7 +96,10 @@ function renderFields() {
         <label class="form-label">Label</label>
         <input class="form-input" data-k="label" value="${esc(f.label || '')}" placeholder="Temperature">
         <label class="form-label" style="margin-top:0.4rem;">Icone (emoji)</label>
-        <input class="form-input" data-k="icon" value="${esc(f.icon || '')}" placeholder="🌡️">
+        <div style="display:flex; gap:0.3rem;">
+          <input class="form-input" data-k="icon" value="${esc(f.icon || '')}" placeholder="🌡️" style="flex:1;">
+          <button type="button" class="md-btn" data-emoji-for="${i}">😀</button>
+        </div>
       </div>
       <div>
         <label class="form-label">Entite HA</label>
@@ -128,6 +142,15 @@ function renderFields() {
     attachAutocomplete(inp, "/ha/entities",
       it => it.friendly_name, it => it.entity_id));
 
+  // Bouton emoji par field (cible le champ data-k="icon" du meme bloc)
+  builder.querySelectorAll("[data-emoji-for]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const idx = +btn.dataset.emojiFor;
+      const inp = builder.querySelector(`[data-idx="${idx}"] [data-k="icon"]`);
+      openEmojiPicker((e) => insertAtCursor(inp, e));
+    });
+  });
+
   updatePreview();
 }
 
@@ -154,6 +177,62 @@ function updatePreview() {
 ["f-name", "f-icon", "f-footer", "f-color"].forEach(id =>
   document.getElementById(id).addEventListener("input", updatePreview));
 
+// Emoji picker pour l'icone du bloc
+document.getElementById("icon-pick").addEventListener("click", () => {
+  openEmojiPicker((e) => insertAtCursor(document.getElementById("f-icon"), e));
+});
+
+// --- Channels Discord (presets + bot) ---
+async function bindChannelSelect() {
+  const sel = document.getElementById("channel-select");
+  const idIn = document.getElementById("f-channel-id");
+  const [presets, botCh] = await Promise.all([
+    API.get("/settings/channels").catch(() => []),
+    API.get("/discord/channels").catch(() => []),
+  ]);
+  const opts = ['<option value="">— canal monitoring du .env —</option>'];
+  if (presets.length) {
+    opts.push('<optgroup label="Preconfigures">');
+    presets.forEach(p => opts.push(
+      `<option value="${esc(p.channel_id)}">${esc(p.name)} (${esc(p.channel_id)})</option>`
+    ));
+    opts.push('</optgroup>');
+  }
+  if (botCh.length) {
+    opts.push('<optgroup label="Detectes par le bot">');
+    botCh.forEach(c => opts.push(
+      `<option value="${esc(c.id)}"># ${esc(c.name)}${c.category ? " — " + esc(c.category) : ""}</option>`
+    ));
+    opts.push('</optgroup>');
+  }
+  sel.innerHTML = opts.join("");
+  sel.addEventListener("change", () => {
+    if (sel.value) idIn.value = sel.value;
+  });
+  if (idIn.value) sel.value = idIn.value;
+}
+
+// --- Couleur : presets ---
+async function bindColorPresets() {
+  const sel = document.getElementById("color-presets");
+  const colorIn = document.getElementById("f-color");
+  let presets = [];
+  try { presets = await API.get("/settings/colors"); } catch { presets = []; }
+  presets.forEach(p => {
+    const hex = "#" + (p.color & 0xFFFFFF).toString(16).padStart(6, "0");
+    const opt = document.createElement("option");
+    opt.value = hex;
+    opt.textContent = `${p.name} (${hex})`;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener("change", () => {
+    if (sel.value) {
+      colorIn.value = sel.value;
+      colorIn.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  });
+}
+
 // --- Chargement si edition ---
 async function loadExisting() {
   if (!BLOCK_ID) {
@@ -177,6 +256,9 @@ async function loadExisting() {
     } catch { fields = []; }
     renderFields();
     updatePreview();
+    // Pre-selectionne le channel dans le dropdown
+    const sel = document.getElementById("channel-select");
+    if (sel && b.channel_id) sel.value = b.channel_id;
   } catch (e) {
     toast("Erreur chargement : " + e.message, "error");
   }
@@ -219,6 +301,10 @@ form.addEventListener("submit", async (e) => {
   }
 });
 
-loadExisting();
+// Boot : on attend les selects pour que loadExisting puisse les pre-selectionner
+(async () => {
+  await Promise.all([bindChannelSelect(), bindColorPresets()]);
+  await loadExisting();
+})();
 </script>
 {% endblock %}

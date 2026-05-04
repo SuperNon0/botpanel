@@ -120,6 +120,27 @@ class HomeAssistantClient:
             json=payload,
         )
 
+    async def render_template(self, template: str) -> str:
+        """Demande a HA de rendre un template Jinja.
+
+        POST /api/template -> renvoie la string rendue.
+        Permet d'utiliser la syntaxe officielle HA dans les notifications :
+            {{ states('sensor.x') }}
+            {{ state_attr('sensor.x', 'attr') }}
+            {% if ... %}...{% endif %}
+        """
+        try:
+            result = await self._request(
+                "POST",
+                "/api/template",
+                json={"template": template},
+            )
+        except HomeAssistantError as exc:
+            logger.warning("Template HA non rendu (%s) : %s", template[:60], exc)
+            raise
+        # HA renvoie un texte brut (parfois dans un .text si non-JSON)
+        return result if isinstance(result, str) else str(result)
+
     # ---------- helpers pour l'autocompletion du site ----------
     async def list_entity_ids(
         self, domain_filter: Optional[str] = None

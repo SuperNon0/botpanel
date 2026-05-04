@@ -53,6 +53,7 @@ class NotificationIn(BaseModel):
     delete_button: bool = False
     snooze_button: bool = False
     snooze_minutes: int = 15
+    group_name: Optional[str] = Field(default=None, max_length=64)
     buttons: list[NotificationButton] = Field(default_factory=list)
     fields: list[NotificationField] = Field(default_factory=list)
 
@@ -124,3 +125,34 @@ class MonitoringBlockIn(BaseModel):
 class MonitoringBlock(MonitoringBlockIn):
     id: int
     message_id: Optional[str] = None
+
+
+# ==========================================================
+#  Settings (presets globaux)
+# ==========================================================
+class ColorPreset(BaseModel):
+    name: str = Field(..., max_length=64)
+    color: int = Field(..., ge=0, le=0xFFFFFF)
+
+
+class ChannelPreset(BaseModel):
+    name: str = Field(..., max_length=64)
+    channel_id: str = Field(..., max_length=32)
+
+
+# ==========================================================
+#  Historique
+# ==========================================================
+class NotificationLog(BaseModel):
+    id: int
+    notification_id: Optional[int] = None
+    notification_slug: Optional[str] = None
+    channel_id: Optional[str] = None
+    message_id: Optional[str] = None
+    kind: str
+    user_id: Optional[str] = None
+    user_name: Optional[str] = None
+    button_label: Optional[str] = None
+    detail: Optional[str] = None
+    success: bool = True
+    created_at: str

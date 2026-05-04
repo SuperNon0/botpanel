@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+{% block title %}Parametres — BotPanel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Parametres</h2>
+</div>
+
+<div class="card" id="update-card">
+  <h3>Mise a jour</h3>
+  <div id="update-info" class="hint">Chargement des infos...</div>
+  <div id="update-progress-wrap" style="display:none; margin-top:0.8rem;">
+    <div class="progress-bar"><div class="progress-bar-inner" id="update-progress"></div></div>
+    <div class="form-hint" id="update-step" style="margin-top:0.4rem;">Initialisation...</div>
+  </div>
+  <pre id="update-log" style="display:none; max-height:240px; overflow:auto; background:var(--bg);
+       border:1px solid var(--border); padding:0.7rem; border-radius:8px; font-size:0.7rem;
+       margin-top:0.7rem; white-space:pre-wrap;"></pre>
+  <div style="display:flex; gap:0.7rem; justify-content:flex-end; margin-top:1rem;">
+    <button type="button" class="btn btn-purple" id="btn-update">Mettre a jour</button>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Couleurs preconfigurees</h3>
+  <p class="hint">
+    Ces couleurs apparaissent dans le selecteur rapide quand tu crees ou modifies une notification.
+    Donne-leur un nom parlant (ex: <em>Alerte porte</em>, <em>Info confort</em>).
+  </p>
+  <div id="colors-builder" class="buttons-builder"></div>
+  <button type="button" class="btn btn-secondary" id="color-add" style="margin-top: 0.8rem;">+ Ajouter une couleur</button>
+  <div style="display:flex; gap:0.7rem; justify-content:flex-end; margin-top:1rem;">
+    <button type="button" class="btn btn-primary" id="colors-save">Enregistrer les couleurs</button>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Channels Discord preconfigures</h3>
+  <p class="hint">
+    Les channels listes ici apparaissent dans la liste deroulante du formulaire notification.
+    Tu peux aussi piocher directement dans les channels detectes par le bot ci-dessous.
+  </p>
+  <div id="channels-builder" class="buttons-builder"></div>
+  <button type="button" class="btn btn-secondary" id="channel-add" style="margin-top: 0.8rem;">+ Ajouter un channel</button>
+  <div style="display:flex; gap:0.7rem; justify-content:flex-end; margin-top:1rem;">
+    <button type="button" class="btn btn-primary" id="channels-save">Enregistrer les channels</button>
+  </div>
+
+  <h3 style="margin-top: 1.4rem;">Channels detectes par le bot</h3>
+  <p class="hint">Cliquez sur "Ajouter" pour copier le channel dans vos preconfigures.</p>
+  <div id="bot-channels" class="buttons-builder"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let colors = [];
+let channels = [];
+
+function colorToHex(n) {
+  return "#" + (n & 0xFFFFFF).toString(16).padStart(6, "0");
+}
+function hexToInt(h) {
+  return parseInt((h || "#000000").replace("#", ""), 16);
+}
+
+function renderColors() {
+  const root = document.getElementById("colors-builder");
+  root.innerHTML = colors.map((c, i) => `
+    <div class="button-row" data-cidx="${i}">
+      <div>
+        <label class="form-label">Nom</label>
+        <input class="form-input" data-ck="name" value="${esc(c.name || "")}" placeholder="Alerte porte">
+      </div>
+      <div>
+        <label class="form-label">Couleur</label>
+        <input type="color" data-ck="color" value="${colorToHex(c.color || 0)}">
+      </div>
+      <button type="button" class="btn btn-danger btn-small" data-cdel="${i}">X</button>
+    </div>
+  `).join("");
+  root.querySelectorAll(".button-row").forEach(row => {
+    const idx = +row.dataset.cidx;
+    row.querySelectorAll("[data-ck]").forEach(inp => {
+      const sync = () => {
+        if (inp.dataset.ck === "color") colors[idx].color = hexToInt(inp.value);
+        else colors[idx][inp.dataset.ck] = inp.value;
+      };
+      inp.addEventListener("input", sync);
+      inp.addEventListener("change", sync);
+    });
+  });
+  root.querySelectorAll("[data-cdel]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      colors.splice(+btn.dataset.cdel, 1);
+      renderColors();
+    });
+  });
+}
+
+function renderChannels() {
+  const root = document.getElementById("channels-builder");
+  root.innerHTML = channels.map((c, i) => `
+    <div class="button-row" data-chidx="${i}">
+      <div>
+        <label class="form-label">Nom</label>
+        <input class="form-input" data-chk="name" value="${esc(c.name || "")}" placeholder="general">
+      </div>
+      <div>
+        <label class="form-label">Channel ID</label>
+        <input class="form-input" data-chk="channel_id" value="${esc(c.channel_id || "")}" placeholder="123456789012345678" inputmode="numeric">
+      </div>
+      <button type="button" class="btn btn-danger btn-small" data-chdel="${i}">X</button>
+    </div>
+  `).join("");
+  root.querySelectorAll(".button-row").forEach(row => {
+    const idx = +row.dataset.chidx;
+    row.querySelectorAll("[data-chk]").forEach(inp => {
+      const sync = () => { channels[idx][inp.dataset.chk] = inp.value; };
+      inp.addEventListener("input", sync);
+      inp.addEventListener("change", sync);
+    });
+  });
+  root.querySelectorAll("[data-chdel]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      channels.splice(+btn.dataset.chdel, 1);
+      renderChannels();
+    });
+  });
+}
+
+document.getElementById("color-add").addEventListener("click", () => {
+  colors.push({ name: "", color: 0xE8C547 });
+  renderColors();
+});
+document.getElementById("channel-add").addEventListener("click", () => {
+  channels.push({ name: "", channel_id: "" });
+  renderChannels();
+});
+
+document.getElementById("colors-save").addEventListener("click", async () => {
+  try {
+    const cleaned = colors.filter(c => c.name && c.name.trim());
+    await API.put("/settings/colors", cleaned);
+    toast("Couleurs enregistrees");
+  } catch (e) { toast(e.message, "error"); }
+});
+
+document.getElementById("channels-save").addEventListener("click", async () => {
+  try {
+    const cleaned = channels.filter(c => c.name && c.channel_id);
+    await API.put("/settings/channels", cleaned);
+    toast("Channels enregistres");
+  } catch (e) { toast(e.message, "error"); }
+});
+
+// ============================================================
+// Mise a jour systeme
+// ============================================================
+async function loadSystemInfo() {
+  try {
+    const i = await API.get("/system/info");
+    const where = `<code>${esc(i.install_dir)}</code>`;
+    if (i.is_git) {
+      document.getElementById("update-info").innerHTML =
+        `Branche <code>${esc(i.branch || "?")}</code> &middot; commit <code>${esc(i.commit || "?")}</code> &middot; ${where}`;
+    } else {
+      document.getElementById("update-info").textContent =
+        `Pas un depot git : ${i.install_dir}. Mise a jour automatique impossible.`;
+      document.getElementById("btn-update").disabled = true;
+    }
+  } catch (e) {
+    document.getElementById("update-info").textContent = "Erreur : " + e.message;
+  }
+}
+
+function setProgress(pct, step) {
+  document.getElementById("update-progress-wrap").style.display = "block";
+  document.getElementById("update-progress").style.width = pct + "%";
+  if (step) document.getElementById("update-step").textContent = step;
+}
+
+function appendLog(text) {
+  const el = document.getElementById("update-log");
+  el.style.display = "block";
+  el.textContent += text;
+  el.scrollTop = el.scrollHeight;
+}
+
+async function waitForRestart() {
+  // Pendant le restart, /api/system/info devient injoignable puis revient.
+  setProgress(70, "Redemarrage du service...");
+  // Attente initiale pour laisser le temps au process de se kill
+  await new Promise(r => setTimeout(r, 2500));
+
+  const start = Date.now();
+  let pct = 70;
+  while (Date.now() - start < 60000) {  // 60s max
+    try {
+      const r = await fetch("/api/system/info", { cache: "no-store" });
+      if (r.ok) {
+        setProgress(100, "OK ! Rechargement de la page...");
+        await new Promise(r => setTimeout(r, 800));
+        location.reload();
+        return;
+      }
+    } catch { /* still down */ }
+    pct = Math.min(95, pct + 1);
+    setProgress(pct, "En attente du retour du service...");
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  setProgress(100, "Le service ne repond pas. Verifie les logs (journalctl -u botpanel).");
+  toast("Restart timeout", "error");
+}
+
+document.getElementById("btn-update").addEventListener("click", async () => {
+  if (!confirm("Lancer git pull ? Le bot sera redemarre apres.")) return;
+  const btn = document.getElementById("btn-update");
+  btn.disabled = true;
+  document.getElementById("update-log").textContent = "";
+  setProgress(10, "git fetch...");
+
+  let result;
+  try {
+    result = await API.post("/system/update");
+  } catch (e) {
+    appendLog("Erreur : " + e.message);
+    setProgress(100, "Echec");
+    btn.disabled = false;
+    return;
+  }
+  setProgress(40, "git pull...");
+  appendLog(`$ ${result.fetch?.command || "git fetch"}\n`);
+  appendLog((result.fetch?.stdout || "") + (result.fetch?.stderr || "") + "\n");
+  appendLog(`$ ${result.pull?.command || "git pull"}\n`);
+  appendLog((result.pull?.stdout || "") + (result.pull?.stderr || "") + "\n");
+
+  if (!result.ok) {
+    setProgress(100, "Echec du git pull (voir log)");
+    btn.disabled = false;
+    return;
+  }
+
+  setProgress(60, "Redemarrage demande...");
+  try {
+    await API.post("/system/restart");
+  } catch (e) {
+    appendLog("\nRestart KO : " + e.message + "\nRedemarre manuellement avec : sudo systemctl restart botpanel");
+    setProgress(100, "Redemarrage echoue");
+    btn.disabled = false;
+    return;
+  }
+  await waitForRestart();
+});
+
+async function loadAll() {
+  try {
+    colors = await API.get("/settings/colors");
+    renderColors();
+  } catch (e) { toast("Erreur couleurs : " + e.message, "error"); }
+
+  try {
+    channels = await API.get("/settings/channels");
+    renderChannels();
+  } catch (e) { toast("Erreur channels : " + e.message, "error"); }
+
+  try {
+    const bot = await API.get("/discord/channels");
+    const root = document.getElementById("bot-channels");
+    if (!bot.length) {
+      root.innerHTML = `<div class="empty-state">Aucun channel detecte (le bot est-il en ligne ?).</div>`;
+      return;
+    }
+    root.innerHTML = bot.map(ch => `
+      <div class="card-row">
+        <div>
+          <strong># ${esc(ch.name)}</strong>
+          <div class="card-row-meta">
+            ${ch.category ? esc(ch.category) + " &middot; " : ""}<code>${esc(ch.id)}</code>
+          </div>
+        </div>
+        <button type="button" class="btn btn-edit btn-small"
+                data-add-ch="${esc(ch.id)}" data-add-name="${esc(ch.name)}">+ AJOUTER</button>
+      </div>
+    `).join("");
+    root.querySelectorAll("[data-add-ch]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        channels.push({ name: btn.dataset.addName, channel_id: btn.dataset.addCh });
+        renderChannels();
+        toast("Ajoute en bas — pense a enregistrer");
+      });
+    });
+  } catch (e) {
+    document.getElementById("bot-channels").innerHTML =
+      `<div class="empty-state">Erreur : ${esc(e.message)}</div>`;
+  }
+}
+
+loadSystemInfo();
+loadAll();
+</script>
+{% endblock %}

@@ -17,7 +17,7 @@ import discord
 from discord.ui import Button, View
 
 from app.db.models import Notification, NotificationButton
-from app.db.repositories import NotificationRepository
+from app.db.repositories import LogRepository, NotificationRepository
 from app.ha import ha_client
 
 logger = logging.getLogger(__name__)
@@ -46,6 +46,10 @@ def _cid_custom(notif_id: int, button_id: int) -> str:
     return f"{CUSTOM_ID_PREFIX}:btn:{notif_id}:{button_id}"
 
 
+def _cid_preview(idx: int) -> str:
+    return f"{CUSTOM_ID_PREFIX}:preview:{idx}"
+
+
 DISCORD_STYLES: dict[str, discord.ButtonStyle] = {
     "primary": discord.ButtonStyle.primary,
     "secondary": discord.ButtonStyle.secondary,
@@ -58,17 +62,28 @@ DISCORD_STYLES: dict[str, discord.ButtonStyle] = {
 # View construite a l'envoi d'une notification
 # -----------------------------------------------------------------
 def build_notification_view(notif: Notification) -> View:
-    """Cree une View persistante avec les boutons configures."""
-    view = View(timeout=None)
+    """Cree une View persistante avec les boutons configures.
 
-    for btn in notif.buttons:
-        assert btn.id is not None, "button must be persisted"
+    - Si notif.id est falsy (test ephemere d'une notif non sauvegardee) :
+      tous les boutons sont en mode 'preview' et repondent "test, non actif".
+    - Si notif.id est set : les boutons avec un id en DB sont interactifs,
+      ceux sans id (nouveaux dans l'editeur, pas encore sauves) restent
+      en mode preview.
+    """
+    view = View(timeout=None)
+    is_preview_notif = not notif.id
+
+    for idx, btn in enumerate(notif.buttons):
+        if is_preview_notif or btn.id is None:
+            cid = _cid_preview(idx)
+        else:
+            cid = _cid_custom(notif.id, btn.id)
         view.add_item(
             Button(
                 style=DISCORD_STYLES.get(btn.style, discord.ButtonStyle.primary),
                 label=btn.label,
                 emoji=btn.emoji or None,
-                custom_id=_cid_custom(notif.id, btn.id),
+                custom_id=cid,
             )
         )
 
@@ -78,7 +93,7 @@ def build_notification_view(notif: Notification) -> View:
                 style=discord.ButtonStyle.secondary,
                 label=f"Snooze {notif.snooze_minutes}min",
                 emoji="\U0001f514",  # bell
-                custom_id=_cid_snooze(notif.id),
+                custom_id=_cid_preview(900) if is_preview_notif else _cid_snooze(notif.id),
             )
         )
 
@@ -88,7 +103,7 @@ def build_notification_view(notif: Notification) -> View:
                 style=discord.ButtonStyle.danger,
                 label="Supprimer",
                 emoji="\U0001f5d1",  # wastebasket
-                custom_id=_cid_delete(notif.id),
+                custom_id=_cid_preview(901) if is_preview_notif else _cid_delete(notif.id),
             )
         )
 
@@ -111,14 +126,42 @@ class PersistentDispatcher(View):
         super().__init__(timeout=None)
 
 
+async def _log_click(
+    interaction: discord.Interaction,
+    *,
+    notif_id: int,
+    kind: str,
+    button_label: str,
+    detail: str | None = None,
+    success: bool = True,
+) -> None:
+    user = interaction.user
+    await LogRepository().add(
+        kind=kind,
+        notification_id=notif_id,
+        channel_id=str(interaction.channel_id) if interaction.channel_id else None,
+        message_id=str(interaction.message.id) if interaction.message else None,
+        user_id=str(user.id) if user else None,
+        user_name=str(user) if user else None,
+        button_label=button_label,
+        detail=detail,
+        success=success,
+    )
+
+
 async def _handle_delete(interaction: discord.Interaction, notif_id: int) -> None:
     if interaction.message is None:
         await interaction.response.send_message("Message introuvable.", ephemeral=True)
         return
     try:
         await interaction.message.delete()
+        await _log_click(interaction, notif_id=notif_id, kind="delete", button_label="Supprimer")
     except discord.HTTPException as exc:
         logger.error("Echec suppression message : %s", exc)
+        await _log_click(
+            interaction, notif_id=notif_id, kind="delete",
+            button_label="Supprimer", detail=str(exc)[:200], success=False,
+        )
         await interaction.response.send_message(
             "Impossible de supprimer le message.", ephemeral=True
         )
@@ -145,6 +188,11 @@ async def _handle_snooze(interaction: discord.Interaction, notif_id: int) -> Non
     await interaction.response.send_message(
         f"Snooze : je te repingue dans {notif.snooze_minutes} min.",
         ephemeral=True,
+    )
+    await _log_click(
+        interaction, notif_id=notif_id, kind="snooze",
+        button_label=f"Snooze {notif.snooze_minutes}min",
+        detail=f"Re-envoi dans {notif.snooze_minutes} min",
     )
 
     async def _resend() -> None:
@@ -198,11 +246,20 @@ async def _handle_custom_button(
         await ha_client.call_service(domain, srv, data)
     except Exception as exc:  # HomeAssistantError remonte ici
         logger.error("Erreur appel HA depuis bouton : %s", exc)
+        await _log_click(
+            interaction, notif_id=notif_id, kind="button",
+            button_label=target.label,
+            detail=f"{service} -> {exc}"[:300], success=False,
+        )
         await interaction.followup.send(
             f"\u274c Erreur : {exc}", ephemeral=True
         )
         return
 
+    await _log_click(
+        interaction, notif_id=notif_id, kind="button",
+        button_label=target.label, detail=service,
+    )
     await interaction.followup.send(
         f"\u2705 {target.label} execute.", ephemeral=True
     )
@@ -229,6 +286,12 @@ async def dispatch_interaction(interaction: discord.Interaction) -> bool:
     except ValueError:
         return False
 
+    if action == "preview":
+        await interaction.response.send_message(
+            "🧪 Bouton de **test** : non actif tant que la notification n'est pas enregistree.",
+            ephemeral=True,
+        )
+        return True
     if action == "del":
         await _handle_delete(interaction, notif_id)
         return True
