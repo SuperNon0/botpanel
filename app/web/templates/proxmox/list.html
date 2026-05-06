@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Proxmox — BotPanel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Proxmox</h2>
+  <span class="card-row-meta" id="px-count">0 template</span>
+</div>
+
+<details class="card help-card" id="help-webhook">
+  <summary>
+    <span class="help-arrow">&#9656;</span>
+    Configuration webhook Proxmox
+  </summary>
+  <div class="help-body">
+    <h4>URL du webhook</h4>
+    <p>Dans Proxmox : <strong>Datacenter → Notifications → Add → Webhook</strong></p>
+    <ul>
+      <li><strong>URL</strong> : <code id="webhook-url">http://&lt;IP_LXC&gt;:8080/api/proxmox/backup</code></li>
+      <li><strong>Method</strong> : POST</li>
+      <li><strong>Header</strong> : <code>Authorization: Bearer &lt;PROXMOX_WEBHOOK_SECRET&gt;</code> (si defini dans .env)</li>
+    </ul>
+
+    <h4>Body template (a coller dans Proxmox)</h4>
+    <pre style="background:var(--bg-card);padding:0.7rem 1rem;border-radius:6px;overflow-x:auto;font-size:0.85rem;">{
+  "severity": "{{ '{{' }} severity {{ '}}' }}",
+  "title":    "{{ '{{' }} title {{ '}}' }}",
+  "body":     "{{ '{{' }} message {{ '}}' }}",
+  "hostname": "{{ '{{' }} hostname {{ '}}' }}"
+}</pre>
+
+    <h4>Placeholders disponibles dans les templates</h4>
+    <p>Utilise-les dans le titre, le message ou les champs :</p>
+    <ul>
+      <li><code>{px:vmid}</code> — ID de la VM/CT</li>
+      <li><code>{px:hostname}</code> — Nœud Proxmox</li>
+      <li><code>{px:severity}</code> — Severite (info / warning / error)</li>
+      <li><code>{px:title}</code> — Titre de la notification Proxmox</li>
+      <li><code>{px:body}</code> — Corps de la notification Proxmox</li>
+      <li><code>{px:type}</code> — Type de la VM (LXC / QEMU)</li>
+      <li><code>{px:storage}</code> — Stockage cible du backup</li>
+      <li><code>{px:duration}</code> — Duree du backup (ex. "2m 34s")</li>
+      <li><code>{px:size}</code> — Taille du backup (ex. "2.1 Go")</li>
+    </ul>
+
+    <h4>Types d'evenements</h4>
+    <ul>
+      <li><strong>Tous</strong> — Declenche pour n'importe quelle notification Proxmox</li>
+      <li><strong>Info (succes)</strong> — Backup reussi (severity = info)</li>
+      <li><strong>Warning</strong> — Backup avec avertissement</li>
+      <li><strong>Erreur</strong> — Backup echoue (severity = error)</li>
+    </ul>
+  </div>
+</details>
+
+<div id="px-list"></div>
+
+<a href="/proxmox/new" class="fab" title="Nouveau template Proxmox">+</a>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const EVENT_LABELS = {
+  any:     { label: "Tous",           cls: "tag-purple" },
+  info:    { label: "Info (succes)",  cls: "tag-green"  },
+  warning: { label: "Warning",        cls: "tag-yellow" },
+  error:   { label: "Erreur",         cls: "tag-red"    },
+};
+
+function rowHtml(n) {
+  const ev = EVENT_LABELS[n.event_type] || { label: n.event_type, cls: "" };
+  const colorHex = "#" + (n.color & 0xFFFFFF).toString(16).padStart(6, "0");
+  const enabledTag = n.enabled
+    ? '<span class="tag tag-green">ON</span>'
+    : '<span class="tag tag-red">OFF</span>';
+  return `
+    <div class="card-row">
+      <div style="display:flex;align-items:center;gap:0.6rem;">
+        <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${colorHex};flex-shrink:0;"></span>
+        <div>
+          <div><strong>${esc(n.name)}</strong> ${enabledTag} <span class="tag ${ev.cls}">${ev.label}</span></div>
+          <div class="card-row-meta">${esc(n.title)}</div>
+        </div>
+      </div>
+      <div class="row-actions">
+        <button class="btn btn-purple btn-small" data-test="${n.id}">TESTER</button>
+        <a class="btn btn-edit btn-small" href="/proxmox/${n.id}">EDITER</a>
+        <button class="btn btn-danger btn-small" data-del="${n.id}">SUPPR</button>
+      </div>
+    </div>
+  `;
+}
+
+async function load() {
+  const list = document.getElementById("px-list");
+  const count = document.getElementById("px-count");
+  try {
+    const items = await API.get("/proxmox/notifications");
+    count.textContent = `${items.length} template${items.length > 1 ? "s" : ""}`;
+
+    if (items.length === 0) {
+      list.innerHTML = `<div class="card"><div class="empty-state">
+        Aucun template configure.<br>Clique sur <strong>+</strong> pour en creer un.
+      </div></div>`;
+      return;
+    }
+
+    list.innerHTML = `<div class="card">${items.map(rowHtml).join("")}</div>`;
+
+    list.querySelectorAll("[data-del]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Supprimer ce template ?")) return;
+        try {
+          await API.del(`/proxmox/notifications/${btn.dataset.del}`);
+          toast("Template supprime");
+          load();
+        } catch (e) { toast(e.message, "error"); }
+      });
+    });
+
+    list.querySelectorAll("[data-test]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        try {
+          await API.post(`/proxmox/notifications/${btn.dataset.test}/test`);
+          toast("Notification de test envoyee sur Discord !");
+        } catch (e) { toast(e.message, "error"); }
+      });
+    });
+  } catch (e) {
+    list.innerHTML = `<div class="card"><div class="empty-state">Erreur : ${esc(e.message)}</div></div>`;
+  }
+}
+
+load();
+</script>
+{% endblock %}

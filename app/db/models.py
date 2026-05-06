@@ -6,6 +6,8 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+ProxmoxEventType = Literal["any", "info", "warning", "error"]
+
 
 # ==========================================================
 #  Notifications
@@ -138,6 +140,52 @@ class ColorPreset(BaseModel):
 class ChannelPreset(BaseModel):
     name: str = Field(..., max_length=64)
     channel_id: str = Field(..., max_length=32)
+
+
+# ==========================================================
+#  Notifications Proxmox
+# ==========================================================
+class ProxmoxField(BaseModel):
+    """Champ d'embed pour une notification Proxmox.
+
+    `value_template` supporte les placeholders Proxmox :
+        {px:vmid}      -> ID de la VM/CT
+        {px:hostname}  -> nom du noeud Proxmox
+        {px:severity}  -> severite (info/warning/error)
+        {px:title}     -> titre de la notification Proxmox
+        {px:body}      -> corps de la notification Proxmox
+        {px:type}      -> type (lxc/qemu)
+        {px:storage}   -> stockage cible
+        {px:duration}  -> duree du backup (formatee)
+        {px:size}      -> taille du backup (formatee)
+        {px:node}      -> alias de {px:hostname}
+    """
+
+    id: Optional[int] = None
+    position: int = 0
+    name: str = Field(..., max_length=256)
+    value_template: str = Field(..., max_length=1024)
+    inline: bool = True
+
+
+class ProxmoxNotificationIn(BaseModel):
+    """Payload de creation/modification d'une notification Proxmox."""
+
+    name: str = Field("Notification Proxmox", max_length=128)
+    event_type: ProxmoxEventType = "any"
+    enabled: bool = True
+    channel_id: str
+    title: str = Field(..., max_length=256)
+    message: str = Field(..., max_length=4000)
+    color: int = 0x4ADE80
+    icon_url: Optional[str] = None
+    footer: Optional[str] = None
+    show_timestamp: bool = True
+    fields: list[ProxmoxField] = Field(default_factory=list)
+
+
+class ProxmoxNotification(ProxmoxNotificationIn):
+    id: int
 
 
 # ==========================================================

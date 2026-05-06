@@ -83,6 +83,29 @@ async def page_monitoring_edit(request: Request, block_id: int):
     )
 
 
+@router.get("/proxmox", response_class=HTMLResponse)
+async def page_proxmox(request: Request):
+    return templates.TemplateResponse(
+        "proxmox/list.html", {"request": request, "active_page": "proxmox"}
+    )
+
+
+@router.get("/proxmox/new", response_class=HTMLResponse)
+async def page_proxmox_new(request: Request):
+    return templates.TemplateResponse(
+        "proxmox/edit.html",
+        {"request": request, "active_page": "proxmox", "px_id": None},
+    )
+
+
+@router.get("/proxmox/{px_id}", response_class=HTMLResponse)
+async def page_proxmox_edit(request: Request, px_id: int):
+    return templates.TemplateResponse(
+        "proxmox/edit.html",
+        {"request": request, "active_page": "proxmox", "px_id": px_id},
+    )
+
+
 @router.get("/settings", response_class=HTMLResponse)
 async def page_settings(request: Request):
     return templates.TemplateResponse(

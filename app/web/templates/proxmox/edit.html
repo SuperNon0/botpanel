@@ -1,0 +1,490 @@
+{% extends "base.html" %}
+{% block title %}Template Proxmox — BotPanel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2 id="page-title">Nouveau template Proxmox</h2>
+  <a href="/proxmox" class="btn btn-secondary">Retour</a>
+</div>
+
+<details class="card help-card">
+  <summary>
+    <span class="help-arrow">&#9656;</span>
+    Placeholders Proxmox disponibles
+  </summary>
+  <div class="help-body">
+    <p>Utilise ces placeholders dans le titre, le message ou la valeur des champs :</p>
+    <ul>
+      <li><code>{px:vmid}</code> — ID de la VM/CT</li>
+      <li><code>{px:hostname}</code> — Nœud Proxmox (alias : <code>{px:node}</code>)</li>
+      <li><code>{px:severity}</code> — Severite (info / warning / error)</li>
+      <li><code>{px:title}</code> — Titre de la notification Proxmox</li>
+      <li><code>{px:body}</code> — Corps de la notification Proxmox</li>
+      <li><code>{px:type}</code> — Type (LXC / QEMU)</li>
+      <li><code>{px:storage}</code> — Stockage cible du backup</li>
+      <li><code>{px:duration}</code> — Duree du backup (ex. "2m 34s")</li>
+      <li><code>{px:size}</code> — Taille du backup (ex. "2.1 Go")</li>
+    </ul>
+    <p><strong>Exemple de titre</strong> : <code>✅ Backup VM {px:vmid} termine en {px:duration}</code></p>
+    <p><strong>Exemple de message</strong> : <code>Nœud : {px:hostname} · Taille : {px:size}</code></p>
+  </div>
+</details>
+
+<form id="px-form">
+  <div class="card">
+    <h3>Identification</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Nom du template</label>
+        <input class="form-input" name="name" required maxlength="128"
+               placeholder="Backup reussi" id="f-name">
+        <div class="form-hint">Nom interne pour t'y retrouver dans la liste</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Evenement</label>
+        <select class="form-select" name="event_type" id="f-event">
+          <option value="any">Tous les evenements</option>
+          <option value="info">Info — succes (severity=info)</option>
+          <option value="warning">Warning (severity=warning)</option>
+          <option value="error">Erreur — echec (severity=error)</option>
+        </select>
+        <div class="form-hint">Quand declencher ce template</div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Channel Discord</label>
+        <select class="form-select" id="channel-select"></select>
+        <input class="form-input" name="channel_id" id="f-channel-id" required inputmode="numeric"
+               placeholder="123456789012345678" style="margin-top:0.4rem;">
+        <div class="form-hint">choisis un preset ou colle un ID brut</div>
+      </div>
+      <div class="form-group" style="display:flex;align-items:flex-end;">
+        <label class="form-checkbox">
+          <input type="checkbox" name="enabled" id="f-enabled" checked> Template actif
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Embed Discord</h3>
+    <div class="form-group">
+      <label class="form-label">Titre</label>
+      <input class="form-input" name="title" required maxlength="256" id="f-title"
+             placeholder="✅ Backup {px:vmid} termine en {px:duration}">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Message</label>
+      <div class="md-toolbar">
+        <button type="button" class="md-btn" data-wrap="**" title="Gras"><strong>B</strong></button>
+        <button type="button" class="md-btn" data-wrap="*" title="Italique"><em>I</em></button>
+        <button type="button" class="md-btn" data-wrap="__" title="Souligne"><u>U</u></button>
+        <button type="button" class="md-btn" data-wrap="~~" title="Barre"><s>S</s></button>
+        <button type="button" class="md-btn" data-wrap="`" title="Code">&lt;/&gt;</button>
+        <button type="button" class="md-btn" id="msg-insert-emoji" title="Inserer un emoji">😀</button>
+        <button type="button" class="md-btn" id="msg-insert-px" title="Inserer un placeholder Proxmox">+ {px}</button>
+      </div>
+      <textarea class="form-textarea" name="message" maxlength="4000" id="f-message"
+                placeholder="Nœud : {px:hostname}&#10;Taille : {px:size}&#10;Stockage : {px:storage}"></textarea>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Couleur</label>
+        <div class="color-row">
+          <input type="color" name="color" id="f-color" value="#4ade80">
+          <select class="form-select" id="color-presets" style="flex:1;">
+            <option value="">— Preset —</option>
+          </select>
+        </div>
+        <div class="form-hint"><a href="/settings">Gerer les presets</a></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Icone (URL)</label>
+        <input class="form-input" name="icon_url" placeholder="https://...">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Footer</label>
+        <input class="form-input" name="footer" id="f-footer" value="Proxmox VE">
+      </div>
+      <div class="form-group" style="display:flex;align-items:flex-end;">
+        <label class="form-checkbox">
+          <input type="checkbox" name="show_timestamp" id="f-ts" checked> Afficher le timestamp
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Apercu</h3>
+    <div class="embed-preview" id="preview">
+      <div class="embed-title" id="p-title">Titre</div>
+      <div class="embed-desc"  id="p-desc">Message</div>
+      <div class="embed-fields" id="p-fields"></div>
+      <div class="embed-footer-row">
+        <span class="embed-footer" id="p-footer"></span>
+        <span class="embed-ts" id="p-ts"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Champs (fields)</h3>
+    <p class="hint">Affiches en grille dans l'embed. La valeur peut contenir des placeholders <code>{px:...}</code>.</p>
+    <div class="buttons-builder" id="field-builder"></div>
+    <button type="button" class="btn btn-secondary" id="field-add" style="margin-top:0.8rem;">+ Ajouter un champ</button>
+  </div>
+
+  <div style="display:flex;gap:0.7rem;justify-content:flex-end;flex-wrap:wrap;">
+    <a href="/proxmox" class="btn btn-secondary">Annuler</a>
+    <button type="button" class="btn btn-purple" id="btn-test-now">Tester maintenant</button>
+    <button type="submit" class="btn btn-primary">Enregistrer</button>
+  </div>
+</form>
+
+<!-- Picker placeholder Proxmox -->
+<div class="ent-modal" id="px-modal">
+  <div class="ent-modal-box">
+    <div class="ent-modal-head">
+      <strong>Inserer un placeholder Proxmox</strong>
+      <button type="button" class="btn btn-secondary btn-small" id="px-modal-close">Fermer</button>
+    </div>
+    <div class="ent-modal-list" id="px-modal-list" style="max-height:320px;overflow-y:auto;"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PX_ID = {% if px_id %}{{ px_id }}{% else %}null{% endif %};
+const form = document.getElementById("px-form");
+
+const PX_PLACEHOLDERS = [
+  { key: "vmid",     label: "VM / CT ID",         example: "100" },
+  { key: "hostname", label: "Nœud Proxmox",        example: "pve-node" },
+  { key: "severity", label: "Severite",            example: "info" },
+  { key: "title",    label: "Titre (Proxmox)",     example: "Backup vzdump" },
+  { key: "body",     label: "Corps (Proxmox)",     example: "Backup termine avec succes" },
+  { key: "type",     label: "Type VM",             example: "LXC" },
+  { key: "storage",  label: "Stockage",            example: "local-zfs" },
+  { key: "duration", label: "Duree du backup",     example: "2m 34s" },
+  { key: "size",     label: "Taille du backup",    example: "2.1 Go" },
+];
+
+// ============================================================
+// Markdown helpers
+// ============================================================
+function wrapSelection(textarea, wrap) {
+  const s = textarea.selectionStart, e = textarea.selectionEnd;
+  const sel = textarea.value.slice(s, e) || "texte";
+  textarea.value = textarea.value.slice(0, s) + wrap + sel + wrap + textarea.value.slice(e);
+  textarea.selectionStart = s + wrap.length;
+  textarea.selectionEnd   = s + wrap.length + sel.length;
+  textarea.focus();
+  textarea.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+document.querySelectorAll(".md-toolbar .md-btn[data-wrap]").forEach(btn =>
+  btn.addEventListener("click", () =>
+    wrapSelection(document.getElementById("f-message"), btn.dataset.wrap)
+  )
+);
+
+function renderDiscordMd(text) {
+  let h = esc(text);
+  h = h.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  h = h.replace(/__(.+?)__/g, "<u>$1</u>");
+  h = h.replace(/~~(.+?)~~/g, "<s>$1</s>");
+  h = h.replace(/`([^`]+?)`/g, "<code>$1</code>");
+  h = h.replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, "$1<em>$2</em>");
+  return h;
+}
+
+// ============================================================
+// Picker placeholder {px:...}
+// ============================================================
+const pxModal = document.getElementById("px-modal");
+const pxList  = document.getElementById("px-modal-list");
+let pxOnPick  = null;
+
+pxList.innerHTML = PX_PLACEHOLDERS.map(p => `
+  <div class="ent-item" data-key="${p.key}">
+    <div><strong><code>{px:${esc(p.key)}}</code></strong> — ${esc(p.label)}</div>
+    <div class="card-row-meta">ex. <em>${esc(p.example)}</em></div>
+  </div>
+`).join("");
+
+pxList.addEventListener("click", (e) => {
+  const item = e.target.closest(".ent-item");
+  if (!item || !pxOnPick) return;
+  pxOnPick(`{px:${item.dataset.key}}`);
+  pxModal.classList.remove("open");
+  pxOnPick = null;
+});
+
+document.getElementById("px-modal-close").addEventListener("click", () => {
+  pxModal.classList.remove("open"); pxOnPick = null;
+});
+pxModal.addEventListener("click", (e) => {
+  if (e.target === pxModal) { pxModal.classList.remove("open"); pxOnPick = null; }
+});
+
+function openPxPicker(onPick) {
+  pxOnPick = onPick;
+  pxModal.classList.add("open");
+}
+
+document.getElementById("msg-insert-emoji").addEventListener("click", () =>
+  openEmojiPicker((e) => insertAtCursor(document.getElementById("f-message"), e))
+);
+document.getElementById("msg-insert-px").addEventListener("click", () =>
+  openPxPicker((ph) => insertAtCursor(document.getElementById("f-message"), ph))
+);
+
+function insertAtCursor(ta, text) {
+  const s = ta.selectionStart;
+  ta.value = ta.value.slice(0, s) + text + ta.value.slice(ta.selectionEnd);
+  ta.selectionStart = ta.selectionEnd = s + text.length;
+  ta.focus();
+  ta.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+// ============================================================
+// Channels + couleurs
+// ============================================================
+async function bindChannelSelect() {
+  const sel = document.getElementById("channel-select");
+  const idIn = document.getElementById("f-channel-id");
+  const [presets, botCh] = await Promise.all([
+    API.get("/settings/channels").catch(() => []),
+    API.get("/discord/channels").catch(() => []),
+  ]);
+  const opts = ['<option value="">— choisir —</option>'];
+  if (presets.length) {
+    opts.push('<optgroup label="Preconfigures">');
+    presets.forEach(p => opts.push(
+      `<option value="${esc(p.channel_id)}">${esc(p.name)} (${esc(p.channel_id)})</option>`
+    ));
+    opts.push('</optgroup>');
+  }
+  if (botCh.length) {
+    opts.push('<optgroup label="Detectes par le bot">');
+    botCh.forEach(c => opts.push(
+      `<option value="${esc(c.id)}"># ${esc(c.name)}${c.category ? " — "+esc(c.category) : ""}</option>`
+    ));
+    opts.push('</optgroup>');
+  }
+  sel.innerHTML = opts.join("");
+  sel.addEventListener("change", () => { if (sel.value) idIn.value = sel.value; });
+  if (idIn.value) sel.value = idIn.value;
+}
+
+async function bindColorPresets() {
+  const sel = document.getElementById("color-presets");
+  const colorIn = document.getElementById("f-color");
+  let presets = [];
+  try { presets = await API.get("/settings/colors"); } catch { presets = []; }
+  presets.forEach(p => {
+    const hex = "#" + (p.color & 0xFFFFFF).toString(16).padStart(6, "0");
+    const opt = document.createElement("option");
+    opt.value = hex; opt.textContent = `${p.name} (${hex})`;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener("change", () => {
+    if (sel.value) { colorIn.value = sel.value; colorIn.dispatchEvent(new Event("input",{bubbles:true})); }
+  });
+}
+
+// ============================================================
+// Apercu live
+// ============================================================
+function formatTsFr(d) {
+  const M = ["janvier","fevrier","mars","avril","mai","juin",
+             "juillet","aout","septembre","octobre","novembre","decembre"];
+  const p = n => String(n).padStart(2,"0");
+  return `${d.getDate()} ${M[d.getMonth()]} ${d.getFullYear()} a ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+let fields = [];
+
+function updatePreview() {
+  const t = document.getElementById("f-title").value   || "Titre";
+  const m = document.getElementById("f-message").value || "Message";
+  const f = document.getElementById("f-footer").value  || "";
+  const c = document.getElementById("f-color").value   || "#4ade80";
+  const ts = document.getElementById("f-ts").checked;
+
+  document.getElementById("p-title").innerHTML = renderDiscordMd(t);
+  document.getElementById("p-desc").innerHTML  = renderDiscordMd(m);
+  document.getElementById("p-footer").textContent = f;
+  document.getElementById("p-ts").textContent = ts ? (f?" · ":"") + formatTsFr(new Date()) : "";
+  document.getElementById("preview").style.borderLeftColor = c;
+
+  document.getElementById("p-fields").innerHTML = fields.map(fl => `
+    <div class="embed-field ${fl.inline !== false ? "inline" : ""}">
+      <div class="embed-field-name">${renderDiscordMd(fl.name || "")}</div>
+      <div class="embed-field-val">${renderDiscordMd(fl.value_template || "")}</div>
+    </div>
+  `).join("");
+}
+
+function bindPreview() {
+  ["f-title","f-message","f-footer","f-color","f-ts"].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener("input", updatePreview);
+    el.addEventListener("change", updatePreview);
+  });
+  updatePreview();
+}
+
+// ============================================================
+// Builder de fields
+// ============================================================
+const fieldBuilder = document.getElementById("field-builder");
+
+function renderFields() {
+  fieldBuilder.innerHTML = fields.map((f, i) => `
+    <div class="button-row" data-fidx="${i}">
+      <div>
+        <label class="form-label">Nom du champ</label>
+        <input class="form-input" data-fk="name" value="${esc(f.name || '')}" placeholder="Nœud">
+        <label class="form-checkbox" style="margin-top:0.6rem;">
+          <input type="checkbox" data-fk="inline" ${f.inline !== false ? "checked" : ""}> En grille
+        </label>
+      </div>
+      <div style="flex:2;">
+        <label class="form-label">Valeur (texte ou placeholder {px:...})</label>
+        <div style="display:flex;gap:0.4rem;">
+          <input class="form-input" data-fk="value_template" value="${esc(f.value_template || '')}" placeholder="{px:hostname}">
+          <button type="button" class="md-btn" data-fpx="${i}" style="white-space:nowrap;">+ {px}</button>
+        </div>
+      </div>
+      <button type="button" class="btn btn-danger btn-small" data-fremove="${i}">X</button>
+    </div>
+  `).join("");
+
+  fieldBuilder.querySelectorAll(".button-row").forEach(row => {
+    const idx = +row.dataset.fidx;
+    row.querySelectorAll("[data-fk]").forEach(inp => {
+      const sync = () => {
+        fields[idx][inp.dataset.fk] = inp.type === "checkbox" ? inp.checked : inp.value;
+        updatePreview();
+      };
+      inp.addEventListener("input", sync);
+      inp.addEventListener("change", sync);
+    });
+  });
+  fieldBuilder.querySelectorAll("[data-fremove]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      fields.splice(+btn.dataset.fremove, 1);
+      renderFields(); updatePreview();
+    });
+  });
+  fieldBuilder.querySelectorAll("[data-fpx]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const idx = +btn.dataset.fpx;
+      openPxPicker((ph) => {
+        const inp = fieldBuilder.querySelector(`[data-fidx="${idx}"] [data-fk="value_template"]`);
+        inp.value = (inp.value || "") + (inp.value ? " " : "") + ph;
+        inp.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    });
+  });
+}
+
+document.getElementById("field-add").addEventListener("click", () => {
+  fields.push({ name: "", value_template: "", inline: true });
+  renderFields(); updatePreview();
+});
+
+// ============================================================
+// Chargement si edition
+// ============================================================
+async function loadExisting() {
+  if (!PX_ID) return;
+  try {
+    const n = await API.get(`/proxmox/notifications/${PX_ID}`);
+    document.getElementById("page-title").textContent = `Modifier — ${n.name}`;
+    for (const [key, val] of Object.entries(n)) {
+      const el = form.elements[key];
+      if (!el || el.type === "file") continue;
+      if (el.type === "checkbox") el.checked = !!val;
+      else if (key === "color") el.value = "#" + (val & 0xFFFFFF).toString(16).padStart(6,"0");
+      else el.value = val ?? "";
+    }
+    fields = (n.fields || []).map(f => ({ ...f }));
+    renderFields();
+    updatePreview();
+    const sel = document.getElementById("channel-select");
+    if (sel && n.channel_id) sel.value = n.channel_id;
+  } catch (e) {
+    toast("Erreur chargement : " + e.message, "error");
+  }
+}
+
+// ============================================================
+// Submit / Test
+// ============================================================
+function buildPayload() {
+  const fd = new FormData(form);
+  return {
+    name:           fd.get("name"),
+    event_type:     fd.get("event_type"),
+    enabled:        fd.get("enabled") === "on",
+    channel_id:     fd.get("channel_id"),
+    title:          fd.get("title"),
+    message:        fd.get("message") || "",
+    color:          parseInt((fd.get("color") || "#4ade80").replace("#",""), 16),
+    icon_url:       fd.get("icon_url") || null,
+    footer:         fd.get("footer")   || null,
+    show_timestamp: fd.get("show_timestamp") === "on",
+    fields: fields.map((f, i) => ({
+      position:       i,
+      name:           f.name || "",
+      value_template: f.value_template || "",
+      inline:         f.inline !== false,
+    })),
+  };
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    if (PX_ID) {
+      await API.put(`/proxmox/notifications/${PX_ID}`, buildPayload());
+    } else {
+      await API.post("/proxmox/notifications", buildPayload());
+    }
+    toast("Enregistre !");
+    setTimeout(() => { window.location.href = "/proxmox"; }, 600);
+  } catch (err) { toast(err.message, "error"); }
+});
+
+document.getElementById("btn-test-now").addEventListener("click", async () => {
+  if (!form.checkValidity()) { form.reportValidity(); return; }
+  if (!PX_ID) {
+    toast("Enregistre d'abord le template avant de tester.", "error");
+    return;
+  }
+  try {
+    await API.post(`/proxmox/notifications/${PX_ID}/test`);
+    toast("Test envoye sur Discord !");
+  } catch (err) { toast(err.message, "error"); }
+});
+
+// ============================================================
+// Boot
+// ============================================================
+async function boot() {
+  bindPreview();
+  await Promise.all([bindChannelSelect(), bindColorPresets()]);
+  await loadExisting();
+}
+boot();
+</script>
+{% endblock %}

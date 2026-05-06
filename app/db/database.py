@@ -155,6 +155,46 @@ CREATE INDEX IF NOT EXISTS idx_logs_notif
     ON notification_logs(notification_id);
 CREATE INDEX IF NOT EXISTS idx_logs_kind_created
     ON notification_logs(kind, created_at);
+
+-- ==========================================================
+-- NOTIFICATIONS PROXMOX
+-- Templates de notifications declenchees par les webhooks
+-- Proxmox VE. Chaque template est lie a un type d'evenement :
+--   any     -> tout evenement Proxmox
+--   info    -> severity=info (backup reussi)
+--   warning -> severity=warning
+--   error   -> severity=error (backup echoue)
+-- Le message peut contenir des placeholders {px:vmid} etc.
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS proxmox_notifications (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    name            TEXT NOT NULL DEFAULT 'Notification Proxmox',
+    event_type      TEXT NOT NULL DEFAULT 'any',   -- any/info/warning/error
+    enabled         INTEGER NOT NULL DEFAULT 1,
+    channel_id      TEXT NOT NULL,
+    title           TEXT NOT NULL,
+    message         TEXT NOT NULL,
+    color           INTEGER NOT NULL DEFAULT 4777316, -- 0x4ADE80 vert
+    icon_url        TEXT,
+    footer          TEXT,
+    show_timestamp  INTEGER NOT NULL DEFAULT 1,
+    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS proxmox_notification_fields (
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    proxmox_notification_id INTEGER NOT NULL,
+    position                INTEGER NOT NULL DEFAULT 0,
+    name                    TEXT NOT NULL,
+    value_template          TEXT NOT NULL,
+    inline                  INTEGER NOT NULL DEFAULT 1,
+    FOREIGN KEY (proxmox_notification_id)
+        REFERENCES proxmox_notifications(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_px_fields_notif
+    ON proxmox_notification_fields(proxmox_notification_id);
 """
 
 

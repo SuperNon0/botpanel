@@ -1,10 +1,10 @@
-"""Endpoint pour les webhooks Proxmox VE (notifications de backup).
+"""Endpoint webhook Proxmox VE — recoit les notifications et les dispatche
+vers les templates configures dans BotPanel.
 
-Proxmox VE 8.1+ peut envoyer des webhooks via Datacenter -> Notifications.
-Configurer un endpoint de type "Webhook" avec :
+Configuration Proxmox (Datacenter → Notifications → Webhook) :
   URL    : http://<IP_LXC>:8080/api/proxmox/backup
   Method : POST
-  Header : Authorization: Bearer <PROXMOX_WEBHOOK_SECRET>  (si defini)
+  Header : Authorization: Bearer <PROXMOX_WEBHOOK_SECRET>  (si defini dans .env)
   Body   :
     {
       "severity": "{{ severity }}",
@@ -13,12 +13,23 @@ Configurer un endpoint de type "Webhook" avec :
       "hostname": "{{ hostname }}"
     }
 
-Pour les anciens Proxmox (vzdump hook script), envoyer le meme format via curl.
+Placeholders utilisables dans les templates BotPanel :
+  {px:vmid}      VM/CT ID
+  {px:hostname}  Nœud Proxmox
+  {px:severity}  Severite (info/warning/error)
+  {px:title}     Titre de la notif Proxmox
+  {px:body}      Corps de la notif Proxmox
+  {px:type}      Type (lxc/qemu)
+  {px:storage}   Stockage cible
+  {px:duration}  Duree du backup (ex. "2m 34s")
+  {px:size}      Taille du backup (ex. "2.1 Go")
+  {px:node}      Alias de {px:hostname}
 """
 
 from __future__ import annotations
 
 import logging
+import re
 import secrets
 from typing import Any
 
@@ -27,44 +38,45 @@ from fastapi import APIRouter, HTTPException, Request
 
 from app.bot.notifications import _resolve_channel
 from app.config import settings
+from app.db.models import ProxmoxNotification
+from app.db.repositories import ProxmoxNotificationRepository
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Couleurs Discord par severite
+_PX_RE = re.compile(r"\{px:([a-zA-Z0-9_]+)\}")
+
+_SEVERITY_MAP: dict[str, str] = {
+    "info": "info",
+    "information": "info",
+    "success": "info",
+    "ok": "info",
+    "warning": "warning",
+    "warn": "warning",
+    "error": "error",
+    "critical": "error",
+    "fatal": "error",
+    "failure": "error",
+    "failed": "error",
+}
+
 _COLORS: dict[str, int] = {
-    "info":    0x4ADE80,   # vert
-    "warning": 0xF59E0B,   # orange/jaune
-    "error":   0xEF4444,   # rouge
-    "unknown": 0x6B7280,   # gris
+    "info":    0x4ADE80,
+    "warning": 0xF59E0B,
+    "error":   0xEF4444,
 }
 
-# Icones par severite
-_ICONS: dict[str, str] = {
-    "info":    "✅",
-    "warning": "⚠️",
-    "error":   "❌",
-    "unknown": "🔔",
-}
+_FR_MONTHS = [
+    "janvier", "fevrier", "mars", "avril", "mai", "juin",
+    "juillet", "aout", "septembre", "octobre", "novembre", "decembre",
+]
 
 
-def _normalize_severity(raw: str) -> str:
-    raw = raw.lower().strip()
-    if raw in ("info", "information", "success", "ok"):
-        return "info"
-    if raw in ("warning", "warn"):
-        return "warning"
-    if raw in ("error", "critical", "fatal", "failure", "failed"):
-        return "error"
-    return "unknown"
-
-
-def _human_size(value: Any) -> str:
-    """Convertit une taille en octets en chaine lisible."""
+def _human_size(raw: Any) -> str:
     try:
-        n = int(value)
+        n = int(raw)
     except (TypeError, ValueError):
-        return str(value)
+        return str(raw)
     for unit in ("o", "Ko", "Mo", "Go", "To"):
         if n < 1024:
             return f"{n} {unit}"
@@ -72,89 +84,107 @@ def _human_size(value: Any) -> str:
     return f"{n} Po"
 
 
-def _build_embed(payload: dict[str, Any]) -> discord.Embed:
-    severity = _normalize_severity(str(payload.get("severity", "unknown")))
-    color = _COLORS[severity]
-    icon = _ICONS[severity]
+def _human_duration(raw: Any) -> str:
+    try:
+        secs = int(raw)
+    except (TypeError, ValueError):
+        return str(raw)
+    h, rest = divmod(secs, 3600)
+    m, s = divmod(rest, 60)
+    if h:
+        return f"{h}h {m:02d}m {s:02d}s"
+    if m:
+        return f"{m}m {s:02d}s"
+    return f"{s}s"
 
-    raw_title = payload.get("title") or "Backup Proxmox"
-    title = f"{icon} {raw_title}"
 
-    body = (
-        payload.get("body")
-        or payload.get("message")
-        or payload.get("description")
-        or ""
+def _build_px_context(payload: dict[str, Any]) -> dict[str, str]:
+    """Construit le dictionnaire de remplacement des placeholders {px:...}."""
+    severity = _SEVERITY_MAP.get(str(payload.get("severity", "")).lower(), "info")
+    duration_raw = payload.get("duration") or payload.get("elapsed")
+    size_raw = payload.get("size") or payload.get("backup_size")
+    hostname = str(payload.get("hostname") or payload.get("node") or "—")
+    return {
+        "vmid":     str(payload.get("vmid") or payload.get("vm_id") or "—"),
+        "hostname": hostname,
+        "node":     hostname,
+        "severity": severity,
+        "title":    str(payload.get("title") or ""),
+        "body":     str(payload.get("body") or payload.get("message") or ""),
+        "type":     str(payload.get("type") or payload.get("vm_type") or "—").upper(),
+        "storage":  str(payload.get("storage") or payload.get("storage_id") or "—"),
+        "duration": _human_duration(duration_raw) if duration_raw is not None else "—",
+        "size":     _human_size(size_raw) if size_raw is not None else "—",
+    }
+
+
+def _resolve_px(text: str, ctx: dict[str, str]) -> str:
+    return _PX_RE.sub(lambda m: ctx.get(m.group(1), f"{{px:{m.group(1)}}}"), text)
+
+
+def _format_fr_dt() -> str:
+    import datetime as dt
+    now = dt.datetime.now()
+    return f"{now.day} {_FR_MONTHS[now.month - 1]} {now.year} a {now:%H:%M}"
+
+
+async def send_proxmox_notification(
+    notif: ProxmoxNotification, payload: dict[str, Any]
+) -> int:
+    """Resout les placeholders et envoie l'embed Discord.
+
+    Retourne 1 si envoye, 0 si echec.
+    """
+    ctx = _build_px_context(payload)
+
+    title = _resolve_px(notif.title, ctx)
+    message = _resolve_px(notif.message, ctx)
+
+    embed = discord.Embed(title=title, description=message or None, color=notif.color)
+
+    if notif.icon_url:
+        embed.set_thumbnail(url=notif.icon_url)
+
+    for fld in sorted(notif.fields, key=lambda f: (f.position, f.id or 0)):
+        value = _resolve_px(fld.value_template, ctx)
+        embed.add_field(name=fld.name, value=value or "​", inline=fld.inline)
+
+    footer_parts: list[str] = []
+    if notif.footer:
+        footer_parts.append(_resolve_px(notif.footer, ctx))
+    if notif.show_timestamp:
+        footer_parts.append(_format_fr_dt())
+    if footer_parts:
+        embed.set_footer(text=" · ".join(footer_parts))
+
+    channel = await _resolve_channel(
+        str(settings.proxmox_webhook_channel_id or settings.discord_default_channel_id)
+        if not notif.channel_id
+        else notif.channel_id
     )
+    if channel is None:
+        logger.error("Proxmox : channel %s introuvable pour la notification %s", notif.channel_id, notif.id)
+        return 0
 
-    embed = discord.Embed(title=title, color=color)
-    if body:
-        embed.description = str(body)[:4096]
-
-    # Champs optionnels (metadata backup)
-    fields: list[tuple[str, str]] = []
-
-    vmid = payload.get("vmid") or payload.get("vm_id")
-    if vmid is not None:
-        fields.append(("VM / CT", str(vmid)))
-
-    hostname = payload.get("hostname") or payload.get("node")
-    if hostname:
-        fields.append(("Nœud", str(hostname)))
-
-    vmtype = payload.get("type") or payload.get("vm_type")
-    if vmtype:
-        fields.append(("Type", str(vmtype).upper()))
-
-    duration = payload.get("duration") or payload.get("elapsed")
-    if duration is not None:
-        try:
-            secs = int(duration)
-            h, remainder = divmod(secs, 3600)
-            m, s = divmod(remainder, 60)
-            if h:
-                human = f"{h}h {m:02d}m {s:02d}s"
-            elif m:
-                human = f"{m}m {s:02d}s"
-            else:
-                human = f"{s}s"
-        except (TypeError, ValueError):
-            human = str(duration)
-        fields.append(("Durée", human))
-
-    size = payload.get("size") or payload.get("backup_size")
-    if size is not None:
-        fields.append(("Taille", _human_size(size)))
-
-    storage = payload.get("storage") or payload.get("storage_id")
-    if storage:
-        fields.append(("Stockage", str(storage)))
-
-    for name, value in fields:
-        embed.add_field(name=name, value=value, inline=True)
-
-    embed.set_footer(text="Proxmox VE · BotPanel")
-    embed.timestamp = discord.utils.utcnow()
-
-    return embed
+    try:
+        await channel.send(embed=embed)
+        return 1
+    except discord.HTTPException as exc:
+        logger.error("Proxmox : echec envoi Discord (notif %s) : %s", notif.id, exc)
+        return 0
 
 
 @router.post("/proxmox/backup")
-async def proxmox_backup_webhook(request: Request) -> dict[str, str]:
-    """Recoit un webhook Proxmox VE et envoie une notification Discord.
+async def proxmox_backup_webhook(request: Request) -> dict[str, Any]:
+    """Recoit un webhook Proxmox VE et dispatch vers les templates actives."""
 
-    Authentification optionnelle via header Authorization: Bearer <secret>.
-    Configurer PROXMOX_WEBHOOK_SECRET dans .env pour l'activer.
-    """
-    # --- Auth optionnelle ---
+    # Auth optionnelle
     if settings.proxmox_webhook_secret:
-        auth_header = request.headers.get("Authorization", "")
-        token = auth_header.removeprefix("Bearer ").strip()
+        token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
         if not token or not secrets.compare_digest(token, settings.proxmox_webhook_secret):
             logger.warning("Webhook Proxmox : token invalide depuis %s", request.client)
             raise HTTPException(status_code=401, detail="Token invalide")
 
-    # --- Payload ---
     try:
         payload: dict[str, Any] = await request.json()
     except Exception:
@@ -162,27 +192,21 @@ async def proxmox_backup_webhook(request: Request) -> dict[str, str]:
 
     logger.debug("Webhook Proxmox recu : %s", payload)
 
-    # --- Construction de l'embed ---
-    embed = _build_embed(payload)
+    severity = _SEVERITY_MAP.get(str(payload.get("severity", "")).lower(), "info")
 
-    # --- Envoi Discord ---
-    channel_id = str(
-        settings.proxmox_webhook_channel_id
-        if settings.proxmox_webhook_channel_id
-        else settings.discord_default_channel_id
+    repo = ProxmoxNotificationRepository()
+    templates = await repo.list_by_event(severity)
+
+    if not templates:
+        logger.info("Webhook Proxmox [%s] : aucun template actif", severity)
+        return {"status": "no_template", "severity": severity, "sent": 0}
+
+    sent = 0
+    for notif in templates:
+        sent += await send_proxmox_notification(notif, payload)
+
+    logger.info(
+        "Webhook Proxmox [%s] '%s' : %d/%d envoye(s)",
+        severity, payload.get("title", "—"), sent, len(templates),
     )
-    channel = await _resolve_channel(channel_id)
-    if channel is None:
-        logger.error("Webhook Proxmox : channel %s introuvable", channel_id)
-        raise HTTPException(status_code=500, detail=f"Channel Discord {channel_id} introuvable")
-
-    try:
-        await channel.send(embed=embed)
-    except discord.HTTPException as exc:
-        logger.error("Webhook Proxmox : echec envoi Discord : %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc))
-
-    severity = _normalize_severity(str(payload.get("severity", "unknown")))
-    title = payload.get("title", "—")
-    logger.info("Webhook Proxmox traite : [%s] %s", severity, title)
-    return {"status": "sent"}
+    return {"status": "sent", "severity": severity, "sent": sent, "total": len(templates)}
