@@ -44,6 +44,16 @@ class Settings(BaseSettings):
     # --- Logs ---
     log_level: str = "INFO"
 
+    # --- Proxmox webhooks ---
+    # Channel Discord dedie aux notifications Proxmox (utilise discord_default_channel_id si absent)
+    proxmox_webhook_channel_id: int | None = Field(
+        default=None, description="Channel pour les notifications Proxmox (optionnel)"
+    )
+    # Secret optionnel : valider le header Authorization: Bearer <secret>
+    proxmox_webhook_secret: str | None = Field(
+        default=None, description="Token secret pour authentifier les webhooks Proxmox"
+    )
+
     @property
     def ha_api_url(self) -> str:
         """URL de base de l'API REST de Home Assistant."""

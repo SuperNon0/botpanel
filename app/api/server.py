@@ -16,6 +16,7 @@ from app.api.routes import (
     logs,
     monitoring,
     notifications,
+    proxmox_hook,
     settings as settings_routes,
     slash_commands,
     system as system_routes,
@@ -38,6 +39,7 @@ def create_app() -> FastAPI:
 
     # --- API ---
     app.include_router(ha_hook.router, prefix="/api", tags=["ha-hook"])
+    app.include_router(proxmox_hook.router, prefix="/api", tags=["proxmox"])
     app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
     app.include_router(slash_commands.router, prefix="/api/commands", tags=["commands"])
     app.include_router(monitoring.router, prefix="/api/monitoring", tags=["monitoring"])
