@@ -2,157 +2,235 @@
 {% block title %}Accueil — BotPanel{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <h2>Tableau de bord</h2>
-  <span class="card-row-meta" id="last-refresh">---</span>
-</div>
-
-<!-- Stat cards -->
-<div class="stat-grid">
-  <div class="stat-card" id="sc-bot">
-    <div class="stat-label">Bot Discord</div>
-    <div class="stat-value" id="sc-bot-val">...</div>
-    <div class="stat-sub"  id="sc-bot-sub"></div>
-  </div>
-  <div class="stat-card" id="sc-ha">
-    <div class="stat-label">Home Assistant</div>
-    <div class="stat-value" id="sc-ha-val">...</div>
-    <div class="stat-sub"  id="sc-ha-sub"></div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Envois aujourd'hui</div>
-    <div class="stat-value" id="sc-sent-val">...</div>
-    <div class="stat-sub"  id="sc-sent-sub"></div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Monitoring</div>
-    <div class="stat-value" id="sc-mon-val">...</div>
-    <div class="stat-sub"  id="sc-mon-sub"></div>
+<div class="page-header" style="margin-bottom:1.2rem;">
+  <div>
+    <h2 style="margin:0;">Tableau de bord</h2>
+    <div class="card-row-meta" id="last-refresh" style="margin-top:0.25rem;">---</div>
   </div>
 </div>
 
-<!-- Quick links -->
-<div class="stat-grid" style="grid-template-columns: repeat(3, 1fr);">
-  <a class="stat-card stat-link" href="/notifications">
-    <div class="stat-label">Notifications</div>
-    <div class="stat-value" id="ql-notif">...</div>
-    <div class="stat-sub">configurees</div>
-  </a>
-  <a class="stat-card stat-link" href="/monitoring">
-    <div class="stat-label">Blocs monitoring</div>
-    <div class="stat-value" id="ql-mon">...</div>
-    <div class="stat-sub">dont <span id="ql-mon-en">?</span> actifs</div>
-  </a>
-  <a class="stat-card stat-link" href="/historique">
-    <div class="stat-label">Activite (7 jours)</div>
-    <div class="stat-value" id="ql-hist">...</div>
-    <div class="stat-sub">evenements</div>
-  </a>
+<!-- Ligne 1 : statuts Bot + HA -->
+<div class="dash-row-2">
+
+  <div class="dash-status-card" id="sc-bot">
+    <div class="dash-bg-icon">🤖</div>
+    <div class="dash-label">Bot Discord</div>
+    <div class="dash-status-line" id="sc-bot-val">
+      <span class="dash-dot idle"></span><span>Chargement…</span>
+    </div>
+    <div class="dash-sub" id="sc-bot-sub"></div>
+  </div>
+
+  <div class="dash-status-card" id="sc-ha">
+    <div class="dash-bg-icon">🏠</div>
+    <div class="dash-label">Home Assistant</div>
+    <div class="dash-status-line" id="sc-ha-val">
+      <span class="dash-dot idle"></span><span>Chargement…</span>
+    </div>
+    <div class="dash-sub" id="sc-ha-sub"></div>
+  </div>
+
 </div>
 
-<!-- Recent activity -->
+<!-- Ligne 2 : Envois + Monitoring -->
+<div class="dash-row-2">
+
+  <div class="dash-metric-card">
+    <div class="dash-bg-icon">📨</div>
+    <div class="dash-label">Envois aujourd'hui</div>
+    <div class="dash-big-num" id="sc-sent-val">—</div>
+    <div class="dash-sub" id="sc-sent-sub"></div>
+  </div>
+
+  <div class="dash-metric-card" style="display:flex; gap:1.2rem; align-items:center;">
+    <div style="flex:1; min-width:0;">
+      <div class="dash-label">Blocs monitoring</div>
+      <div class="dash-big-num" id="sc-mon-val">—</div>
+      <div class="dash-sub" id="sc-mon-sub"></div>
+    </div>
+    <div id="sc-mon-donut" style="flex-shrink:0;"></div>
+  </div>
+
+</div>
+
+<!-- Ligne 3 : raccourcis -->
+<div class="dash-shortcuts">
+
+  <a class="dash-shortcut" href="/notifications">
+    <div class="dash-shortcut-num" id="ql-notif">—</div>
+    <div class="dash-shortcut-label">Notifications</div>
+  </a>
+
+  <a class="dash-shortcut" href="/commands">
+    <div class="dash-shortcut-num">→</div>
+    <div class="dash-shortcut-label">Commandes /</div>
+  </a>
+
+  <a class="dash-shortcut" href="/monitoring">
+    <div class="dash-shortcut-num" id="ql-mon">—</div>
+    <div class="dash-shortcut-label">Blocs monitoring</div>
+  </a>
+
+  <a class="dash-shortcut" href="/historique">
+    <div class="dash-shortcut-num" id="ql-hist">—</div>
+    <div class="dash-shortcut-label">Evts (7 jours)</div>
+  </a>
+
+</div>
+
+<!-- Activite recente -->
 <div class="card">
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.8rem;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
     <h3 style="margin:0;">Activite recente</h3>
     <a href="/historique" class="btn btn-secondary btn-small">Voir tout</a>
   </div>
-  <div id="recent-list"><div class="empty-state">Chargement...</div></div>
+  <div id="recent-list" class="dash-timeline"><div class="empty-state">Chargement…</div></div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-const KIND_TAG = {
-  send:       { label: "ENVOI",      cls: "tag-purple" },
-  button:     { label: "BOUTON",     cls: "tag-yellow" },
-  snooze:     { label: "SNOOZE",     cls: "tag-orange" },
-  delete:     { label: "DELETE",     cls: "tag-red" },
-  monitoring: { label: "MONITORING", cls: "tag-green" },
+// ——— helpers ———
+const KIND_COLOR = {
+  send:       "var(--pending)",
+  button:     "var(--accent)",
+  snooze:     "var(--accent3)",
+  delete:     "var(--danger)",
+  monitoring: "var(--accent2)",
+};
+const KIND_LABEL = {
+  send: "envoi", button: "bouton", snooze: "snooze",
+  delete: "suppression", monitoring: "monitoring",
 };
 
+function pad(n) { return String(n).padStart(2, "0"); }
+
+function fmtTime(s) {
+  if (!s) return "";
+  const t = s.split(" ")[1] || "";
+  return t.slice(0, 5);
+}
 function fmtDate(s) {
   if (!s) return "";
   const [d, t] = s.split(" ");
-  return `${d} ${(t || "").slice(0,5)}`;
+  const [y, m, day] = d.split("-");
+  return `${day}/${m} ${(t||"").slice(0,5)}`;
 }
 
+// SVG donut (rayon r, valeur v, total max, couleur)
+function donutSVG(v, max, color) {
+  const r = 28, c = 2 * Math.PI * r;
+  const pct = max > 0 ? Math.min(v / max, 1) : 0;
+  const dash = (pct * c).toFixed(1);
+  const gap = (c - pct * c).toFixed(1);
+  return `<svg width="72" height="72" viewBox="0 0 72 72" style="display:block;">
+    <circle cx="36" cy="36" r="${r}" fill="none" stroke="var(--border)" stroke-width="6"/>
+    <circle cx="36" cy="36" r="${r}" fill="none" stroke="${color}" stroke-width="6"
+      stroke-dasharray="${dash} ${gap}" stroke-linecap="round"
+      transform="rotate(-90 36 36)" style="transition:stroke-dasharray .6s ease;"/>
+    <text x="36" y="41" text-anchor="middle" fill="${color}"
+      font-size="15" font-family="DM Serif Display,serif">${v}</text>
+  </svg>`;
+}
+
+// ——— chargement stats ———
 async function loadDashboard() {
-  try {
-    const s = await API.get("/dashboard/stats");
-
-    // Bot Discord
-    const botVal = document.getElementById("sc-bot-val");
-    const botSub = document.getElementById("sc-bot-sub");
-    if (s.bot_ready) {
-      botVal.innerHTML = `<span class="stat-dot ok"></span><span class="stat-ok">En ligne</span>`;
-      botSub.textContent = s.bot_latency_ms !== null ? `Latence : ${s.bot_latency_ms} ms` : "";
-    } else {
-      botVal.innerHTML = `<span class="stat-dot err"></span><span class="stat-err">Hors ligne</span>`;
-      botSub.textContent = "";
-    }
-
-    // Home Assistant
-    const haVal = document.getElementById("sc-ha-val");
-    const haSub = document.getElementById("sc-ha-sub");
-    if (s.ha_ok) {
-      haVal.innerHTML = `<span class="stat-dot ok"></span><span class="stat-ok">Connecte</span>`;
-      haSub.textContent = "";
-    } else {
-      haVal.innerHTML = `<span class="stat-dot err"></span><span class="stat-err">Inaccessible</span>`;
-      haSub.textContent = "Verifier l'URL et le token";
-    }
-
-    // Envois aujourd'hui
-    document.getElementById("sc-sent-val").textContent = s.sent_today;
-    const errText = s.errors_today > 0
-      ? `<span class="stat-err">${s.errors_today} erreur${s.errors_today > 1 ? "s" : ""}</span>`
-      : "Aucune erreur";
-    const clkText = s.clicks_today > 0 ? ` &middot; ${s.clicks_today} clic${s.clicks_today > 1 ? "s" : ""}` : "";
-    document.getElementById("sc-sent-sub").innerHTML = errText + clkText;
-
-    // Monitoring
-    document.getElementById("sc-mon-val").textContent = `${s.monitoring_enabled} / ${s.monitoring_total}`;
-    document.getElementById("sc-mon-sub").textContent = `blocs actifs sur ${s.monitoring_total}`;
-
-    // Quick links
-    document.getElementById("ql-notif").textContent = s.notifications_total;
-    document.getElementById("ql-mon").textContent = s.monitoring_total;
-    document.getElementById("ql-mon-en").textContent = s.monitoring_enabled;
-    document.getElementById("ql-hist").textContent = s.activity_week;
-
-    // Timestamp
-    const now = new Date();
-    const pad = n => String(n).padStart(2, "0");
-    document.getElementById("last-refresh").textContent =
-      `Mis a jour a ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-
-  } catch (e) {
-    document.getElementById("sc-bot-val").textContent = "Erreur";
+  let s;
+  try { s = await API.get("/dashboard/stats"); }
+  catch (e) {
+    document.getElementById("sc-bot-val").innerHTML =
+      `<span class="dash-dot err"></span><span style="color:var(--danger)">Erreur API</span>`;
+    return;
   }
+
+  // --- Bot Discord ---
+  const botCard = document.getElementById("sc-bot");
+  const botVal  = document.getElementById("sc-bot-val");
+  const botSub  = document.getElementById("sc-bot-sub");
+  if (s.bot_ready) {
+    botCard.classList.add("ok"); botCard.classList.remove("err");
+    botVal.innerHTML = `<span class="dash-dot ok"></span><span style="color:var(--accent2)">En ligne</span>`;
+    botSub.textContent = s.bot_latency_ms != null ? `Latence : ${s.bot_latency_ms} ms` : "";
+  } else {
+    botCard.classList.add("err"); botCard.classList.remove("ok");
+    botVal.innerHTML = `<span class="dash-dot err"></span><span style="color:var(--danger)">Hors ligne</span>`;
+    botSub.textContent = "";
+  }
+
+  // --- Home Assistant ---
+  const haCard = document.getElementById("sc-ha");
+  const haVal  = document.getElementById("sc-ha-val");
+  const haSub  = document.getElementById("sc-ha-sub");
+  if (s.ha_ok) {
+    haCard.classList.add("ok"); haCard.classList.remove("err");
+    haVal.innerHTML = `<span class="dash-dot ok"></span><span style="color:var(--accent2)">Connecte</span>`;
+    haSub.textContent = "";
+  } else {
+    haCard.classList.add("err"); haCard.classList.remove("ok");
+    haVal.innerHTML = `<span class="dash-dot err"></span><span style="color:var(--danger)">Inaccessible</span>`;
+    haSub.textContent = "Verifier l'URL et le token HA";
+  }
+
+  // --- Envois ---
+  document.getElementById("sc-sent-val").textContent = s.sent_today;
+  const errHtml = s.errors_today > 0
+    ? `<span style="color:var(--danger);">▲ ${s.errors_today} erreur${s.errors_today > 1 ? "s" : ""}</span>`
+    : `<span style="color:var(--accent2);">✓ Aucune erreur</span>`;
+  const clkHtml = s.clicks_today > 0
+    ? ` &middot; ${s.clicks_today} clic${s.clicks_today > 1 ? "s" : ""}` : "";
+  document.getElementById("sc-sent-sub").innerHTML = errHtml + clkHtml;
+
+  // --- Monitoring ---
+  const monColor = s.monitoring_total === 0 ? "var(--muted)"
+    : s.monitoring_enabled === s.monitoring_total ? "var(--accent2)"
+    : s.monitoring_enabled > 0 ? "var(--accent3)"
+    : "var(--danger)";
+  document.getElementById("sc-mon-val").innerHTML =
+    `<span style="color:${monColor}">${s.monitoring_enabled}</span>`
+    + `<span style="color:var(--muted);font-size:1.4rem;"> / ${s.monitoring_total}</span>`;
+  document.getElementById("sc-mon-sub").textContent = "blocs actifs";
+  document.getElementById("sc-mon-donut").innerHTML =
+    donutSVG(s.monitoring_enabled, s.monitoring_total, monColor);
+
+  // --- Raccourcis ---
+  document.getElementById("ql-notif").textContent = s.notifications_total;
+  document.getElementById("ql-mon").textContent   = s.monitoring_total;
+  document.getElementById("ql-hist").textContent  = s.activity_week;
+
+  // --- Timestamp ---
+  const now = new Date();
+  document.getElementById("last-refresh").textContent =
+    `Mis a jour a ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 }
 
+// ——— feed d'activite ———
 async function loadRecent() {
   const list = document.getElementById("recent-list");
   try {
-    const logs = await API.get("/logs?limit=8");
+    const logs = await API.get("/logs?limit=10");
     if (!logs.length) {
       list.innerHTML = `<div class="empty-state">Aucune activite recente.</div>`;
       return;
     }
     list.innerHTML = logs.map(l => {
-      const tag = KIND_TAG[l.kind] || { label: l.kind.toUpperCase(), cls: "tag-muted" };
-      const status = l.success ? "" : `<span class="tag tag-red" style="margin-left:0.3rem;">ERR</span>`;
-      const slug = l.notification_slug ? `&middot; <code>${esc(l.notification_slug)}</code>` : "";
-      const who = l.user_name ? `&middot; ${esc(l.user_name)}` : "";
+      const color  = l.success ? (KIND_COLOR[l.kind] || "var(--muted)") : "var(--danger)";
+      const label  = KIND_LABEL[l.kind] || l.kind;
+      const slug   = l.notification_slug ? `<code style="font-size:0.72rem;">${esc(l.notification_slug)}</code>` : "";
+      const who    = l.user_name ? `<span style="color:var(--text);">${esc(l.user_name)}</span>` : "";
+      const detail = l.detail ? `<div class="dash-tl-detail">${esc(l.detail)}</div>` : "";
+      const err    = !l.success ? ` <span style="color:var(--danger);font-size:0.6rem;">ERR</span>` : "";
       return `
-        <div class="card-row">
-          <div style="flex:1; min-width:0;">
-            <span class="tag ${tag.cls}">${tag.label}</span>
-            ${status} ${slug} ${who}
+        <div class="dash-tl-item">
+          <div class="dash-tl-dot" style="background:${color};box-shadow:0 0 6px ${color};"></div>
+          <div class="dash-tl-body">
+            <div class="dash-tl-head">
+              <span class="dash-tl-kind" style="color:${color};">${label}${err}</span>
+              ${slug} ${who}
+            </div>
+            ${detail}
           </div>
-          <div class="card-row-meta">${fmtDate(l.created_at)}</div>
-        </div>
-      `;
+          <div class="dash-tl-time">${fmtDate(l.created_at)}</div>
+        </div>`;
     }).join("");
   } catch (e) {
     list.innerHTML = `<div class="empty-state">Erreur : ${esc(e.message)}</div>`;
@@ -161,7 +239,6 @@ async function loadRecent() {
 
 loadDashboard();
 loadRecent();
-// Rafraichissement automatique toutes les 30s
 setInterval(() => { loadDashboard(); loadRecent(); }, 30000);
 </script>
 {% endblock %}

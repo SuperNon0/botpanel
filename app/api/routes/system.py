@@ -61,10 +61,10 @@ async def system_info() -> dict:
 
 @router.post("/update")
 async def system_update() -> dict:
-    """Lance un `git fetch && git pull --ff-only`.
+    """Lance un `git fetch --prune` puis `git reset --hard origin/<branche>`.
 
-    Le redemarrage du service est expose separement (POST /system/restart)
-    pour donner a l'UI le temps d'afficher le diff avant redemarrage.
+    Remplace git pull --ff-only qui echoue si les branches ont diverge.
+    Le redemarrage du service est expose separement (POST /system/restart).
     """
     if not (INSTALL_DIR / ".git").exists():
         raise HTTPException(400, f"{INSTALL_DIR} n'est pas un depot git.")
@@ -73,9 +73,16 @@ async def system_update() -> dict:
     if fetch["exit_code"] != 0:
         return {"step": "fetch", **fetch, "ok": False}
 
-    pull = await _run(["git", "pull", "--ff-only"], cwd=INSTALL_DIR, timeout=120)
+    # Determine la branche courante pour construire origin/<branche>
+    branch_res = await _run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=INSTALL_DIR, timeout=5
+    )
+    branch = branch_res["stdout"].strip() or "main"
+    remote_ref = f"origin/{branch}"
+
+    pull = await _run(["git", "reset", "--hard", remote_ref], cwd=INSTALL_DIR, timeout=60)
     return {
-        "step": "pull",
+        "step": "reset",
         "ok": pull["exit_code"] == 0,
         "fetch": fetch,
         "pull": pull,
