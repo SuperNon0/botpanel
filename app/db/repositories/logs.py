@@ -118,6 +118,33 @@ class LogRepository:
             row = await cursor.fetchone()
             return row[0] or 0
 
+    async def daily_counts(self, days: int = 7) -> list[dict]:
+        """Retourne le nombre d'envois reussis par jour sur les N derniers jours."""
+        async with get_connection() as db:
+            cursor = await db.execute(
+                """
+                SELECT date(created_at) as day,
+                       SUM(CASE WHEN kind='send' AND success=1 THEN 1 ELSE 0 END) as sent,
+                       SUM(CASE WHEN success=0 THEN 1 ELSE 0 END) as errors
+                FROM notification_logs
+                WHERE created_at >= date('now', ?)
+                GROUP BY date(created_at)
+                ORDER BY day ASC
+                """,
+                (f"-{days} days",),
+            )
+            rows = await cursor.fetchall()
+            by_day = {row["day"]: {"sent": row["sent"], "errors": row["errors"]} for row in rows}
+
+        import datetime
+        result = []
+        today = datetime.date.today()
+        for i in range(days - 1, -1, -1):
+            d = str(today - datetime.timedelta(days=i))
+            v = by_day.get(d, {"sent": 0, "errors": 0})
+            result.append({"day": d, "sent": v["sent"], "errors": v["errors"]})
+        return result
+
     async def purge_older_than(self, days: int) -> int:
         async with get_connection() as db:
             cursor = await db.execute(

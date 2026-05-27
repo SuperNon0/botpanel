@@ -2,238 +2,251 @@
 {% block title %}Accueil — BotPanel{% endblock %}
 
 {% block content %}
-<div class="page-header" style="margin-bottom:1.2rem;">
-  <div>
-    <h2 style="margin:0;">Tableau de bord</h2>
-    <div class="card-row-meta" id="last-refresh" style="margin-top:0.25rem;">---</div>
-  </div>
+
+<!-- Barre de titre -->
+<div class="gf-topbar">
+  <h2 class="gf-title">Tableau de bord</h2>
+  <span class="gf-refresh" id="last-refresh">—</span>
 </div>
 
-<!-- Ligne 1 : statuts Bot + HA -->
-<div class="dash-row-2">
+<!-- ===== LIGNE 1 : Statuts ===== -->
+<div class="gf-row gf-row-2">
 
-  <div class="dash-status-card" id="sc-bot">
-    <div class="dash-bg-icon">🤖</div>
-    <div class="dash-label">Bot Discord</div>
-    <div class="dash-status-line" id="sc-bot-val">
-      <span class="dash-dot idle"></span><span>Chargement…</span>
+  <div class="gf-panel" id="panel-bot">
+    <div class="gf-panel-title">Bot Discord</div>
+    <div class="gf-panel-body gf-status-body">
+      <div class="gf-status-dot" id="bot-dot"></div>
+      <div>
+        <div class="gf-status-value" id="bot-val">—</div>
+        <div class="gf-status-meta" id="bot-meta"></div>
+      </div>
+      <div class="gf-panel-bg-icon">🤖</div>
     </div>
-    <div class="dash-sub" id="sc-bot-sub"></div>
   </div>
 
-  <div class="dash-status-card" id="sc-ha">
-    <div class="dash-bg-icon">🏠</div>
-    <div class="dash-label">Home Assistant</div>
-    <div class="dash-status-line" id="sc-ha-val">
-      <span class="dash-dot idle"></span><span>Chargement…</span>
+  <div class="gf-panel" id="panel-ha">
+    <div class="gf-panel-title">Home Assistant</div>
+    <div class="gf-panel-body gf-status-body">
+      <div class="gf-status-dot" id="ha-dot"></div>
+      <div>
+        <div class="gf-status-value" id="ha-val">—</div>
+        <div class="gf-status-meta" id="ha-meta"></div>
+      </div>
+      <div class="gf-panel-bg-icon">🏠</div>
     </div>
-    <div class="dash-sub" id="sc-ha-sub"></div>
   </div>
 
 </div>
 
-<!-- Ligne 2 : Envois + Monitoring -->
-<div class="dash-row-2">
+<!-- ===== LIGNE 2 : Métriques ===== -->
+<div class="gf-row gf-row-3">
 
-  <div class="dash-metric-card">
-    <div class="dash-bg-icon">📨</div>
-    <div class="dash-label">Envois aujourd'hui</div>
-    <div class="dash-big-num" id="sc-sent-val">—</div>
-    <div class="dash-sub" id="sc-sent-sub"></div>
-  </div>
-
-  <div class="dash-metric-card" style="display:flex; gap:1.2rem; align-items:center;">
-    <div style="flex:1; min-width:0;">
-      <div class="dash-label">Blocs monitoring</div>
-      <div class="dash-big-num" id="sc-mon-val">—</div>
-      <div class="dash-sub" id="sc-mon-sub"></div>
+  <div class="gf-panel">
+    <div class="gf-panel-title">Envois aujourd'hui</div>
+    <div class="gf-panel-body">
+      <div class="gf-big-num" id="m-sent">—</div>
+      <div class="gf-num-sub" id="m-sent-sub"></div>
     </div>
-    <div id="sc-mon-donut" style="flex-shrink:0;"></div>
+  </div>
+
+  <div class="gf-panel">
+    <div class="gf-panel-title">Monitoring actif</div>
+    <div class="gf-panel-body" style="display:flex;align-items:center;gap:1.2rem;">
+      <div id="m-donut"></div>
+      <div>
+        <div class="gf-big-num" id="m-mon">—</div>
+        <div class="gf-num-sub">blocs actifs</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="gf-panel">
+    <div class="gf-panel-title">Notifications configurees</div>
+    <div class="gf-panel-body">
+      <div class="gf-big-num" id="m-notifs">—</div>
+      <div class="gf-num-sub">au total</div>
+    </div>
   </div>
 
 </div>
 
-<!-- Ligne 3 : raccourcis -->
-<div class="dash-shortcuts">
-
-  <a class="dash-shortcut" href="/notifications">
-    <div class="dash-shortcut-num" id="ql-notif">—</div>
-    <div class="dash-shortcut-label">Notifications</div>
-  </a>
-
-  <a class="dash-shortcut" href="/commands">
-    <div class="dash-shortcut-num">→</div>
-    <div class="dash-shortcut-label">Commandes /</div>
-  </a>
-
-  <a class="dash-shortcut" href="/monitoring">
-    <div class="dash-shortcut-num" id="ql-mon">—</div>
-    <div class="dash-shortcut-label">Blocs monitoring</div>
-  </a>
-
-  <a class="dash-shortcut" href="/historique">
-    <div class="dash-shortcut-num" id="ql-hist">—</div>
-    <div class="dash-shortcut-label">Evts (7 jours)</div>
-  </a>
-
+<!-- ===== LIGNE 3 : Graphique 7 jours ===== -->
+<div class="gf-panel" style="margin-bottom:0.9rem;">
+  <div class="gf-panel-title">Envois — 7 derniers jours</div>
+  <div class="gf-panel-body" style="padding-top:0.6rem;">
+    <div id="chart-bars" class="gf-chart"></div>
+    <div id="chart-labels" class="gf-chart-labels"></div>
+  </div>
 </div>
 
-<!-- Activite recente -->
-<div class="card">
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-    <h3 style="margin:0;">Activite recente</h3>
+<!-- ===== LIGNE 4 : Raccourcis ===== -->
+<div class="gf-row gf-row-4" style="margin-bottom:0.9rem;">
+  <a class="gf-shortcut" href="/notifications">
+    <span class="gf-sc-num" id="sc-notif">—</span>
+    <span class="gf-sc-label">Notifications</span>
+  </a>
+  <a class="gf-shortcut" href="/commands">
+    <span class="gf-sc-num">→</span>
+    <span class="gf-sc-label">Commandes /</span>
+  </a>
+  <a class="gf-shortcut" href="/monitoring">
+    <span class="gf-sc-num" id="sc-mon">—</span>
+    <span class="gf-sc-label">Monitoring</span>
+  </a>
+  <a class="gf-shortcut" href="/historique">
+    <span class="gf-sc-num" id="sc-hist">—</span>
+    <span class="gf-sc-label">Historique</span>
+  </a>
+</div>
+
+<!-- ===== LIGNE 5 : Activite recente ===== -->
+<div class="gf-panel">
+  <div class="gf-panel-title" style="display:flex;justify-content:space-between;align-items:center;">
+    <span>Activite recente</span>
     <a href="/historique" class="btn btn-secondary btn-small">Voir tout</a>
   </div>
-  <div id="recent-list" class="dash-timeline"><div class="empty-state">Chargement…</div></div>
+  <div class="gf-panel-body" style="padding-top:0;">
+    <div id="recent-list"><div class="empty-state">Chargement…</div></div>
+  </div>
 </div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-// ——— helpers ———
 const KIND_COLOR = {
-  send:       "var(--pending)",
-  button:     "var(--accent)",
-  snooze:     "var(--accent3)",
-  delete:     "var(--danger)",
-  monitoring: "var(--accent2)",
+  send:"var(--pending)", button:"var(--accent)",
+  snooze:"var(--accent3)", delete:"var(--danger)", monitoring:"var(--accent2)"
 };
 const KIND_LABEL = {
-  send: "envoi", button: "bouton", snooze: "snooze",
-  delete: "suppression", monitoring: "monitoring",
+  send:"envoi", button:"bouton", snooze:"snooze", delete:"suppression", monitoring:"monitoring"
 };
 
-function pad(n) { return String(n).padStart(2, "0"); }
+function pad(n){ return String(n).padStart(2,"0"); }
 
-function fmtTime(s) {
-  if (!s) return "";
-  const t = s.split(" ")[1] || "";
-  return t.slice(0, 5);
-}
-function fmtDate(s) {
-  if (!s) return "";
-  const [d, t] = s.split(" ");
-  const [y, m, day] = d.split("-");
-  return `${day}/${m} ${(t||"").slice(0,5)}`;
-}
-
-// SVG donut (rayon r, valeur v, total max, couleur)
 function donutSVG(v, max, color) {
-  const r = 28, c = 2 * Math.PI * r;
-  const pct = max > 0 ? Math.min(v / max, 1) : 0;
-  const dash = (pct * c).toFixed(1);
-  const gap = (c - pct * c).toFixed(1);
-  return `<svg width="72" height="72" viewBox="0 0 72 72" style="display:block;">
-    <circle cx="36" cy="36" r="${r}" fill="none" stroke="var(--border)" stroke-width="6"/>
-    <circle cx="36" cy="36" r="${r}" fill="none" stroke="${color}" stroke-width="6"
+  const r=26, c=2*Math.PI*r;
+  const pct = max>0 ? Math.min(v/max,1) : 0;
+  const dash=(pct*c).toFixed(1), gap=(c-pct*c).toFixed(1);
+  return `<svg width="64" height="64" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="${r}" fill="none" stroke="var(--border)" stroke-width="5"/>
+    <circle cx="32" cy="32" r="${r}" fill="none" stroke="${color}" stroke-width="5"
       stroke-dasharray="${dash} ${gap}" stroke-linecap="round"
-      transform="rotate(-90 36 36)" style="transition:stroke-dasharray .6s ease;"/>
-    <text x="36" y="41" text-anchor="middle" fill="${color}"
-      font-size="15" font-family="DM Serif Display,serif">${v}</text>
+      transform="rotate(-90 32 32)" style="transition:stroke-dasharray .5s;"/>
+    <text x="32" y="37" text-anchor="middle" fill="${color}"
+      font-size="13" font-family="DM Serif Display,serif">${v}</text>
   </svg>`;
 }
 
-// ——— chargement stats ———
-async function loadDashboard() {
-  let s;
-  try { s = await API.get("/dashboard/stats"); }
-  catch (e) {
-    document.getElementById("sc-bot-val").innerHTML =
-      `<span class="dash-dot err"></span><span style="color:var(--danger)">Erreur API</span>`;
-    return;
-  }
+function barChart(daily) {
+  const maxVal = Math.max(...daily.map(d=>d.sent), 1);
+  const bars  = document.getElementById("chart-bars");
+  const lbls  = document.getElementById("chart-labels");
+  const days  = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
 
-  // --- Bot Discord ---
-  const botCard = document.getElementById("sc-bot");
-  const botVal  = document.getElementById("sc-bot-val");
-  const botSub  = document.getElementById("sc-bot-sub");
-  if (s.bot_ready) {
-    botCard.classList.add("ok"); botCard.classList.remove("err");
-    botVal.innerHTML = `<span class="dash-dot ok"></span><span style="color:var(--accent2)">En ligne</span>`;
-    botSub.textContent = s.bot_latency_ms != null ? `Latence : ${s.bot_latency_ms} ms` : "";
-  } else {
-    botCard.classList.add("err"); botCard.classList.remove("ok");
-    botVal.innerHTML = `<span class="dash-dot err"></span><span style="color:var(--danger)">Hors ligne</span>`;
-    botSub.textContent = "";
-  }
+  bars.innerHTML = daily.map(d => {
+    const h = Math.max(4, Math.round((d.sent / maxVal) * 100));
+    const hasErr = d.errors > 0;
+    const color = hasErr ? "var(--accent3)" : "var(--pending)";
+    const title = `${d.day} : ${d.sent} envoi${d.sent!==1?"s":""}`
+                + (hasErr ? `, ${d.errors} erreur${d.errors>1?"s":""}` : "");
+    return `<div class="gf-bar-wrap" title="${title}">
+      <div class="gf-bar" style="height:${h}%;background:${color};"></div>
+    </div>`;
+  }).join("");
 
-  // --- Home Assistant ---
-  const haCard = document.getElementById("sc-ha");
-  const haVal  = document.getElementById("sc-ha-val");
-  const haSub  = document.getElementById("sc-ha-sub");
-  if (s.ha_ok) {
-    haCard.classList.add("ok"); haCard.classList.remove("err");
-    haVal.innerHTML = `<span class="dash-dot ok"></span><span style="color:var(--accent2)">Connecte</span>`;
-    haSub.textContent = "";
-  } else {
-    haCard.classList.add("err"); haCard.classList.remove("ok");
-    haVal.innerHTML = `<span class="dash-dot err"></span><span style="color:var(--danger)">Inaccessible</span>`;
-    haSub.textContent = "Verifier l'URL et le token HA";
-  }
-
-  // --- Envois ---
-  document.getElementById("sc-sent-val").textContent = s.sent_today;
-  const errHtml = s.errors_today > 0
-    ? `<span style="color:var(--danger);">▲ ${s.errors_today} erreur${s.errors_today > 1 ? "s" : ""}</span>`
-    : `<span style="color:var(--accent2);">✓ Aucune erreur</span>`;
-  const clkHtml = s.clicks_today > 0
-    ? ` &middot; ${s.clicks_today} clic${s.clicks_today > 1 ? "s" : ""}` : "";
-  document.getElementById("sc-sent-sub").innerHTML = errHtml + clkHtml;
-
-  // --- Monitoring ---
-  const monColor = s.monitoring_total === 0 ? "var(--muted)"
-    : s.monitoring_enabled === s.monitoring_total ? "var(--accent2)"
-    : s.monitoring_enabled > 0 ? "var(--accent3)"
-    : "var(--danger)";
-  document.getElementById("sc-mon-val").innerHTML =
-    `<span style="color:${monColor}">${s.monitoring_enabled}</span>`
-    + `<span style="color:var(--muted);font-size:1.4rem;"> / ${s.monitoring_total}</span>`;
-  document.getElementById("sc-mon-sub").textContent = "blocs actifs";
-  document.getElementById("sc-mon-donut").innerHTML =
-    donutSVG(s.monitoring_enabled, s.monitoring_total, monColor);
-
-  // --- Raccourcis ---
-  document.getElementById("ql-notif").textContent = s.notifications_total;
-  document.getElementById("ql-mon").textContent   = s.monitoring_total;
-  document.getElementById("ql-hist").textContent  = s.activity_week;
-
-  // --- Timestamp ---
-  const now = new Date();
-  document.getElementById("last-refresh").textContent =
-    `Mis a jour a ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  lbls.innerHTML = daily.map(d => {
+    const date = new Date(d.day + "T00:00:00");
+    return `<div class="gf-bar-lbl">${days[date.getDay()]}<br>${d.day.slice(8)}</div>`;
+  }).join("");
 }
 
-// ——— feed d'activite ———
+async function loadDashboard() {
+  let s;
+  try { s = await API.get("/dashboard/stats"); } catch { return; }
+
+  // Bot
+  const botOk = s.bot_ready;
+  document.getElementById("bot-dot").className = "gf-status-dot " + (botOk?"ok":"err");
+  document.getElementById("bot-val").textContent = botOk ? "En ligne" : "Hors ligne";
+  document.getElementById("bot-val").style.color = botOk ? "var(--accent2)" : "var(--danger)";
+  document.getElementById("bot-meta").textContent = botOk && s.bot_latency_ms!=null
+    ? "Latence : "+s.bot_latency_ms+" ms" : "";
+  document.getElementById("panel-bot").className = "gf-panel gf-panel-status "+(botOk?"gf-ok":"gf-err");
+
+  // HA
+  const haOk = s.ha_ok;
+  document.getElementById("ha-dot").className = "gf-status-dot " + (haOk?"ok":"err");
+  document.getElementById("ha-val").textContent = haOk ? "Connecte" : "Inaccessible";
+  document.getElementById("ha-val").style.color = haOk ? "var(--accent2)" : "var(--danger)";
+  document.getElementById("ha-meta").textContent = haOk ? "" : "Verifier URL et token";
+  document.getElementById("panel-ha").className = "gf-panel gf-panel-status "+(haOk?"gf-ok":"gf-err");
+
+  // Envois
+  document.getElementById("m-sent").textContent = s.sent_today;
+  const sub = s.errors_today > 0
+    ? `<span style="color:var(--danger)">▲ ${s.errors_today} erreur${s.errors_today>1?"s":""}</span>`
+    : `<span style="color:var(--accent2)">✓ aucune erreur</span>`;
+  document.getElementById("m-sent-sub").innerHTML =
+    sub + (s.clicks_today ? ` · ${s.clicks_today} clic${s.clicks_today>1?"s":""}` : "");
+
+  // Monitoring donut
+  const mc = s.monitoring_total===0 ? "var(--muted)"
+    : s.monitoring_enabled===s.monitoring_total ? "var(--accent2)"
+    : s.monitoring_enabled>0 ? "var(--accent3)" : "var(--danger)";
+  document.getElementById("m-donut").innerHTML = donutSVG(s.monitoring_enabled, s.monitoring_total, mc);
+  document.getElementById("m-mon").innerHTML =
+    `<span style="color:${mc}">${s.monitoring_enabled}</span>`
+    +`<span style="color:var(--muted);font-size:1.3rem;"> / ${s.monitoring_total}</span>`;
+
+  // Notifications total
+  document.getElementById("m-notifs").textContent = s.notifications_total;
+
+  // Chart
+  if (s.daily) barChart(s.daily);
+
+  // Raccourcis
+  document.getElementById("sc-notif").textContent = s.notifications_total;
+  document.getElementById("sc-mon").textContent   = s.monitoring_total;
+  document.getElementById("sc-hist").textContent  = s.activity_week;
+
+  // Timestamp
+  const n = new Date();
+  document.getElementById("last-refresh").textContent =
+    `Mis a jour ${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
+}
+
 async function loadRecent() {
-  const list = document.getElementById("recent-list");
+  const el = document.getElementById("recent-list");
   try {
-    const logs = await API.get("/logs?limit=10");
-    if (!logs.length) {
-      list.innerHTML = `<div class="empty-state">Aucune activite recente.</div>`;
-      return;
-    }
-    list.innerHTML = logs.map(l => {
-      const color  = l.success ? (KIND_COLOR[l.kind] || "var(--muted)") : "var(--danger)";
-      const label  = KIND_LABEL[l.kind] || l.kind;
-      const slug   = l.notification_slug ? `<code style="font-size:0.72rem;">${esc(l.notification_slug)}</code>` : "";
-      const who    = l.user_name ? `<span style="color:var(--text);">${esc(l.user_name)}</span>` : "";
-      const detail = l.detail ? `<div class="dash-tl-detail">${esc(l.detail)}</div>` : "";
-      const err    = !l.success ? ` <span style="color:var(--danger);font-size:0.6rem;">ERR</span>` : "";
-      return `
-        <div class="dash-tl-item">
-          <div class="dash-tl-dot" style="background:${color};box-shadow:0 0 6px ${color};"></div>
-          <div class="dash-tl-body">
-            <div class="dash-tl-head">
-              <span class="dash-tl-kind" style="color:${color};">${label}${err}</span>
-              ${slug} ${who}
-            </div>
-            ${detail}
-          </div>
-          <div class="dash-tl-time">${fmtDate(l.created_at)}</div>
+    const logs = await API.get("/logs?limit=8");
+    if (!logs.length) { el.innerHTML=`<div class="empty-state">Aucune activite.</div>`; return; }
+    el.innerHTML = `<div class="gf-table">
+      <div class="gf-table-head">
+        <span>Type</span><span>Notification</span><span>Detail</span>
+        <span>Utilisateur</span><span>Heure</span>
+      </div>` +
+      logs.map(l => {
+        const color = l.success ? (KIND_COLOR[l.kind]||"var(--muted)") : "var(--danger)";
+        const label = KIND_LABEL[l.kind] || l.kind;
+        const slug  = l.notification_slug ? `<code>${esc(l.notification_slug)}</code>` : "—";
+        const detail = l.detail ? `<span style="color:var(--muted);font-size:.65rem;">${esc(l.detail.slice(0,40))}</span>` : "—";
+        const who   = l.user_name ? esc(l.user_name) : "—";
+        const [d,t] = (l.created_at||"").split(" ");
+        const when  = d&&t ? `${d.slice(5)} ${t.slice(0,5)}` : "—";
+        const errBadge = !l.success
+          ? `<span style="color:var(--danger);margin-left:.25rem;font-size:.6rem;">ERR</span>` : "";
+        return `<div class="gf-table-row">
+          <span><span class="gf-tl-dot" style="background:${color};box-shadow:0 0 4px ${color};"></span>
+            <span style="color:${color};font-size:.65rem;text-transform:uppercase;letter-spacing:.05em;">${label}</span>${errBadge}</span>
+          <span>${slug}</span>
+          <span>${detail}</span>
+          <span>${who}</span>
+          <span style="color:var(--muted);">${when}</span>
         </div>`;
-    }).join("");
-  } catch (e) {
-    list.innerHTML = `<div class="empty-state">Erreur : ${esc(e.message)}</div>`;
+      }).join("") + `</div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="empty-state">Erreur : ${esc(e.message)}</div>`;
   }
 }
 

@@ -30,6 +30,8 @@ async def dashboard_stats() -> dict:
     m_repo = MonitoringRepository()
     blocks = await m_repo.list_all()
 
+    daily = await log_repo.daily_counts(7)
+
     return {
         "bot_ready": bot_ready,
         "bot_latency_ms": bot_latency,
@@ -41,4 +43,5 @@ async def dashboard_stats() -> dict:
         "monitoring_enabled": sum(1 for b in blocks if b.enabled),
         "notifications_total": notif_count,
         "activity_week": week_count,
+        "daily": daily,
     }
