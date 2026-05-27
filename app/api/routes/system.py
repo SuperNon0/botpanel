@@ -61,30 +61,33 @@ async def system_info() -> dict:
 
 @router.post("/update")
 async def system_update() -> dict:
-    """Lance un `git fetch --prune` puis `git reset --hard origin/<branche>`."""
-    if not (INSTALL_DIR / ".git").exists():
-        raise HTTPException(400, f"{INSTALL_DIR} n'est pas un depot git.")
+    """Appelle deploy/update.sh --no-restart via sudo (tourne en root → pas de problème de permissions git)."""
+    script = INSTALL_DIR / "deploy" / "update.sh"
+    if not script.exists():
+        raise HTTPException(400, f"Script introuvable : {script}")
 
-    branch_res = await _run(
-        ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=INSTALL_DIR, timeout=5
+    result = await _run(
+        ["sudo", "-n", "bash", str(script), "--no-restart"],
+        cwd=INSTALL_DIR,
+        timeout=180,
     )
-    branch = branch_res["stdout"].strip() or "main"
-    remote_ref = f"origin/{branch}"
-
-    fetch = await _run(["git", "fetch", "--prune"], cwd=INSTALL_DIR, timeout=120)
-    if fetch["exit_code"] != 0:
-        return {
-            "ok": False,
-            "fetch": fetch,
-            "pull": {
-                "exit_code": -1, "stdout": "",
-                "stderr": "Abandonné — git fetch a échoué.",
-                "command": f"git reset --hard {remote_ref}",
-            },
-        }
-
-    pull = await _run(["git", "reset", "--hard", remote_ref], cwd=INSTALL_DIR, timeout=60)
-    return {"ok": pull["exit_code"] == 0, "fetch": fetch, "pull": pull}
+    output = (result["stdout"] + result["stderr"]).strip()
+    ok = result["exit_code"] == 0
+    return {
+        "ok": ok,
+        "fetch": {
+            "command": "sudo bash deploy/update.sh --no-restart",
+            "stdout": output,
+            "stderr": "" if ok else output,
+            "exit_code": result["exit_code"],
+        },
+        "pull": {
+            "command": "git reset --hard origin/main",
+            "stdout": "OK" if ok else "",
+            "stderr": "",
+            "exit_code": result["exit_code"],
+        },
+    }
 
 
 @router.post("/restart")

@@ -52,12 +52,15 @@ cp "${INSTALL_DIR}/deploy/botpanel.service" /etc/systemd/system/botpanel.service
 systemctl daemon-reload
 systemctl enable botpanel.service
 
-echo ">>> [extra] sudoers (restart auto depuis l'UI)"
-SUDOERS_FILE="/etc/sudoers.d/botpanel-restart"
-echo "${SERVICE_USER} ALL=NOPASSWD: /bin/systemctl restart botpanel" > "${SUDOERS_FILE}"
+echo ">>> [extra] sudoers (restart + update depuis l'UI)"
+SUDOERS_FILE="/etc/sudoers.d/botpanel"
+{
+  echo "${SERVICE_USER} ALL=NOPASSWD: /bin/systemctl restart botpanel"
+  echo "${SERVICE_USER} ALL=NOPASSWD: /bin/bash ${INSTALL_DIR}/deploy/update.sh"
+} > "${SUDOERS_FILE}"
 chmod 440 "${SUDOERS_FILE}"
 visudo -c -f "${SUDOERS_FILE}" >/dev/null
-echo "OK : ${SERVICE_USER} peut faire 'sudo systemctl restart botpanel' sans mot de passe."
+echo "OK : ${SERVICE_USER} peut restart et lancer update.sh sans mot de passe."
 
 echo ""
 echo "Installation terminee."

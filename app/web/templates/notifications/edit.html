@@ -74,16 +74,17 @@
     <h3>Identification</h3>
     <p class="hint">Le <code>slug</code> est l'identifiant appele depuis Home Assistant.</p>
 
-    <div class="form-row" id="channel-row">
-      <div class="form-group">
-        <label class="form-label">Slug unique</label>
-        <input class="form-input" name="slug" required pattern="[a-z0-9_]+" placeholder="notif_porte_entree">
-        <div class="form-hint">minuscules, chiffres, underscore uniquement</div>
-      </div>
+    <div class="form-group">
+      <label class="form-label">Slug unique</label>
+      <input class="form-input" name="slug" required pattern="[a-z0-9_]+" placeholder="notif_porte_entree">
+      <div class="form-hint">minuscules, chiffres, underscore — identifiant appele depuis Home Assistant</div>
+    </div>
+
+    <div id="channel-row">
       <div class="form-group">
         <label class="form-label">Channel Discord</label>
         <select class="form-select" id="channel-select"></select>
-        <input class="form-input" name="channel_id" id="f-channel-id" required inputmode="numeric"
+        <input class="form-input" name="channel_id" id="f-channel-id" inputmode="numeric"
                placeholder="123456789012345678" style="margin-top:0.4rem;">
         <div class="form-hint">choisis un preset ou colle un ID brut</div>
       </div>
@@ -718,6 +719,28 @@ function buildPayload() {
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
+  // Validation manuelle selon le mode
+  const mode = document.getElementById("f-thread-mode").value;
+  const channelId = document.getElementById("f-channel-id").value.trim();
+  if (mode === "forum") {
+    if (!channelId) {
+      toast("Choisissez un channel forum.", "error");
+      return;
+    }
+    if (!getGroupName()) {
+      toast("Entrez un nom pour le post du forum.", "error");
+      return;
+    }
+  } else {
+    if (!channelId) {
+      toast("Choisissez un channel Discord.", "error");
+      return;
+    }
+    if (mode === "thread" && !getGroupName()) {
+      toast("Entrez un nom pour le fil (groupe).", "error");
+      return;
+    }
+  }
   const payload = buildPayload();
   try {
     if (NOTIF_ID) {
