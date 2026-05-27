@@ -10,6 +10,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import (
+    dashboard as dashboard_routes,
     discord as discord_routes,
     ha_hook,
     ha_proxy,
@@ -37,6 +38,7 @@ def create_app() -> FastAPI:
     )
 
     # --- API ---
+    app.include_router(dashboard_routes.router, prefix="/api/dashboard", tags=["dashboard"])
     app.include_router(ha_hook.router, prefix="/api", tags=["ha-hook"])
     app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
     app.include_router(slash_commands.router, prefix="/api/commands", tags=["commands"])
@@ -57,7 +59,7 @@ def create_app() -> FastAPI:
 
     @app.get("/", include_in_schema=False)
     async def _root() -> RedirectResponse:
-        return RedirectResponse("/notifications")
+        return RedirectResponse("/dashboard")
 
     @app.get("/health", include_in_schema=False)
     async def _health() -> dict[str, str]:

@@ -10,15 +10,97 @@ Hébergé dans un conteneur LXC Proxmox.
 ## Fonctionnalités
 
 - **Notifications Discord** configurables depuis le site — HA n'a qu'un seul appel à faire (`rest_command.bot_discord` avec `id: <slug>`)
+- **Trois modes d'envoi** par notification : *Direct* (channel texte), *Thread* (fil dans un channel texte, regroupé par groupe), *Forum* (post dans un channel forum Discord)
 - **Boutons interactifs** (persistants, survivent au timeout 15 min et aux redémarrages) : Supprimer, Snooze, boutons custom appelant un service HA
-- **Commandes slash Discord** entièrement gérées depuis le site (service / script / scène / notification)
+- **Commandes slash Discord** : deux commandes fixes (`/ha`, `/clear`) + commandes personnalisées entièrement gérées depuis le site (service / script / scène / notification)
 - **Monitoring temps réel** : messages épinglés édités à intervalle configurable (min. 30 s), recréés automatiquement si supprimés côté Discord
 - **Templates dans les champs** : syntaxe BotPanel (`{state:sensor.x}`, `{attr:sensor.x:attr}`, `{unit:sensor.x}`) et Jinja HA natif (`{{ states('...') }}`, `{{ state_attr(...) }}`)
 - **Autocomplétion live** des entités HA, services HA et channels Discord dans tous les formulaires
-- **Page Paramètres** : presets de couleurs et de channels Discord réutilisables dans tous les formulaires
+- **Page Paramètres** : presets de couleurs et de channels, liste des forums détectés, gestion des threads/posts actifs, mise à jour et redémarrage depuis l'UI
 - **Page Historique** : logs de tous les envois et clics de boutons, avec filtre et purge
-- **Mise à jour depuis l'UI** : git pull + redémarrage du service en un clic depuis la page Paramètres
 - **Design FuelLog** (dark mode exclusif, DM Mono + DM Serif Display)
+
+## Le site web
+
+Le site est l'interface d'administration du bot, accessible sur `http://IP_LXC:8080`. Il se compose de cinq sections.
+
+### Notifications (`/notifications`)
+
+Page principale. Elle liste toutes les notifications enregistrées, **groupées par `group_name`** si défini. Pour chaque notification on peut : tester l'envoi, éditer, cloner ou supprimer.
+
+Le formulaire d'édition permet de configurer :
+- **Identification** : slug, channel Discord cible, **mode d'envoi** (Direct / Thread / Forum) et nom de groupe/post selon le mode
+- **Embed** : titre, message (Markdown), couleur (sélecteur + presets), icône, footer, horodatage
+- **Boutons** : cases "Supprimer" et "Snooze N min", plus des boutons custom déclenchant un service HA au clic
+- **Champs** : fields Discord affichés en grille dans l'embed, avec templates d'états HA
+
+Un **aperçu live** du rendu Discord est affiché pendant l'édition. Un bouton "Tester" envoie la notification dans Discord sans sauvegarder.
+
+### Commandes (`/commands`)
+
+Gestion des commandes slash personnalisées. Chaque commande a :
+- un **nom** (identifiant Discord, lettres minuscules/chiffres/tirets, max 32 car.)
+- une **description** affichée dans Discord
+- un **type d'action** : service HA, script, scène, ou notification BotPanel
+- un **message de confirmation** éphémère envoyé à l'utilisateur après exécution
+
+Un compteur de quota affiche le nombre de commandes utilisées sur les 100 autorisées par Discord.
+
+### Monitoring (`/monitoring`)
+
+Gestion des blocs de monitoring — des messages épinglés qui se mettent à jour automatiquement dans un channel Discord à intervalle régulier.
+
+Chaque bloc expose :
+- un **nom**, une **couleur** et une **icône**
+- le **channel Discord** cible et l'**intervalle de rafraîchissement** (min. 30 s)
+- une liste de **champs** pointant vers des entités HA (état, attribut, suffix, inline)
+
+Le bot crée le message épinglé au premier cycle et ne fait que l'éditer ensuite. Si le message est supprimé manuellement sur Discord, il est recréé au cycle suivant.
+
+### Paramètres (`/settings`)
+
+Cinq blocs :
+- **Mise à jour** : affiche la branche et le commit git courants ; un bouton lance un `git pull` suivi d'un redémarrage automatique du service (la page se recharge toute seule quand le bot revient)
+- **Couleurs préconfigurées** : palette de couleurs nommées disponibles dans le sélecteur rapide du formulaire notification
+- **Channels Discord préconfigurés** : liste de channels avec leurs IDs, affichés dans la liste déroulante du formulaire ; un tableau des channels détectés par le bot permet de les ajouter en un clic
+- **Channels forum détectés** : liste des channels forum accessibles par le bot, utilisables comme destination en mode *Forum*
+- **Threads / Posts actifs** : liste tous les fils et posts créés automatiquement ; bouton "Réinitialiser" par entrée pour forcer la recréation au prochain envoi
+
+### Historique (`/historique`)
+
+Journal de toutes les activités du bot : envois de notifications, clics sur les boutons (Supprimer, Snooze, action HA). Chaque entrée indique la notification concernée, l'utilisateur (pour les clics), le channel, l'horodatage et si l'opération a réussi. Filtrable et purgeable.
+
+## Commandes slash Discord
+
+### `/ha` — appel libre de service HA
+
+Permet d'appeler n'importe quel service Home Assistant directement depuis Discord.
+
+| Paramètre | Requis | Description |
+|-----------|--------|-------------|
+| `service` | oui | Service HA au format `domain.action` (ex : `light.turn_on`) |
+| `entity` | non | Entity ID cible (ex : `light.salon`) |
+| `data` | non | Payload JSON additionnel (ex : `{"brightness": 200}`) |
+
+L'autocomplétion est intelligente : les domaines courants (`light`, `switch`, `script`, `scene`…) apparaissent en tête quand le champ est vide ; la liste des entités se filtre automatiquement selon le domaine du service choisi.
+
+### `/clear` — suppression de messages
+
+Supprime les N derniers messages du channel courant (1 à 1000).  
+Nécessite la permission `Manage Messages` côté utilisateur **et** côté bot.
+
+### Commandes personnalisées
+
+Créées et gérées depuis `/commands` sur le site. Elles sont synchronisées sur la guild instantanément à chaque modification. Quatre types d'action disponibles :
+
+| Type | Comportement |
+|------|-------------|
+| `service` | Appelle `domain.action` avec entity et data optionnels |
+| `script` | Exécute un script HA (`script.<nom>`) |
+| `scene` | Active une scène HA (`scene.turn_on`) |
+| `notification` | Envoie une notification BotPanel par son slug |
+
+> Les noms `ha` et `clear` sont réservés et ne peuvent pas être utilisés pour des commandes personnalisées.
 
 ## Architecture
 
@@ -29,7 +111,13 @@ app/
 ├── db/
 │   ├── database.py      # SQLite async (aiosqlite)
 │   ├── models.py        # Schémas Pydantic
-│   └── repositories/    # Accès données par entité (notifications, commands, monitoring, logs, settings)
+│   └── repositories/    # Accès données par entité
+│       ├── notifications.py
+│       ├── slash_commands.py
+│       ├── monitoring.py
+│       ├── threads.py
+│       ├── logs.py
+│       └── settings.py
 ├── bot/                 # discord.py : client, notifications, views, slash, monitoring
 ├── ha/                  # Client httpx pour l'API HA
 ├── api/
@@ -68,10 +156,14 @@ app/
 | `GET` | `/api/ha/services` | Services HA (autocomplétion) |
 | `GET` | `/api/ha/ping` | Vérifie la connectivité avec HA |
 | `GET` | `/api/discord/channels` | Channels texte de la guild (autocomplétion) |
+| `GET` | `/api/discord/forum-channels` | Channels forum de la guild |
+| `GET` | `/api/discord/forum-posts?channel_id=X` | Posts actifs d'un channel forum |
 | `GET` | `/api/settings/colors` | Presets de couleurs sauvegardés |
 | `PUT` | `/api/settings/colors` | Enregistre les presets de couleurs |
 | `GET` | `/api/settings/channels` | Presets de channels sauvegardés |
 | `PUT` | `/api/settings/channels` | Enregistre les presets de channels |
+| `GET` | `/api/settings/threads` | Liste les threads Discord actifs |
+| `DELETE` | `/api/settings/threads/{id}` | Réinitialise un thread (recréé au prochain envoi) |
 | `GET` | `/api/logs` | Historique des envois et clics (filtres : `limit`, `kind`, `notification_id`) |
 | `DELETE` | `/api/logs/older/{days}` | Purge les logs de plus de N jours |
 | `GET` | `/api/system/info` | Infos système (commit et branche git courants) |
@@ -84,16 +176,16 @@ app/
 
 | Route | Page |
 |-------|------|
-| `/notifications` | Liste des notifications |
+| `/notifications` | Liste des notifications (groupées par groupe) |
 | `/notifications/new` | Créer une notification |
 | `/notifications/{id}` | Éditer une notification |
-| `/commands` | Liste des commandes slash |
+| `/commands` | Liste des commandes slash + quota |
 | `/commands/new` | Créer une commande |
 | `/commands/{id}` | Éditer une commande |
 | `/monitoring` | Liste des blocs de monitoring |
 | `/monitoring/new` | Créer un bloc |
 | `/monitoring/{id}` | Éditer un bloc |
-| `/settings` | Paramètres (presets couleurs & channels, mise à jour, redémarrage) |
+| `/settings` | Paramètres (presets, threads actifs, mise à jour, redémarrage) |
 | `/historique` | Historique des envois et clics de boutons |
 
 ## Installation (LXC Proxmox)
@@ -186,8 +278,9 @@ action:
 ## Points d'attention
 
 - **Boutons Discord** : les `custom_id` sont de la forme `bp:<action>:<notif_id>[:<btn_id>]` (actions : `del`, `snz`, `btn`, `preview`). Un dispatcher global (`on_interaction`) route les clics — aucun besoin de reconstruire les Views au boot.
+- **Modes d'envoi** : `thread_mode` sur chaque notification — `none` (direct), `thread` (fil dans channel texte), `forum` (post dans channel forum). Les tests et previews depuis l'éditeur ignorent toujours le mode et vont dans le channel direct. Le `thread_id`/`post_id` est stocké en DB par `(group_name, channel_id)` ; si archivé → désarchivé, si supprimé → recréé automatiquement. En mode forum, si le post n'est pas en DB, le bot le cherche par nom dans les posts actifs avant d'en créer un nouveau.
 - **Token HA** : créer un token avec uniquement les permissions nécessaires (lecture états + appel services).
-- **Sync slash** : les commandes sont poussées sur la **guild** (pas en global) → propagation immédiate.
+- **Sync slash** : les commandes sont poussées sur la **guild** (pas en global) → propagation immédiate. Les noms `ha` et `clear` sont réservés.
 - **Monitoring** : chaque bloc garde l'ID du message épinglé en DB. Si le message a été supprimé côté Discord, il est recréé au cycle suivant. Intervalle minimum : 30 secondes.
 - **Redémarrage depuis l'UI** : `POST /api/system/restart` lance le restart en tâche détachée. L'API devient inaccessible quelques secondes ; le frontend poll `/health` pour détecter le retour.
 - **Mise à jour depuis l'UI** : `POST /api/system/update` effectue un `git pull --ff-only`. Le sudoers est configuré automatiquement par `install_lxc.sh` — aucune manipulation manuelle nécessaire.

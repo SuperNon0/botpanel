@@ -14,6 +14,13 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 router = APIRouter()
 
 
+@router.get("/dashboard", response_class=HTMLResponse)
+async def page_dashboard(request: Request):
+    return templates.TemplateResponse(
+        "dashboard.html", {"request": request, "active_page": "dashboard"}
+    )
+
+
 @router.get("/notifications", response_class=HTMLResponse)
 async def page_notifications(request: Request):
     return templates.TemplateResponse(

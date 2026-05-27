@@ -6,6 +6,23 @@
   <h2>Parametres</h2>
 </div>
 
+<div class="card">
+  <h3>URL d'accueil</h3>
+  <p class="hint">
+    Quand tu cliques sur le logo depuis la page d'accueil, tu es redirige vers cette URL.
+    Depuis n'importe quelle autre page, le logo ramene toujours sur la page d'accueil.
+    Exemple : ton interface Home Assistant, un lien rapide vers ton NAS, etc.
+  </p>
+  <div class="form-group">
+    <label class="form-label">URL de destination</label>
+    <input class="form-input" id="home-url-input" type="url"
+           placeholder="http://192.168.1.x:8123" style="max-width:420px;">
+  </div>
+  <div style="display:flex; gap:0.7rem; justify-content:flex-end; margin-top:1rem;">
+    <button type="button" class="btn btn-primary" id="home-url-save">Enregistrer</button>
+  </div>
+</div>
+
 <div class="card" id="update-card">
   <h3>Mise a jour</h3>
   <div id="update-info" class="hint">Chargement des infos...</div>
@@ -50,12 +67,50 @@
   <p class="hint">Cliquez sur "Ajouter" pour copier le channel dans vos preconfigures.</p>
   <div id="bot-channels" class="buttons-builder"></div>
 </div>
+
+<div class="card">
+  <h3>Channels forum detectes par le bot</h3>
+  <p class="hint">
+    Ces channels peuvent etre utilises comme destination dans le mode <em>Forum</em>
+    d'une notification. Le bot doit avoir la permission <strong>Send Messages in Threads</strong>
+    sur ces channels.
+  </p>
+  <div id="bot-forums" class="buttons-builder"><div class="empty-state">Chargement...</div></div>
+</div>
+
+<div class="card">
+  <h3>Threads Discord actifs</h3>
+  <p class="hint">
+    Quand une notification a un <em>groupe</em>, elle est envoyee dans un thread Discord portant ce nom.
+    Ce tableau liste les threads crees. Supprimer une entree force la recreation du thread au prochain envoi
+    (utile si le thread a ete supprime manuellement sur Discord).
+  </p>
+  <div id="threads-list"><div class="empty-state">Chargement...</div></div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 let colors = [];
 let channels = [];
+
+// ============================================================
+// URL d'accueil
+// ============================================================
+async function loadHomeUrl() {
+  try {
+    const r = await API.get("/settings/home-url");
+    if (r.url) document.getElementById("home-url-input").value = r.url;
+  } catch { /* ignore */ }
+}
+
+document.getElementById("home-url-save").addEventListener("click", async () => {
+  const url = document.getElementById("home-url-input").value.trim();
+  try {
+    await API.put("/settings/home-url", { url });
+    toast("URL enregistree");
+  } catch (e) { toast(e.message, "error"); }
+});
 
 function colorToHex(n) {
   return "#" + (n & 0xFFFFFF).toString(16).padStart(6, "0");
@@ -296,7 +351,71 @@ async function loadAll() {
   }
 }
 
+// ============================================================
+// Threads Discord
+// ============================================================
+async function loadThreads() {
+  const root = document.getElementById("threads-list");
+  try {
+    const threads = await API.get("/settings/threads");
+    if (!threads.length) {
+      root.innerHTML = `<div class="empty-state">Aucun thread actif. Les threads sont crees automatiquement quand une notification avec un groupe est envoyee.</div>`;
+      return;
+    }
+    root.innerHTML = threads.map(t => `
+      <div class="card-row" data-tid="${t.id}">
+        <div>
+          <strong>${esc(t.group_name)}</strong>
+          <div class="card-row-meta">
+            Channel <code>${esc(t.channel_id)}</code> &middot; Thread ID <code>${esc(t.thread_id)}</code>
+            <span style="margin-left:0.5rem; color:var(--muted); font-size:0.75rem;">${esc(t.created_at.slice(0,16).replace("T"," "))}</span>
+          </div>
+        </div>
+        <button type="button" class="btn btn-danger btn-small" data-del-tid="${t.id}">Reinitialiser</button>
+      </div>
+    `).join("");
+    root.querySelectorAll("[data-del-tid]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Reinitialiser ce thread ? Il sera recrée au prochain envoi.")) return;
+        try {
+          await API.del("/settings/threads/" + btn.dataset.delTid);
+          toast("Thread reinitialise");
+          loadThreads();
+        } catch (e) { toast(e.message, "error"); }
+      });
+    });
+  } catch (e) {
+    root.innerHTML = `<div class="empty-state">Erreur : ${esc(e.message)}</div>`;
+  }
+}
+
+async function loadForums() {
+  const root = document.getElementById("bot-forums");
+  try {
+    const forums = await API.get("/discord/forum-channels");
+    if (!forums.length) {
+      root.innerHTML = `<div class="empty-state">Aucun channel forum detecte (le bot est-il en ligne ?).</div>`;
+      return;
+    }
+    root.innerHTML = forums.map(f => `
+      <div class="card-row">
+        <div>
+          <strong># ${esc(f.name)}</strong>
+          <div class="card-row-meta">
+            ${f.category ? esc(f.category) + " &middot; " : ""}<code>${esc(f.id)}</code>
+          </div>
+        </div>
+      </div>
+    `).join("");
+  } catch (e) {
+    root.innerHTML = `<div class="empty-state">Erreur : ${esc(e.message)}</div>`;
+  }
+}
+
+loadHomeUrl();
 loadSystemInfo();
 loadAll();
+loadForums();
+loadThreads();
 </script>
 {% endblock %}

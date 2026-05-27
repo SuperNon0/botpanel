@@ -89,6 +89,35 @@ class LogRepository:
             for row in rows
         ]
 
+    async def stats_today(self) -> dict:
+        """Compte les envois/erreurs/clics depuis minuit (UTC)."""
+        async with get_connection() as db:
+            cursor = await db.execute(
+                """
+                SELECT
+                    SUM(CASE WHEN kind='send'  AND success=1 THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN kind='send'  AND success=0 THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN kind IN ('button','snooze','delete') THEN 1 ELSE 0 END)
+                FROM notification_logs
+                WHERE created_at >= date('now')
+                """
+            )
+            row = await cursor.fetchone()
+            return {
+                "sent_ok": row[0] or 0,
+                "sent_err": row[1] or 0,
+                "clicks": row[2] or 0,
+            }
+
+    async def count_week(self) -> int:
+        """Compte tous les evenements des 7 derniers jours."""
+        async with get_connection() as db:
+            cursor = await db.execute(
+                "SELECT COUNT(*) FROM notification_logs WHERE created_at >= datetime('now', '-7 days')"
+            )
+            row = await cursor.fetchone()
+            return row[0] or 0
+
     async def purge_older_than(self, days: int) -> int:
         async with get_connection() as db:
             cursor = await db.execute(

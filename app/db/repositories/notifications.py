@@ -59,15 +59,16 @@ class NotificationRepository:
                 INSERT INTO notifications (
                     slug, channel_id, title, message, color, icon_url, footer,
                     show_timestamp, delete_button, snooze_button, snooze_minutes,
-                    group_name
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    group_name, thread_mode, mention
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     payload.slug, payload.channel_id, payload.title, payload.message,
                     payload.color, payload.icon_url, payload.footer,
                     int(payload.show_timestamp), int(payload.delete_button),
                     int(payload.snooze_button), payload.snooze_minutes,
-                    payload.group_name or None,
+                    payload.group_name or None, payload.thread_mode,
+                    payload.mention or None,
                 ),
             )
             notif_id = cursor.lastrowid
@@ -86,7 +87,7 @@ class NotificationRepository:
                     slug = ?, channel_id = ?, title = ?, message = ?, color = ?,
                     icon_url = ?, footer = ?, show_timestamp = ?, delete_button = ?,
                     snooze_button = ?, snooze_minutes = ?, group_name = ?,
-                    updated_at = datetime('now')
+                    thread_mode = ?, mention = ?, updated_at = datetime('now')
                 WHERE id = ?
                 """,
                 (
@@ -94,7 +95,8 @@ class NotificationRepository:
                     payload.color, payload.icon_url, payload.footer,
                     int(payload.show_timestamp), int(payload.delete_button),
                     int(payload.snooze_button), payload.snooze_minutes,
-                    payload.group_name or None, notif_id,
+                    payload.group_name or None, payload.thread_mode,
+                    payload.mention or None, notif_id,
                 ),
             )
             if cursor.rowcount == 0:
@@ -183,15 +185,23 @@ class NotificationRepository:
                 ),
             )
 
+    async def count_all(self) -> int:
+        async with get_connection() as db:
+            cursor = await db.execute("SELECT COUNT(*) FROM notifications")
+            row = await cursor.fetchone()
+            return row[0] or 0
+
     def _row_to_model(
         self,
         row,
         buttons: list[NotificationButton],
         fields: list[NotificationField],
     ) -> Notification:
-        # group_name peut etre absent sur les bases anterieures a la migration
+        # group_name, thread_mode et mention peuvent etre absents sur les bases anterieures
         keys = row.keys() if hasattr(row, "keys") else []
         group_name = row["group_name"] if "group_name" in keys else None
+        thread_mode = row["thread_mode"] if "thread_mode" in keys else "none"
+        mention = row["mention"] if "mention" in keys else None
         return Notification(
             id=row["id"],
             slug=row["slug"],
@@ -206,6 +216,8 @@ class NotificationRepository:
             snooze_button=bool(row["snooze_button"]),
             snooze_minutes=row["snooze_minutes"],
             group_name=group_name,
+            thread_mode=thread_mode or "none",
+            mention=mention or None,
             buttons=buttons,
             fields=fields,
         )

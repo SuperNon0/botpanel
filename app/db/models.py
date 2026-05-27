@@ -54,6 +54,8 @@ class NotificationIn(BaseModel):
     snooze_button: bool = False
     snooze_minutes: int = 15
     group_name: Optional[str] = Field(default=None, max_length=64)
+    thread_mode: Literal["none", "thread", "forum"] = "none"
+    mention: Optional[str] = Field(default=None, max_length=128)
     buttons: list[NotificationButton] = Field(default_factory=list)
     fields: list[NotificationField] = Field(default_factory=list)
 
@@ -138,6 +140,17 @@ class ColorPreset(BaseModel):
 class ChannelPreset(BaseModel):
     name: str = Field(..., max_length=64)
     channel_id: str = Field(..., max_length=32)
+
+
+# ==========================================================
+#  Threads Discord
+# ==========================================================
+class NotificationThread(BaseModel):
+    id: int
+    group_name: str
+    channel_id: str
+    thread_id: str
+    created_at: str
 
 
 # ==========================================================
