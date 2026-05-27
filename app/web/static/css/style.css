@@ -744,68 +744,195 @@ input[type="color"] {
   border-color: var(--accent);
 }
 
-/* ---------- Dashboard stat cards ---------- */
-.stat-grid {
+/* ---------- Dashboard redesign ---------- */
+
+/* Grille 2 colonnes pour les cartes statut/metriques */
+.dash-row-2 {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.8rem;
-  margin-bottom: 1.1rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+  margin-bottom: 0.9rem;
 }
-@media (max-width: 700px) {
-  .stat-grid { grid-template-columns: 1fr 1fr; }
+@media (max-width: 560px) { .dash-row-2 { grid-template-columns: 1fr; } }
+
+/* Carte statut (Bot / HA) */
+.dash-status-card {
+  position: relative;
+  overflow: hidden;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: 12px;
+  padding: 1.3rem 1.4rem;
+  transition: border-color 0.3s ease;
 }
-@media (max-width: 400px) {
-  .stat-grid { grid-template-columns: 1fr; }
+.dash-status-card.ok  {
+  border-left-color: var(--accent2);
+  background: linear-gradient(135deg, rgba(79,195,161,0.05) 0%, var(--card) 60%);
+}
+.dash-status-card.err {
+  border-left-color: var(--danger);
+  background: linear-gradient(135deg, rgba(232,92,71,0.05) 0%, var(--card) 60%);
 }
 
-.stat-card {
+/* Carte metrique (Envois / Monitoring) */
+.dash-metric-card {
+  position: relative;
+  overflow: hidden;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 1.1rem 1.2rem;
+  padding: 1.3rem 1.4rem;
+}
+
+/* Grand emoji de fond (décoratif) */
+.dash-bg-icon {
+  position: absolute;
+  right: 1rem;
+  top: 0.7rem;
+  font-size: 3.5rem;
+  opacity: 0.06;
+  pointer-events: none;
+  user-select: none;
+  line-height: 1;
+}
+
+/* Libelles communs */
+.dash-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 0.7rem;
+}
+
+/* Ligne statut : dot + texte */
+.dash-status-line {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: "DM Serif Display", serif;
+  font-size: 1.35rem;
+  margin-bottom: 0.3rem;
+}
+
+.dash-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dash-dot.ok   { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); }
+.dash-dot.err  { background: var(--danger);  box-shadow: 0 0 8px var(--danger); }
+.dash-dot.idle { background: var(--muted); }
+
+/* Grand nombre */
+.dash-big-num {
+  font-family: "DM Serif Display", serif;
+  font-size: 3rem;
+  color: var(--accent);
+  line-height: 1;
+  margin-bottom: 0.4rem;
+}
+
+.dash-sub {
+  font-size: 0.65rem;
+  color: var(--muted);
+  min-height: 1em;
+}
+
+/* Raccourcis (4 tuiles) */
+.dash-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+@media (max-width: 560px) { .dash-shortcuts { grid-template-columns: 1fr 1fr; } }
+
+.dash-shortcut {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
-  text-decoration: none;
-  color: var(--text);
-  transition: border-color 0.15s ease, background 0.15s ease;
 }
-.stat-card.stat-link:hover {
+.dash-shortcut:hover {
   border-color: var(--accent);
-  background: rgba(232, 197, 71, 0.04);
+  background: rgba(232,197,71,0.04);
+  transform: translateY(-2px);
 }
-.stat-label {
-  font-size: 0.62rem;
+.dash-shortcut-num {
+  font-family: "DM Serif Display", serif;
+  font-size: 1.7rem;
+  color: var(--accent);
+  line-height: 1;
+}
+.dash-shortcut-label {
+  font-size: 0.6rem;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--muted);
 }
-.stat-value {
-  font-family: "DM Serif Display", serif;
-  font-size: 1.6rem;
-  color: var(--accent);
-  line-height: 1.1;
-}
-.stat-sub {
-  font-size: 0.65rem;
-  color: var(--muted);
-}
-.stat-ok   { color: var(--accent2); }
-.stat-err  { color: var(--danger); }
-.stat-warn { color: var(--accent3); }
-.stat-off  { color: var(--muted); }
 
-.stat-dot {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  margin-right: 0.35rem;
-  vertical-align: middle;
+/* Timeline activite */
+.dash-timeline { display: flex; flex-direction: column; }
+
+.dash-tl-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--border);
 }
-.stat-dot.ok   { background: var(--accent2); box-shadow: 0 0 5px var(--accent2); }
-.stat-dot.err  { background: var(--danger);  box-shadow: 0 0 5px var(--danger); }
-.stat-dot.off  { background: var(--muted); }
+.dash-tl-item:last-child { border-bottom: none; }
+
+.dash-tl-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 0.35rem;
+  flex-shrink: 0;
+}
+
+.dash-tl-body { flex: 1; min-width: 0; }
+
+.dash-tl-head {
+  font-size: 0.78rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.dash-tl-kind {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+}
+
+.dash-tl-detail {
+  font-size: 0.62rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-tl-time {
+  font-size: 0.6rem;
+  color: var(--muted);
+  white-space: nowrap;
+  margin-top: 0.35rem;
+}
 
 /* ---------- Mention badge (apercu notification) ---------- */
 .mention-badge {
