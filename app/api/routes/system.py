@@ -61,51 +61,63 @@ async def system_info() -> dict:
 
 @router.post("/update")
 async def system_update() -> dict:
-    """Lance un `git fetch --prune` puis `git reset --hard origin/<branche>`.
-
-    Remplace git pull --ff-only qui echoue si les branches ont diverge.
-    Le redemarrage du service est expose separement (POST /system/restart).
-    """
+    """Lance un `git fetch --prune` puis `git reset --hard origin/<branche>`."""
     if not (INSTALL_DIR / ".git").exists():
         raise HTTPException(400, f"{INSTALL_DIR} n'est pas un depot git.")
 
-    fetch = await _run(["git", "fetch", "--prune"], cwd=INSTALL_DIR, timeout=120)
-    if fetch["exit_code"] != 0:
-        return {"step": "fetch", **fetch, "ok": False}
-
-    # Determine la branche courante pour construire origin/<branche>
     branch_res = await _run(
         ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=INSTALL_DIR, timeout=5
     )
     branch = branch_res["stdout"].strip() or "main"
     remote_ref = f"origin/{branch}"
 
+    fetch = await _run(["git", "fetch", "--prune"], cwd=INSTALL_DIR, timeout=120)
+    if fetch["exit_code"] != 0:
+        return {
+            "ok": False,
+            "fetch": fetch,
+            "pull": {
+                "exit_code": -1, "stdout": "",
+                "stderr": "Abandonné — git fetch a échoué.",
+                "command": f"git reset --hard {remote_ref}",
+            },
+        }
+
     pull = await _run(["git", "reset", "--hard", remote_ref], cwd=INSTALL_DIR, timeout=60)
-    return {
-        "step": "reset",
-        "ok": pull["exit_code"] == 0,
-        "fetch": fetch,
-        "pull": pull,
-    }
+    return {"ok": pull["exit_code"] == 0, "fetch": fetch, "pull": pull}
 
 
 @router.post("/restart")
 async def system_restart() -> dict:
-    """Lance `sudo systemctl restart botpanel` en detache (le process se suicide).
+    """Lance `sudo systemctl restart botpanel` en detache.
 
-    L'API va devenir inaccessible quelques secondes ; le client doit poller /health.
+    Attend 2 s pour capturer les echecs immediats (droits sudo manquants, etc.).
+    L'API devient inaccessible quelques secondes ; le client doit poller /api/system/info.
     """
-    cmd = ["sudo", "-n", "/bin/systemctl", "restart", "botpanel"]
-    # On lance en detache pour que le restart survive a la mort de notre process
+    import shutil  # noqa: PLC0415
+
+    systemctl = shutil.which("systemctl") or "/bin/systemctl"
+    cmd = ["sudo", "-n", systemctl, "restart", "botpanel"]
     try:
-        await asyncio.create_subprocess_exec(
+        proc = await asyncio.create_subprocess_exec(
             *cmd,
-            stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
             start_new_session=True,
         )
+        try:
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=2.0)
+            # Si on arrive ici le process s'est termine avant 2 s → echec
+            if proc.returncode != 0:
+                err = stderr.decode("utf-8", errors="replace").strip()
+                raise HTTPException(
+                    500,
+                    err or f"systemctl a retourne le code {proc.returncode}. "
+                    "Vérifiez la règle sudoers : "
+                    f"botpanel ALL=NOPASSWD: {systemctl} restart botpanel",
+                )
+        except asyncio.TimeoutError:
+            pass  # Normal — le service est en train de redemarrer
     except FileNotFoundError as exc:
         raise HTTPException(500, f"Commande introuvable : {exc}") from exc
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(500, f"Erreur lors du lancement du restart : {exc}") from exc
     return {"status": "restarting"}
