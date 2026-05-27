@@ -6,6 +6,23 @@
   <h2>Parametres</h2>
 </div>
 
+<div class="card">
+  <h3>URL d'accueil</h3>
+  <p class="hint">
+    Quand tu cliques sur le logo depuis la page d'accueil, tu es redirige vers cette URL.
+    Depuis n'importe quelle autre page, le logo ramene toujours sur la page d'accueil.
+    Exemple : ton interface Home Assistant, un lien rapide vers ton NAS, etc.
+  </p>
+  <div class="form-group">
+    <label class="form-label">URL de destination</label>
+    <input class="form-input" id="home-url-input" type="url"
+           placeholder="http://192.168.1.x:8123" style="max-width:420px;">
+  </div>
+  <div style="display:flex; gap:0.7rem; justify-content:flex-end; margin-top:1rem;">
+    <button type="button" class="btn btn-primary" id="home-url-save">Enregistrer</button>
+  </div>
+</div>
+
 <div class="card" id="update-card">
   <h3>Mise a jour</h3>
   <div id="update-info" class="hint">Chargement des infos...</div>
@@ -76,6 +93,24 @@
 <script>
 let colors = [];
 let channels = [];
+
+// ============================================================
+// URL d'accueil
+// ============================================================
+async function loadHomeUrl() {
+  try {
+    const r = await API.get("/settings/home-url");
+    if (r.url) document.getElementById("home-url-input").value = r.url;
+  } catch { /* ignore */ }
+}
+
+document.getElementById("home-url-save").addEventListener("click", async () => {
+  const url = document.getElementById("home-url-input").value.trim();
+  try {
+    await API.put("/settings/home-url", { url });
+    toast("URL enregistree");
+  } catch (e) { toast(e.message, "error"); }
+});
 
 function colorToHex(n) {
   return "#" + (n & 0xFFFFFF).toString(16).padStart(6, "0");
@@ -377,6 +412,7 @@ async function loadForums() {
   }
 }
 
+loadHomeUrl();
 loadSystemInfo();
 loadAll();
 loadForums();

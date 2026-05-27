@@ -13,9 +13,9 @@
 <body>
 
 <header class="header">
-  <div class="logo">
+  <a href="/dashboard" id="logo-link" class="logo" style="text-decoration:none;">
     <span class="bot">bot</span><span class="panel">panel</span>
-  </div>
+  </a>
   <div class="header-right">super-nono.cc</div>
 </header>
 
@@ -37,6 +37,18 @@
 <script src="/static/js/api.js"></script>
 <script src="/static/js/ui.js"></script>
 <script src="/static/js/emoji.js"></script>
+<script>
+(async function() {
+  const onDashboard = window.location.pathname === "/dashboard";
+  const link = document.getElementById("logo-link");
+  if (onDashboard) {
+    try {
+      const r = await API.get("/settings/home-url");
+      if (r.url) link.href = r.url;
+    } catch { /* garde /dashboard si erreur */ }
+  }
+})();
+</script>
 {% block scripts %}{% endblock %}
 
 </body>

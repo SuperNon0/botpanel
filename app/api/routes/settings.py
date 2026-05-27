@@ -36,6 +36,19 @@ async def set_channel_presets(payload: list[ChannelPreset]) -> list[ChannelPrese
     return payload
 
 
+@router.get("/home-url")
+async def get_home_url() -> dict:
+    url = await repo.get("home_url", "")
+    return {"url": url or ""}
+
+
+@router.put("/home-url")
+async def set_home_url(payload: dict) -> dict:
+    url = str(payload.get("url", "")).strip()
+    await repo.set("home_url", url)
+    return {"url": url}
+
+
 @router.get("/threads", response_model=list[NotificationThread])
 async def get_threads() -> list[NotificationThread]:
     return await thread_repo.list_all()
