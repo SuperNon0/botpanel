@@ -748,110 +748,127 @@ input[type="color"] {
    Dashboard — style Grafana
    ============================================================ */
 
-/* Barre de titre */
 .gf-topbar {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 1.1rem;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.6rem;
 }
 .gf-title { margin: 0; }
 .gf-refresh {
-  font-size: 0.6rem;
+  font-size: 0.57rem;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
-/* Grilles de lignes */
+/* --- Grilles --- */
 .gf-row {
   display: grid;
-  gap: 0.8rem;
-  margin-bottom: 0.8rem;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
 }
 .gf-row-2 { grid-template-columns: 1fr 1fr; }
 .gf-row-3 { grid-template-columns: repeat(3, 1fr); }
 .gf-row-4 { grid-template-columns: repeat(4, 1fr); }
+.gf-row-5 { grid-template-columns: repeat(5, 1fr); }
+@media (max-width: 860px) {
+  .gf-row-5 { grid-template-columns: repeat(3, 1fr); }
+}
 @media (max-width: 640px) {
-  .gf-row-2, .gf-row-3, .gf-row-4 { grid-template-columns: 1fr 1fr; }
+  .gf-row-2, .gf-row-3, .gf-row-4, .gf-row-5 { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 400px) {
-  .gf-row-2, .gf-row-3, .gf-row-4 { grid-template-columns: 1fr; }
+  .gf-row-2, .gf-row-3, .gf-row-4, .gf-row-5 { grid-template-columns: 1fr; }
 }
 
-/* Panel de base */
+/* --- Panel de base --- */
 .gf-panel {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
   overflow: hidden;
 }
 .gf-panel-title {
-  font-size: 0.6rem;
+  font-size: 0.56rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
-  padding: 0.65rem 1.1rem 0;
+  padding: 0.48rem 0.85rem 0.42rem;
   border-bottom: 1px solid var(--border);
-  padding-bottom: 0.5rem;
-  margin-bottom: 0;
 }
 .gf-panel-body {
-  padding: 0.9rem 1.1rem 1rem;
+  padding: 0.7rem 0.85rem 0.8rem;
 }
 
-/* Panel statut avec couleur de bord */
+/* --- Panel statut Bot / HA --- */
 .gf-panel-status { border-top: 2px solid var(--border); }
-.gf-panel-status.gf-ok  {
+.gf-panel-status.gf-ok {
   border-top-color: var(--accent2);
-  background: linear-gradient(180deg, rgba(79,195,161,.06) 0%, var(--card) 50%);
+  background: linear-gradient(160deg, rgba(79,195,161,.08) 0%, var(--card) 55%);
 }
 .gf-panel-status.gf-err {
   border-top-color: var(--danger);
-  background: linear-gradient(180deg, rgba(232,92,71,.06) 0%, var(--card) 50%);
+  background: linear-gradient(160deg, rgba(232,92,71,.08) 0%, var(--card) 55%);
 }
-
-/* Contenu d'un panel statut */
 .gf-status-body {
   display: flex;
   align-items: center;
-  gap: 0.9rem;
+  gap: 0.7rem;
   position: relative;
+  min-height: 50px;
 }
 .gf-panel-bg-icon {
   position: absolute;
   right: 0;
   bottom: -0.2rem;
-  font-size: 3.8rem;
+  font-size: 3rem;
   opacity: 0.05;
   pointer-events: none;
   user-select: none;
   line-height: 1;
 }
 .gf-status-dot {
-  width: 12px;
-  height: 12px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   flex-shrink: 0;
   background: var(--muted);
 }
-.gf-status-dot.ok  { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); }
-.gf-status-dot.err { background: var(--danger);  box-shadow: 0 0 8px var(--danger); }
-
+.gf-status-dot.ok  { background: var(--accent2); box-shadow: 0 0 7px var(--accent2); }
+.gf-status-dot.err { background: var(--danger);  box-shadow: 0 0 7px var(--danger); }
 .gf-status-value {
   font-family: "DM Serif Display", serif;
-  font-size: 1.4rem;
-  line-height: 1.1;
+  font-size: 1.2rem;
+  line-height: 1.15;
 }
 .gf-status-meta {
-  font-size: 0.62rem;
+  font-size: 0.57rem;
   color: var(--muted);
   margin-top: 0.1rem;
 }
 
-/* Grand nombre dans les métriques */
+/* --- Stat panels --- */
+.gf-stat-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 50px;
+}
+.gf-stat-num {
+  font-family: "DM Serif Display", serif;
+  font-size: 2.4rem;
+  line-height: 1;
+  margin-bottom: 0.15rem;
+}
+.gf-stat-sub {
+  font-size: 0.57rem;
+  color: var(--muted);
+}
+
+/* legacy */
 .gf-big-num {
   font-family: "DM Serif Display", serif;
   font-size: 2.8rem;
@@ -859,18 +876,44 @@ input[type="color"] {
   line-height: 1;
   margin-bottom: 0.35rem;
 }
-.gf-num-sub {
-  font-size: 0.63rem;
-  color: var(--muted);
-}
+.gf-num-sub { font-size: 0.63rem; color: var(--muted); }
 
-/* Graphique en barres */
+/* --- Graphique en barres avec axe Y --- */
+.gf-chart-wrap {
+  display: flex;
+  gap: 0.4rem;
+  align-items: flex-start;
+}
+.gf-chart-yaxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 22px;
+  height: 120px;
+  flex-shrink: 0;
+}
+.gf-y-label {
+  font-size: 0.46rem;
+  color: var(--muted);
+  text-align: right;
+  line-height: 1;
+}
 .gf-chart {
   display: flex;
   align-items: flex-end;
-  gap: 4px;
-  height: 80px;
+  gap: 3px;
+  height: 120px;
+  flex: 1;
   padding: 0 2px;
+  border-left: 1px solid rgba(255,255,255,0.07);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(33.33% - 0.5px),
+    rgba(255,255,255,0.035) calc(33.33% - 0.5px),
+    rgba(255,255,255,0.035) 33.33%
+  );
 }
 .gf-bar-wrap {
   flex: 1;
@@ -881,67 +924,66 @@ input[type="color"] {
   cursor: default;
 }
 .gf-bar {
-  border-radius: 3px 3px 0 0;
-  min-height: 4px;
+  border-radius: 2px 2px 0 0;
+  min-height: 3px;
   transition: opacity .15s;
-  opacity: .85;
+  opacity: .75;
 }
 .gf-bar-wrap:hover .gf-bar { opacity: 1; }
 .gf-chart-labels {
   display: flex;
-  gap: 4px;
-  padding: 0 2px;
-  margin-top: 4px;
+  gap: 3px;
+  padding: 4px 2px 0;
 }
 .gf-bar-lbl {
   flex: 1;
-  font-size: 0.52rem;
+  font-size: 0.48rem;
   color: var(--muted);
   text-align: center;
   line-height: 1.3;
 }
 
-/* Raccourcis */
+/* --- Raccourcis --- */
 .gf-shortcut {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 0.9rem 1rem;
+  border-radius: 8px;
+  padding: 0.75rem 0.85rem;
   text-decoration: none;
   color: var(--text);
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.2rem;
   transition: border-color .15s, background .15s, transform .12s;
 }
 .gf-shortcut:hover {
   border-color: var(--accent);
-  background: rgba(232,197,71,.04);
+  background: rgba(232,197,71,.05);
   transform: translateY(-2px);
   color: var(--text);
 }
 .gf-sc-num {
   font-family: "DM Serif Display", serif;
-  font-size: 1.8rem;
+  font-size: 1.7rem;
   color: var(--accent);
   line-height: 1;
 }
 .gf-sc-label {
-  font-size: 0.58rem;
+  font-size: 0.55rem;
   text-transform: uppercase;
   letter-spacing: .07em;
   color: var(--muted);
 }
 
-/* Tableau activite recente */
+/* --- Tableau activité récente --- */
 .gf-table { display: flex; flex-direction: column; }
 .gf-table-head {
   display: grid;
   grid-template-columns: 110px 1fr 1fr 90px 80px;
   gap: 0.5rem;
-  padding: 0.4rem 0 0.5rem;
+  padding: 0.38rem 0 0.42rem;
   border-bottom: 1px solid var(--border);
-  font-size: 0.57rem;
+  font-size: 0.53rem;
   text-transform: uppercase;
   letter-spacing: .07em;
   color: var(--muted);
@@ -950,16 +992,16 @@ input[type="color"] {
   display: grid;
   grid-template-columns: 110px 1fr 1fr 90px 80px;
   gap: 0.5rem;
-  padding: 0.55rem 0;
+  padding: 0.48rem 0;
   border-bottom: 1px solid var(--border);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   align-items: center;
 }
 .gf-table-row:last-child { border-bottom: none; }
 .gf-tl-dot {
   display: inline-block;
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   margin-right: 0.4rem;
   vertical-align: middle;

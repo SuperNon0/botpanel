@@ -3,14 +3,14 @@
 
 {% block content %}
 
-<!-- Barre de titre -->
+<!-- Topbar -->
 <div class="gf-topbar">
   <h2 class="gf-title">Tableau de bord</h2>
   <span class="gf-refresh" id="last-refresh">—</span>
 </div>
 
-<!-- ===== LIGNE 1 : Statuts ===== -->
-<div class="gf-row gf-row-2">
+<!-- Ligne 1 : statuts + stats rapides (5 colonnes) -->
+<div class="gf-row gf-row-5">
 
   <div class="gf-panel" id="panel-bot">
     <div class="gf-panel-title">Bot Discord</div>
@@ -36,51 +36,77 @@
     </div>
   </div>
 
+  <div class="gf-panel">
+    <div class="gf-panel-title">Envois aujourd'hui</div>
+    <div class="gf-panel-body gf-stat-body">
+      <div class="gf-stat-num" id="m-sent" style="color:var(--pending)">—</div>
+      <div class="gf-stat-sub" id="m-sent-sub"></div>
+    </div>
+  </div>
+
+  <div class="gf-panel">
+    <div class="gf-panel-title">Erreurs</div>
+    <div class="gf-panel-body gf-stat-body">
+      <div class="gf-stat-num" id="m-errors" style="color:var(--danger)">—</div>
+      <div class="gf-stat-sub" id="m-errors-sub"></div>
+    </div>
+  </div>
+
+  <div class="gf-panel">
+    <div class="gf-panel-title">Clics boutons</div>
+    <div class="gf-panel-body gf-stat-body">
+      <div class="gf-stat-num" id="m-clicks" style="color:var(--accent3)">—</div>
+      <div class="gf-stat-sub">interactions</div>
+    </div>
+  </div>
+
 </div>
 
-<!-- ===== LIGNE 2 : Métriques ===== -->
+<!-- Ligne 2 : gauge monitoring + métriques globales (3 colonnes) -->
 <div class="gf-row gf-row-3">
 
   <div class="gf-panel">
-    <div class="gf-panel-title">Envois aujourd'hui</div>
-    <div class="gf-panel-body">
-      <div class="gf-big-num" id="m-sent">—</div>
-      <div class="gf-num-sub" id="m-sent-sub"></div>
+    <div class="gf-panel-title">Monitoring actif</div>
+    <div class="gf-panel-body" style="display:flex;flex-direction:column;align-items:center;padding-top:0.35rem;padding-bottom:0.5rem;">
+      <div id="m-gauge"></div>
+      <div id="m-gauge-label" style="font-size:0.56rem;color:var(--muted);margin-top:0.1rem;text-align:center;"></div>
     </div>
   </div>
 
   <div class="gf-panel">
-    <div class="gf-panel-title">Monitoring actif</div>
-    <div class="gf-panel-body" style="display:flex;align-items:center;gap:1.2rem;">
-      <div id="m-donut"></div>
-      <div>
-        <div class="gf-big-num" id="m-mon">—</div>
-        <div class="gf-num-sub">blocs actifs</div>
+    <div class="gf-panel-title">Notifications</div>
+    <div class="gf-panel-body gf-stat-body">
+      <div class="gf-stat-num" id="m-notifs" style="color:var(--accent)">—</div>
+      <div class="gf-stat-sub">configurées au total</div>
+    </div>
+  </div>
+
+  <div class="gf-panel">
+    <div class="gf-panel-title">Activité — 7 jours</div>
+    <div class="gf-panel-body gf-stat-body">
+      <div class="gf-stat-num" id="m-week" style="color:var(--accent2)">—</div>
+      <div class="gf-stat-sub">événements enregistrés</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Ligne 3 : graphique 7 jours -->
+<div class="gf-panel" style="margin-bottom:0.6rem;">
+  <div class="gf-panel-title">Envois — 7 derniers jours</div>
+  <div class="gf-panel-body" style="padding-top:0.5rem;padding-bottom:0.35rem;">
+    <div class="gf-chart-wrap">
+      <div id="chart-yaxis" class="gf-chart-yaxis"></div>
+      <div style="flex:1;min-width:0;">
+        <div id="chart-bars" class="gf-chart"></div>
+        <div id="chart-labels" class="gf-chart-labels"></div>
       </div>
     </div>
   </div>
-
-  <div class="gf-panel">
-    <div class="gf-panel-title">Notifications configurees</div>
-    <div class="gf-panel-body">
-      <div class="gf-big-num" id="m-notifs">—</div>
-      <div class="gf-num-sub">au total</div>
-    </div>
-  </div>
-
 </div>
 
-<!-- ===== LIGNE 3 : Graphique 7 jours ===== -->
-<div class="gf-panel" style="margin-bottom:0.9rem;">
-  <div class="gf-panel-title">Envois — 7 derniers jours</div>
-  <div class="gf-panel-body" style="padding-top:0.6rem;">
-    <div id="chart-bars" class="gf-chart"></div>
-    <div id="chart-labels" class="gf-chart-labels"></div>
-  </div>
-</div>
-
-<!-- ===== LIGNE 4 : Raccourcis ===== -->
-<div class="gf-row gf-row-4" style="margin-bottom:0.9rem;">
+<!-- Ligne 4 : raccourcis -->
+<div class="gf-row gf-row-4" style="margin-bottom:0.6rem;">
   <a class="gf-shortcut" href="/notifications">
     <span class="gf-sc-num" id="sc-notif">—</span>
     <span class="gf-sc-label">Notifications</span>
@@ -99,10 +125,10 @@
   </a>
 </div>
 
-<!-- ===== LIGNE 5 : Activite recente ===== -->
+<!-- Ligne 5 : activité récente -->
 <div class="gf-panel">
   <div class="gf-panel-title" style="display:flex;justify-content:space-between;align-items:center;">
-    <span>Activite recente</span>
+    <span>Activité récente</span>
     <a href="/historique" class="btn btn-secondary btn-small">Voir tout</a>
   </div>
   <div class="gf-panel-body" style="padding-top:0;">
@@ -124,32 +150,66 @@ const KIND_LABEL = {
 
 function pad(n){ return String(n).padStart(2,"0"); }
 
-function donutSVG(v, max, color) {
-  const r=26, c=2*Math.PI*r;
-  const pct = max>0 ? Math.min(v/max,1) : 0;
-  const dash=(pct*c).toFixed(1), gap=(c-pct*c).toFixed(1);
-  return `<svg width="64" height="64" viewBox="0 0 64 64">
-    <circle cx="32" cy="32" r="${r}" fill="none" stroke="var(--border)" stroke-width="5"/>
-    <circle cx="32" cy="32" r="${r}" fill="none" stroke="${color}" stroke-width="5"
-      stroke-dasharray="${dash} ${gap}" stroke-linecap="round"
-      transform="rotate(-90 32 32)" style="transition:stroke-dasharray .5s;"/>
-    <text x="32" y="37" text-anchor="middle" fill="${color}"
-      font-size="13" font-family="DM Serif Display,serif">${v}</text>
+/* Jauge demi-cercle (style speedometer) */
+function gaugeSVG(v, max, color) {
+  const pct  = max > 0 ? Math.min(v / max, 1) : 0;
+  const r    = 48, cx = 74, cy = 74;
+  const C    = 2 * Math.PI * r;
+  const half = Math.PI * r;
+  const trackD = `${half.toFixed(2)} ${(C - half).toFixed(2)}`;
+  const valD   = `${(pct * half).toFixed(2)} ${(C - pct * half).toFixed(2)}`;
+  const pctTxt = max > 0 ? Math.round(pct * 100) + "%" : "—";
+
+  /* petits tirets de graduation */
+  const ticks = Array.from({length: 11}, (_, i) => {
+    const a   = Math.PI + i * (Math.PI / 10);   /* 180° → 360° (=0°) */
+    const x1  = (cx + (r + 6)  * Math.cos(a)).toFixed(1);
+    const y1  = (cy + (r + 6)  * Math.sin(a)).toFixed(1);
+    const x2  = (cx + (r + 12) * Math.cos(a)).toFixed(1);
+    const y2  = (cy + (r + 12) * Math.sin(a)).toFixed(1);
+    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"
+      stroke="var(--border)" stroke-width="1.5" stroke-linecap="round"/>`;
+  }).join("");
+
+  return `<svg width="148" height="92" viewBox="0 0 148 92">
+    ${ticks}
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
+      stroke="rgba(255,255,255,0.06)" stroke-width="9" stroke-linecap="butt"
+      stroke-dasharray="${trackD}" transform="rotate(180 ${cx} ${cy})"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
+      stroke="${color}" stroke-width="9" stroke-linecap="round"
+      stroke-dasharray="${valD}" transform="rotate(180 ${cx} ${cy})"
+      style="transition:stroke-dasharray .55s ease;filter:drop-shadow(0 0 4px ${color});"/>
+    <text x="${cx}" y="${cy - 17}" text-anchor="middle" fill="${color}"
+      font-size="22" font-family="DM Serif Display,serif">${v}</text>
+    <text x="${cx}" y="${cy - 3}" text-anchor="middle" fill="var(--muted)"
+      font-size="8.5" font-family="DM Mono,monospace">/ ${max} blocs</text>
+    <text x="${cx}" y="${cy + 12}" text-anchor="middle" fill="${color}"
+      font-size="11.5" font-family="DM Mono,monospace">${pctTxt}</text>
   </svg>`;
 }
 
+/* Histogramme 7 jours avec axe Y */
 function barChart(daily) {
-  const maxVal = Math.max(...daily.map(d=>d.sent), 1);
-  const bars  = document.getElementById("chart-bars");
-  const lbls  = document.getElementById("chart-labels");
-  const days  = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
+  const maxVal = Math.max(...daily.map(d => d.sent), 1);
+  const ySteps = 4;
+  const yMax   = Math.ceil(maxVal / ySteps) * ySteps || ySteps;
+  const days   = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
+
+  const yax  = document.getElementById("chart-yaxis");
+  const bars = document.getElementById("chart-bars");
+  const lbls = document.getElementById("chart-labels");
+
+  yax.innerHTML = Array.from({length: ySteps + 1}, (_, i) => {
+    const v = Math.round(yMax * (ySteps - i) / ySteps);
+    return `<div class="gf-y-label">${v}</div>`;
+  }).join("");
 
   bars.innerHTML = daily.map(d => {
-    const h = Math.max(4, Math.round((d.sent / maxVal) * 100));
-    const hasErr = d.errors > 0;
-    const color = hasErr ? "var(--accent3)" : "var(--pending)";
-    const title = `${d.day} : ${d.sent} envoi${d.sent!==1?"s":""}`
-                + (hasErr ? `, ${d.errors} erreur${d.errors>1?"s":""}` : "");
+    const h     = Math.max(3, Math.round((d.sent / yMax) * 100));
+    const color = d.errors > 0 ? "var(--accent3)" : "var(--pending)";
+    const title = `${d.day} : ${d.sent} envoi${d.sent !== 1 ? "s" : ""}`
+                + (d.errors > 0 ? `, ${d.errors} erreur${d.errors > 1 ? "s" : ""}` : "");
     return `<div class="gf-bar-wrap" title="${title}">
       <div class="gf-bar" style="height:${h}%;background:${color};"></div>
     </div>`;
@@ -165,87 +225,101 @@ async function loadDashboard() {
   let s;
   try { s = await API.get("/dashboard/stats"); } catch { return; }
 
-  // Bot
+  /* Bot */
   const botOk = s.bot_ready;
-  document.getElementById("bot-dot").className = "gf-status-dot " + (botOk?"ok":"err");
+  document.getElementById("bot-dot").className = "gf-status-dot " + (botOk ? "ok" : "err");
   document.getElementById("bot-val").textContent = botOk ? "En ligne" : "Hors ligne";
   document.getElementById("bot-val").style.color = botOk ? "var(--accent2)" : "var(--danger)";
-  document.getElementById("bot-meta").textContent = botOk && s.bot_latency_ms!=null
-    ? "Latence : "+s.bot_latency_ms+" ms" : "";
-  document.getElementById("panel-bot").className = "gf-panel gf-panel-status "+(botOk?"gf-ok":"gf-err");
+  document.getElementById("bot-meta").textContent = botOk && s.bot_latency_ms != null
+    ? "Latence : " + s.bot_latency_ms + " ms" : "";
+  document.getElementById("panel-bot").className = "gf-panel gf-panel-status " + (botOk ? "gf-ok" : "gf-err");
 
-  // HA
+  /* HA */
   const haOk = s.ha_ok;
-  document.getElementById("ha-dot").className = "gf-status-dot " + (haOk?"ok":"err");
-  document.getElementById("ha-val").textContent = haOk ? "Connecte" : "Inaccessible";
+  document.getElementById("ha-dot").className = "gf-status-dot " + (haOk ? "ok" : "err");
+  document.getElementById("ha-val").textContent = haOk ? "Connecté" : "Inaccessible";
   document.getElementById("ha-val").style.color = haOk ? "var(--accent2)" : "var(--danger)";
-  document.getElementById("ha-meta").textContent = haOk ? "" : "Verifier URL et token";
-  document.getElementById("panel-ha").className = "gf-panel gf-panel-status "+(haOk?"gf-ok":"gf-err");
+  document.getElementById("ha-meta").textContent = haOk ? "" : "Vérifier URL et token";
+  document.getElementById("panel-ha").className = "gf-panel gf-panel-status " + (haOk ? "gf-ok" : "gf-err");
 
-  // Envois
+  /* Envois */
   document.getElementById("m-sent").textContent = s.sent_today;
-  const sub = s.errors_today > 0
-    ? `<span style="color:var(--danger)">▲ ${s.errors_today} erreur${s.errors_today>1?"s":""}</span>`
-    : `<span style="color:var(--accent2)">✓ aucune erreur</span>`;
+  const errColor = s.errors_today > 0 ? "var(--danger)" : "var(--accent2)";
   document.getElementById("m-sent-sub").innerHTML =
-    sub + (s.clicks_today ? ` · ${s.clicks_today} clic${s.clicks_today>1?"s":""}` : "");
+    `<span style="color:${errColor}">${s.errors_today > 0
+      ? "▲ " + s.errors_today + " erreur" + (s.errors_today > 1 ? "s" : "")
+      : "✓ sans erreur"}</span>`;
 
-  // Monitoring donut
-  const mc = s.monitoring_total===0 ? "var(--muted)"
-    : s.monitoring_enabled===s.monitoring_total ? "var(--accent2)"
-    : s.monitoring_enabled>0 ? "var(--accent3)" : "var(--danger)";
-  document.getElementById("m-donut").innerHTML = donutSVG(s.monitoring_enabled, s.monitoring_total, mc);
-  document.getElementById("m-mon").innerHTML =
-    `<span style="color:${mc}">${s.monitoring_enabled}</span>`
-    +`<span style="color:var(--muted);font-size:1.3rem;"> / ${s.monitoring_total}</span>`;
+  /* Erreurs */
+  document.getElementById("m-errors").textContent = s.errors_today;
+  document.getElementById("m-errors-sub").textContent =
+    s.errors_today === 0 ? "aucune ce jour" : "aujourd'hui";
 
-  // Notifications total
+  /* Clics */
+  document.getElementById("m-clicks").textContent = s.clicks_today || 0;
+
+  /* Gauge monitoring */
+  const mc = s.monitoring_total === 0 ? "var(--muted)"
+    : s.monitoring_enabled === s.monitoring_total ? "var(--accent2)"
+    : s.monitoring_enabled > 0 ? "var(--accent3)"
+    : "var(--danger)";
+  document.getElementById("m-gauge").innerHTML = gaugeSVG(s.monitoring_enabled, s.monitoring_total, mc);
+  const diff = s.monitoring_total - s.monitoring_enabled;
+  document.getElementById("m-gauge-label").textContent =
+    s.monitoring_total === 0 ? "Aucun bloc configuré" :
+    diff === 0 ? "Tous les blocs sont actifs" :
+    `${diff} bloc${diff > 1 ? "s" : ""} désactivé${diff > 1 ? "s" : ""}`;
+
+  /* Notifications */
   document.getElementById("m-notifs").textContent = s.notifications_total;
 
-  // Chart
+  /* Activité semaine */
+  document.getElementById("m-week").textContent = s.activity_week;
+
+  /* Chart */
   if (s.daily) barChart(s.daily);
 
-  // Raccourcis
+  /* Raccourcis */
   document.getElementById("sc-notif").textContent = s.notifications_total;
   document.getElementById("sc-mon").textContent   = s.monitoring_total;
   document.getElementById("sc-hist").textContent  = s.activity_week;
 
-  // Timestamp
+  /* Horodatage */
   const n = new Date();
   document.getElementById("last-refresh").textContent =
-    `Mis a jour ${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
+    `Mis à jour ${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
 }
 
 async function loadRecent() {
   const el = document.getElementById("recent-list");
   try {
     const logs = await API.get("/logs?limit=8");
-    if (!logs.length) { el.innerHTML=`<div class="empty-state">Aucune activite.</div>`; return; }
+    if (!logs.length) { el.innerHTML = `<div class="empty-state">Aucune activité.</div>`; return; }
     el.innerHTML = `<div class="gf-table">
       <div class="gf-table-head">
-        <span>Type</span><span>Notification</span><span>Detail</span>
+        <span>Type</span><span>Notification</span><span>Détail</span>
         <span>Utilisateur</span><span>Heure</span>
       </div>` +
       logs.map(l => {
-        const color = l.success ? (KIND_COLOR[l.kind]||"var(--muted)") : "var(--danger)";
-        const label = KIND_LABEL[l.kind] || l.kind;
-        const slug  = l.notification_slug ? `<code>${esc(l.notification_slug)}</code>` : "—";
-        const detail = l.detail ? `<span style="color:var(--muted);font-size:.65rem;">${esc(l.detail.slice(0,40))}</span>` : "—";
-        const who   = l.user_name ? esc(l.user_name) : "—";
-        const [d,t] = (l.created_at||"").split(" ");
-        const when  = d&&t ? `${d.slice(5)} ${t.slice(0,5)}` : "—";
+        const color  = l.success ? (KIND_COLOR[l.kind] || "var(--muted)") : "var(--danger)";
+        const label  = KIND_LABEL[l.kind] || l.kind;
+        const slug   = l.notification_slug ? `<code>${esc(l.notification_slug)}</code>` : "—";
+        const detail = l.detail ? `<span style="color:var(--muted);font-size:.63rem;">${esc(l.detail.slice(0,40))}</span>` : "—";
+        const who    = l.user_name ? esc(l.user_name) : "—";
+        const [d, t] = (l.created_at || "").split(" ");
+        const when   = d && t ? `${d.slice(5)} ${t.slice(0,5)}` : "—";
         const errBadge = !l.success
-          ? `<span style="color:var(--danger);margin-left:.25rem;font-size:.6rem;">ERR</span>` : "";
+          ? `<span style="color:var(--danger);margin-left:.25rem;font-size:.57rem;">ERR</span>` : "";
         return `<div class="gf-table-row">
           <span><span class="gf-tl-dot" style="background:${color};box-shadow:0 0 4px ${color};"></span>
-            <span style="color:${color};font-size:.65rem;text-transform:uppercase;letter-spacing:.05em;">${label}</span>${errBadge}</span>
+            <span style="color:${color};font-size:.62rem;text-transform:uppercase;letter-spacing:.05em;">${label}</span>${errBadge}</span>
           <span>${slug}</span>
           <span>${detail}</span>
           <span>${who}</span>
           <span style="color:var(--muted);">${when}</span>
         </div>`;
       }).join("") + `</div>`;
-  } catch(e) {
+  } catch (e) {
     el.innerHTML = `<div class="empty-state">Erreur : ${esc(e.message)}</div>`;
   }
 }
