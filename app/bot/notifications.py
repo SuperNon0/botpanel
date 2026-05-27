@@ -179,9 +179,44 @@ async def send_notification(slug: str) -> discord.Message | None:
     return await send_notification_object(notif)
 
 
+async def _get_or_create_thread(
+    channel: discord.TextChannel, group_name: str
+) -> discord.Thread:
+    """Retourne le thread Discord actif pour ce groupe, ou en cree un nouveau.
+
+    Le thread_id est persiste en DB pour eviter un scan Discord a chaque envoi.
+    Si le thread a ete archive ou supprime, il est recrée automatiquement.
+    """
+    from app.db.repositories.threads import ThreadRepository
+
+    repo = ThreadRepository()
+    stored_id = await repo.get_thread_id(group_name, str(channel.id))
+
+    if stored_id:
+        try:
+            existing = await bot.fetch_channel(int(stored_id))
+            if isinstance(existing, discord.Thread):
+                if existing.archived:
+                    await existing.edit(archived=False)
+                return existing
+        except (discord.NotFound, discord.HTTPException):
+            pass  # thread supprime, on en cree un nouveau
+
+    thread = await channel.create_thread(
+        name=group_name,
+        auto_archive_duration=10080,  # 7 jours
+        type=discord.ChannelType.public_thread,
+    )
+    await repo.upsert(group_name, str(channel.id), str(thread.id))
+    logger.info("Thread '%s' cree (id=%s) dans #%s", group_name, thread.id, channel.id)
+    return thread
+
+
 async def send_notification_object(notif: Notification) -> discord.Message | None:
     """Envoie une notification (deja chargee) dans son channel Discord.
 
+    Si la notification a un `group_name` et un ID persiste, l'envoi se fait
+    dans un thread Discord portant ce nom (cree ou recupere automatiquement).
     Sert au test depuis l'editeur (notif non persistee) et a l'envoi normal.
     """
     channel_id = notif.channel_id or str(settings.discord_default_channel_id)
@@ -199,10 +234,21 @@ async def send_notification_object(notif: Notification) -> discord.Message | Non
         )
         return None
 
+    # Routing vers un thread si group_name est defini et la notif est persistee.
+    destination: discord.abc.Messageable = channel
+    if notif.group_name and notif.id and isinstance(channel, discord.TextChannel):
+        try:
+            destination = await _get_or_create_thread(channel, notif.group_name)
+        except discord.HTTPException as exc:
+            logger.warning(
+                "Impossible de creer/recuperer le thread '%s' : %s — envoi dans le channel",
+                notif.group_name, exc,
+            )
+
     embed = await build_embed(notif)
     view = build_notification_view(notif)  # gere aussi le mode preview
     try:
-        message = await channel.send(embed=embed, view=view)
+        message = await destination.send(embed=embed, view=view)
     except discord.HTTPException as exc:
         logger.error("Echec envoi notification %s : %s", notif.slug, exc)
         await log_repo.add(
@@ -215,9 +261,13 @@ async def send_notification_object(notif: Notification) -> discord.Message | Non
         )
         return None
 
+    in_thread = isinstance(destination, discord.Thread)
     logger.info(
-        "Notification '%s' envoyee dans #%s (msg=%s)%s",
-        notif.slug, channel_id, message.id,
+        "Notification '%s' envoyee dans %s%s (msg=%s)%s",
+        notif.slug,
+        "thread " + notif.group_name if in_thread else "#" + channel_id,
+        "" if in_thread else "",
+        message.id,
         "" if notif.id else " [test ephemere]",
     )
     await log_repo.add(
@@ -227,6 +277,6 @@ async def send_notification_object(notif: Notification) -> discord.Message | Non
         channel_id=channel_id,
         message_id=str(message.id),
         success=True,
-        detail="ephemere (test)" if not notif.id else None,
+        detail=f"thread:{notif.group_name}" if in_thread else ("ephemere (test)" if not notif.id else None),
     )
     return message

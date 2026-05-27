@@ -141,6 +141,17 @@ class ChannelPreset(BaseModel):
 
 
 # ==========================================================
+#  Threads Discord
+# ==========================================================
+class NotificationThread(BaseModel):
+    id: int
+    group_name: str
+    channel_id: str
+    thread_id: str
+    created_at: str
+
+
+# ==========================================================
 #  Historique
 # ==========================================================
 class NotificationLog(BaseModel):

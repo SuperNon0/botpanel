@@ -50,6 +50,16 @@
   <p class="hint">Cliquez sur "Ajouter" pour copier le channel dans vos preconfigures.</p>
   <div id="bot-channels" class="buttons-builder"></div>
 </div>
+
+<div class="card">
+  <h3>Threads Discord actifs</h3>
+  <p class="hint">
+    Quand une notification a un <em>groupe</em>, elle est envoyee dans un thread Discord portant ce nom.
+    Ce tableau liste les threads crees. Supprimer une entree force la recreation du thread au prochain envoi
+    (utile si le thread a ete supprime manuellement sur Discord).
+  </p>
+  <div id="threads-list"><div class="empty-state">Chargement...</div></div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -296,7 +306,46 @@ async function loadAll() {
   }
 }
 
+// ============================================================
+// Threads Discord
+// ============================================================
+async function loadThreads() {
+  const root = document.getElementById("threads-list");
+  try {
+    const threads = await API.get("/settings/threads");
+    if (!threads.length) {
+      root.innerHTML = `<div class="empty-state">Aucun thread actif. Les threads sont crees automatiquement quand une notification avec un groupe est envoyee.</div>`;
+      return;
+    }
+    root.innerHTML = threads.map(t => `
+      <div class="card-row" data-tid="${t.id}">
+        <div>
+          <strong>${esc(t.group_name)}</strong>
+          <div class="card-row-meta">
+            Channel <code>${esc(t.channel_id)}</code> &middot; Thread ID <code>${esc(t.thread_id)}</code>
+            <span style="margin-left:0.5rem; color:var(--muted); font-size:0.75rem;">${esc(t.created_at.slice(0,16).replace("T"," "))}</span>
+          </div>
+        </div>
+        <button type="button" class="btn btn-danger btn-small" data-del-tid="${t.id}">Reinitialiser</button>
+      </div>
+    `).join("");
+    root.querySelectorAll("[data-del-tid]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Reinitialiser ce thread ? Il sera recrée au prochain envoi.")) return;
+        try {
+          await API.del("/settings/threads/" + btn.dataset.delTid);
+          toast("Thread reinitialise");
+          loadThreads();
+        } catch (e) { toast(e.message, "error"); }
+      });
+    });
+  } catch (e) {
+    root.innerHTML = `<div class="empty-state">Erreur : ${esc(e.message)}</div>`;
+  }
+}
+
 loadSystemInfo();
 loadAll();
+loadThreads();
 </script>
 {% endblock %}

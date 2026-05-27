@@ -132,6 +132,20 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 -- ==========================================================
+-- THREADS DISCORD
+-- Associe un group_name + channel_id a un thread_id Discord.
+-- Permet de retrouver le thread existant sans scanner Discord.
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS notification_threads (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_name      TEXT NOT NULL,
+    channel_id      TEXT NOT NULL,
+    thread_id       TEXT NOT NULL,
+    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(group_name, channel_id)
+);
+
+-- ==========================================================
 -- HISTORIQUE
 -- Log des notifications envoyees et des clics sur les boutons.
 -- kind = 'send' | 'button' | 'snooze' | 'delete'
