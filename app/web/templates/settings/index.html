@@ -52,6 +52,16 @@
 </div>
 
 <div class="card">
+  <h3>Channels forum detectes par le bot</h3>
+  <p class="hint">
+    Ces channels peuvent etre utilises comme destination dans le mode <em>Forum</em>
+    d'une notification. Le bot doit avoir la permission <strong>Send Messages in Threads</strong>
+    sur ces channels.
+  </p>
+  <div id="bot-forums" class="buttons-builder"><div class="empty-state">Chargement...</div></div>
+</div>
+
+<div class="card">
   <h3>Threads Discord actifs</h3>
   <p class="hint">
     Quand une notification a un <em>groupe</em>, elle est envoyee dans un thread Discord portant ce nom.
@@ -344,8 +354,32 @@ async function loadThreads() {
   }
 }
 
+async function loadForums() {
+  const root = document.getElementById("bot-forums");
+  try {
+    const forums = await API.get("/discord/forum-channels");
+    if (!forums.length) {
+      root.innerHTML = `<div class="empty-state">Aucun channel forum detecte (le bot est-il en ligne ?).</div>`;
+      return;
+    }
+    root.innerHTML = forums.map(f => `
+      <div class="card-row">
+        <div>
+          <strong># ${esc(f.name)}</strong>
+          <div class="card-row-meta">
+            ${f.category ? esc(f.category) + " &middot; " : ""}<code>${esc(f.id)}</code>
+          </div>
+        </div>
+      </div>
+    `).join("");
+  } catch (e) {
+    root.innerHTML = `<div class="empty-state">Erreur : ${esc(e.message)}</div>`;
+  }
+}
+
 loadSystemInfo();
 loadAll();
+loadForums();
 loadThreads();
 </script>
 {% endblock %}

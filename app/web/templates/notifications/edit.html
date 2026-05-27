@@ -74,7 +74,7 @@
     <h3>Identification</h3>
     <p class="hint">Le <code>slug</code> est l'identifiant appele depuis Home Assistant.</p>
 
-    <div class="form-row">
+    <div class="form-row" id="channel-row">
       <div class="form-group">
         <label class="form-label">Slug unique</label>
         <input class="form-input" name="slug" required pattern="[a-z0-9_]+" placeholder="notif_porte_entree">
@@ -89,11 +89,45 @@
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label">Groupe (optionnel)</label>
-      <input class="form-input" name="group_name" id="f-group" list="group-list"
-             maxlength="64" placeholder="Maison / Securite / ...">
-      <datalist id="group-list"></datalist>
-      <div class="form-hint">tape un nom existant pour rejoindre le groupe, ou un nouveau nom pour en creer un</div>
+      <label class="form-label">Mode d'envoi</label>
+      <select class="form-select" id="f-thread-mode">
+        <option value="none">Direct — envoi dans le channel</option>
+        <option value="thread">Thread — regrouper dans un fil du channel texte</option>
+        <option value="forum">Forum — poster dans un channel forum</option>
+      </select>
+    </div>
+
+    <!-- Thread mode -->
+    <div id="thread-section" style="display:none;">
+      <div class="form-group">
+        <label class="form-label">Nom du fil (groupe)</label>
+        <input class="form-input" id="f-group-thread" list="group-list"
+               maxlength="64" placeholder="Porte entree / Alarme ...">
+        <datalist id="group-list"></datalist>
+        <div class="form-hint">Toutes les notifications avec ce nom iront dans le meme fil du channel texte ci-dessus.</div>
+      </div>
+    </div>
+
+    <!-- Forum mode -->
+    <div id="forum-section" style="display:none;">
+      <div class="form-group">
+        <label class="form-label">Channel forum</label>
+        <select class="form-select" id="forum-channel-select">
+          <option value="">— choisir un forum —</option>
+        </select>
+        <div class="form-hint">Seuls les channels de type Forum sont listes.</div>
+      </div>
+      <div class="form-group" id="forum-post-wrap" style="display:none;">
+        <label class="form-label">Post du forum</label>
+        <select class="form-select" id="forum-post-select">
+          <option value="__new__">+ Nouveau post...</option>
+        </select>
+        <div class="form-hint">Choisir un post existant ou creer un nouveau.</div>
+      </div>
+      <div class="form-group" id="new-post-wrap" style="display:none;">
+        <label class="form-label">Nom du nouveau post</label>
+        <input class="form-input" id="f-group-forum-new" maxlength="64" placeholder="Alertes porte">
+      </div>
     </div>
   </div>
 
@@ -592,12 +626,34 @@ async function loadExisting() {
     fields = n.fields || [];
     renderButtons();
     renderFields();
-    // re-sync apercu apres l'injection des valeurs (les setters de .value
-    // ne declenchent pas d'evenement input)
     updatePreview();
-    // re-sync le select de channel maintenant qu'on a l'ID
-    const sel = document.getElementById("channel-select");
-    if (sel && n.channel_id) sel.value = n.channel_id;
+
+    // Restaure le mode d'envoi
+    const mode = n.thread_mode || "none";
+    document.getElementById("f-thread-mode").value = mode;
+    updateThreadModeUI(mode);
+
+    if (mode === "thread") {
+      document.getElementById("f-group-thread").value = n.group_name || "";
+    } else if (mode === "forum") {
+      // Le channel_id est le forum ; on le pre-selectionne
+      document.getElementById("forum-channel-select").value = n.channel_id || "";
+      await loadForumPosts(n.channel_id);
+      // Cherche le post par group_name dans les options chargees
+      const postSel = document.getElementById("forum-post-select");
+      const match = [...postSel.options].find(o => o.dataset.name === n.group_name);
+      if (match) {
+        postSel.value = match.value;
+      } else {
+        postSel.value = "__new__";
+        document.getElementById("f-group-forum-new").value = n.group_name || "";
+      }
+      updateNewPostWrap();
+    } else {
+      // Mode direct : pre-selectionne le channel texte
+      const sel = document.getElementById("channel-select");
+      if (sel && n.channel_id) sel.value = n.channel_id;
+    }
   } catch (e) {
     toast("Erreur chargement : " + e.message, "error");
   }
@@ -620,7 +676,8 @@ function buildPayload() {
     delete_button: fd.get("delete_button") === "on",
     snooze_button: fd.get("snooze_button") === "on",
     snooze_minutes: parseInt(fd.get("snooze_minutes") || "15", 10),
-    group_name: (fd.get("group_name") || "").trim() || null,
+    thread_mode: document.getElementById("f-thread-mode").value,
+    group_name: getGroupName(),
     buttons: buttons.map((b, i) => ({
       position: i,
       label: b.label,
@@ -679,7 +736,7 @@ document.getElementById("btn-test-now").addEventListener("click", async () => {
 });
 
 // ============================================================
-// Datalist des groupes existants (pour aider la saisie)
+// Datalist des groupes existants
 // ============================================================
 async function bindGroupDatalist() {
   try {
@@ -691,12 +748,88 @@ async function bindGroupDatalist() {
 }
 
 // ============================================================
+// Mode d'envoi (thread / forum / none)
+// ============================================================
+function updateThreadModeUI(mode) {
+  document.getElementById("thread-section").style.display = mode === "thread" ? "" : "none";
+  document.getElementById("forum-section").style.display  = mode === "forum"  ? "" : "none";
+  // En mode forum le channel texte est remplace par le forum picker
+  const chRow = document.getElementById("channel-row");
+  if (chRow) chRow.style.display = mode === "forum" ? "none" : "";
+}
+
+document.getElementById("f-thread-mode").addEventListener("change", function() {
+  updateThreadModeUI(this.value);
+});
+
+// Charge les channels forum dans le select
+async function loadForumChannels() {
+  const sel = document.getElementById("forum-channel-select");
+  const forums = await API.get("/discord/forum-channels").catch(() => []);
+  sel.innerHTML = '<option value="">— choisir un forum —</option>' +
+    forums.map(f =>
+      `<option value="${esc(f.id)}">${f.category ? esc(f.category) + " / " : ""}#${esc(f.name)}</option>`
+    ).join("");
+}
+
+// Charge les posts du forum selectionne
+async function loadForumPosts(channelId) {
+  const postSel = document.getElementById("forum-post-select");
+  const wrap    = document.getElementById("forum-post-wrap");
+  const newWrap = document.getElementById("new-post-wrap");
+
+  if (!channelId) { wrap.style.display = "none"; return; }
+
+  wrap.style.display = "";
+  postSel.innerHTML = '<option value="__new__">+ Nouveau post...</option>';
+  try {
+    const posts = await API.get(`/discord/forum-posts?channel_id=${encodeURIComponent(channelId)}`);
+    posts.forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = p.name + (p.message_count ? ` (${p.message_count} msg)` : "");
+      opt.dataset.name = p.name;
+      postSel.appendChild(opt);
+    });
+  } catch { /* ignore */ }
+  updateNewPostWrap();
+}
+
+function updateNewPostWrap() {
+  const postSel = document.getElementById("forum-post-select");
+  const newWrap = document.getElementById("new-post-wrap");
+  newWrap.style.display = postSel.value === "__new__" ? "" : "none";
+}
+
+document.getElementById("forum-channel-select").addEventListener("change", async function() {
+  // En mode forum, le channel_id de la notif = l'ID du forum
+  document.getElementById("f-channel-id").value = this.value;
+  await loadForumPosts(this.value);
+});
+
+document.getElementById("forum-post-select").addEventListener("change", updateNewPostWrap);
+
+// Renvoie le group_name selon le mode actif
+function getGroupName() {
+  const mode = document.getElementById("f-thread-mode").value;
+  if (mode === "thread") return document.getElementById("f-group-thread").value.trim() || null;
+  if (mode === "forum") {
+    const postSel = document.getElementById("forum-post-select");
+    if (postSel.value === "__new__") {
+      return document.getElementById("f-group-forum-new").value.trim() || null;
+    }
+    const opt = postSel.options[postSel.selectedIndex];
+    return opt ? (opt.dataset.name || opt.textContent.split(" (")[0]) : null;
+  }
+  return null;
+}
+
+// ============================================================
 // Boot
 // ============================================================
 async function boot() {
   bindPreview();
-  // On attend les selects pour que loadExisting puisse les pre-selectionner.
-  await Promise.all([bindChannelSelect(), bindColorPresets(), bindGroupDatalist()]);
+  await Promise.all([bindChannelSelect(), bindColorPresets(), bindGroupDatalist(), loadForumChannels()]);
   await loadExisting();
 }
 boot();
