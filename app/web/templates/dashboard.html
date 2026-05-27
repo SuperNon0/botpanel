@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Accueil — BotPanel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Tableau de bord</h2>
+  <span class="card-row-meta" id="last-refresh">---</span>
+</div>
+
+<!-- Stat cards -->
+<div class="stat-grid">
+  <div class="stat-card" id="sc-bot">
+    <div class="stat-label">Bot Discord</div>
+    <div class="stat-value" id="sc-bot-val">...</div>
+    <div class="stat-sub"  id="sc-bot-sub"></div>
+  </div>
+  <div class="stat-card" id="sc-ha">
+    <div class="stat-label">Home Assistant</div>
+    <div class="stat-value" id="sc-ha-val">...</div>
+    <div class="stat-sub"  id="sc-ha-sub"></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Envois aujourd'hui</div>
+    <div class="stat-value" id="sc-sent-val">...</div>
+    <div class="stat-sub"  id="sc-sent-sub"></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Monitoring</div>
+    <div class="stat-value" id="sc-mon-val">...</div>
+    <div class="stat-sub"  id="sc-mon-sub"></div>
+  </div>
+</div>
+
+<!-- Quick links -->
+<div class="stat-grid" style="grid-template-columns: repeat(3, 1fr);">
+  <a class="stat-card stat-link" href="/notifications">
+    <div class="stat-label">Notifications</div>
+    <div class="stat-value" id="ql-notif">...</div>
+    <div class="stat-sub">configurees</div>
+  </a>
+  <a class="stat-card stat-link" href="/monitoring">
+    <div class="stat-label">Blocs monitoring</div>
+    <div class="stat-value" id="ql-mon">...</div>
+    <div class="stat-sub">dont <span id="ql-mon-en">?</span> actifs</div>
+  </a>
+  <a class="stat-card stat-link" href="/historique">
+    <div class="stat-label">Activite (7 jours)</div>
+    <div class="stat-value" id="ql-hist">...</div>
+    <div class="stat-sub">evenements</div>
+  </a>
+</div>
+
+<!-- Recent activity -->
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.8rem;">
+    <h3 style="margin:0;">Activite recente</h3>
+    <a href="/historique" class="btn btn-secondary btn-small">Voir tout</a>
+  </div>
+  <div id="recent-list"><div class="empty-state">Chargement...</div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const KIND_TAG = {
+  send:       { label: "ENVOI",      cls: "tag-purple" },
+  button:     { label: "BOUTON",     cls: "tag-yellow" },
+  snooze:     { label: "SNOOZE",     cls: "tag-orange" },
+  delete:     { label: "DELETE",     cls: "tag-red" },
+  monitoring: { label: "MONITORING", cls: "tag-green" },
+};
+
+function fmtDate(s) {
+  if (!s) return "";
+  const [d, t] = s.split(" ");
+  return `${d} ${(t || "").slice(0,5)}`;
+}
+
+async function loadDashboard() {
+  try {
+    const s = await API.get("/dashboard/stats");
+
+    // Bot Discord
+    const botVal = document.getElementById("sc-bot-val");
+    const botSub = document.getElementById("sc-bot-sub");
+    if (s.bot_ready) {
+      botVal.innerHTML = `<span class="stat-dot ok"></span><span class="stat-ok">En ligne</span>`;
+      botSub.textContent = s.bot_latency_ms !== null ? `Latence : ${s.bot_latency_ms} ms` : "";
+    } else {
+      botVal.innerHTML = `<span class="stat-dot err"></span><span class="stat-err">Hors ligne</span>`;
+      botSub.textContent = "";
+    }
+
+    // Home Assistant
+    const haVal = document.getElementById("sc-ha-val");
+    const haSub = document.getElementById("sc-ha-sub");
+    if (s.ha_ok) {
+      haVal.innerHTML = `<span class="stat-dot ok"></span><span class="stat-ok">Connecte</span>`;
+      haSub.textContent = "";
+    } else {
+      haVal.innerHTML = `<span class="stat-dot err"></span><span class="stat-err">Inaccessible</span>`;
+      haSub.textContent = "Verifier l'URL et le token";
+    }
+
+    // Envois aujourd'hui
+    document.getElementById("sc-sent-val").textContent = s.sent_today;
+    const errText = s.errors_today > 0
+      ? `<span class="stat-err">${s.errors_today} erreur${s.errors_today > 1 ? "s" : ""}</span>`
+      : "Aucune erreur";
+    const clkText = s.clicks_today > 0 ? ` &middot; ${s.clicks_today} clic${s.clicks_today > 1 ? "s" : ""}` : "";
+    document.getElementById("sc-sent-sub").innerHTML = errText + clkText;
+
+    // Monitoring
+    document.getElementById("sc-mon-val").textContent = `${s.monitoring_enabled} / ${s.monitoring_total}`;
+    document.getElementById("sc-mon-sub").textContent = `blocs actifs sur ${s.monitoring_total}`;
+
+    // Quick links
+    document.getElementById("ql-notif").textContent = s.notifications_total;
+    document.getElementById("ql-mon").textContent = s.monitoring_total;
+    document.getElementById("ql-mon-en").textContent = s.monitoring_enabled;
+    document.getElementById("ql-hist").textContent = s.activity_week;
+
+    // Timestamp
+    const now = new Date();
+    const pad = n => String(n).padStart(2, "0");
+    document.getElementById("last-refresh").textContent =
+      `Mis a jour a ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+  } catch (e) {
+    document.getElementById("sc-bot-val").textContent = "Erreur";
+  }
+}
+
+async function loadRecent() {
+  const list = document.getElementById("recent-list");
+  try {
+    const logs = await API.get("/logs?limit=8");
+    if (!logs.length) {
+      list.innerHTML = `<div class="empty-state">Aucune activite recente.</div>`;
+      return;
+    }
+    list.innerHTML = logs.map(l => {
+      const tag = KIND_TAG[l.kind] || { label: l.kind.toUpperCase(), cls: "tag-muted" };
+      const status = l.success ? "" : `<span class="tag tag-red" style="margin-left:0.3rem;">ERR</span>`;
+      const slug = l.notification_slug ? `&middot; <code>${esc(l.notification_slug)}</code>` : "";
+      const who = l.user_name ? `&middot; ${esc(l.user_name)}` : "";
+      return `
+        <div class="card-row">
+          <div style="flex:1; min-width:0;">
+            <span class="tag ${tag.cls}">${tag.label}</span>
+            ${status} ${slug} ${who}
+          </div>
+          <div class="card-row-meta">${fmtDate(l.created_at)}</div>
+        </div>
+      `;
+    }).join("");
+  } catch (e) {
+    list.innerHTML = `<div class="empty-state">Erreur : ${esc(e.message)}</div>`;
+  }
+}
+
+loadDashboard();
+loadRecent();
+// Rafraichissement automatique toutes les 30s
+setInterval(() => { loadDashboard(); loadRecent(); }, 30000);
+</script>
+{% endblock %}

@@ -213,6 +213,7 @@ async def _send_to_forum(
     group_name: str,
     embed: discord.Embed,
     view,
+    mention: str | None = None,
 ) -> tuple[discord.Message, str]:
     """Envoie dans un post forum existant ou en cree un nouveau.
 
@@ -231,7 +232,7 @@ async def _send_to_forum(
             if isinstance(thread, discord.Thread):
                 if thread.archived:
                     await thread.edit(archived=False)
-                msg = await thread.send(embed=embed, view=view)
+                msg = await thread.send(content=mention, embed=embed, view=view)
                 return msg, f"forum:{group_name}"
         except (discord.NotFound, discord.HTTPException):
             pass
@@ -240,12 +241,13 @@ async def _send_to_forum(
     for t in forum.threads:
         if t.name == group_name and not t.archived:
             await repo.upsert(group_name, str(forum.id), str(t.id))
-            msg = await t.send(embed=embed, view=view)
+            msg = await t.send(content=mention, embed=embed, view=view)
             return msg, f"forum:{group_name}"
 
     # Creation d'un nouveau post — l'embed est le message d'ouverture
     result = await forum.create_thread(
         name=group_name,
+        content=mention,
         embed=embed,
         view=view,
         auto_archive_duration=10080,
@@ -285,17 +287,21 @@ async def send_notification_object(notif: Notification) -> discord.Message | Non
     log_detail: str | None = "ephemere (test)" if not notif.id else None
     use_mode = notif.thread_mode if (notif.id and notif.group_name) else "none"
 
+    mention_content: str | None = notif.mention or None
+
     try:
         if use_mode == "forum" and isinstance(channel, discord.ForumChannel):
-            message, log_detail = await _send_to_forum(channel, notif.group_name, embed, view)  # type: ignore[arg-type]
+            message, log_detail = await _send_to_forum(
+                channel, notif.group_name, embed, view, mention_content  # type: ignore[arg-type]
+            )
 
         elif use_mode == "thread" and isinstance(channel, discord.TextChannel):
             thread = await _get_or_create_thread(channel, notif.group_name)  # type: ignore[arg-type]
-            message = await thread.send(embed=embed, view=view)
+            message = await thread.send(content=mention_content, embed=embed, view=view)
             log_detail = f"thread:{notif.group_name}"
 
         else:
-            message = await channel.send(embed=embed, view=view)
+            message = await channel.send(content=mention_content, embed=embed, view=view)
 
     except discord.HTTPException as exc:
         logger.error("Echec envoi notification %s : %s", notif.slug, exc)

@@ -211,6 +211,22 @@
       <input class="form-input" name="snooze_minutes" type="number" min="1" value="15">
     </div>
 
+    <div class="form-group" style="margin-top: 1rem;">
+      <label class="form-label">Mention Discord</label>
+      <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+        <select class="form-select" id="f-mention-type" style="flex:0 0 200px;">
+          <option value="none">Aucune</option>
+          <option value="everyone">@everyone</option>
+          <option value="here">@here</option>
+          <option value="role">ID de role</option>
+          <option value="user">ID d'utilisateur</option>
+        </select>
+        <input class="form-input" id="f-mention-id" placeholder="123456789012345678"
+               inputmode="numeric" style="flex:1; min-width:160px; display:none;">
+      </div>
+      <div class="form-hint">La mention est envoyee avec la notification (hors embed, donc elle notifie vraiment).</div>
+    </div>
+
     <h3 style="margin-top: 1.3rem;">Boutons d'action</h3>
     <div class="buttons-builder" id="btn-builder"></div>
     <button type="button" class="btn btn-secondary" id="btn-add" style="margin-top: 0.8rem;">+ Ajouter un bouton</button>
@@ -628,6 +644,9 @@ async function loadExisting() {
     renderFields();
     updatePreview();
 
+    // Restaure la mention
+    restoreMention(n.mention || null);
+
     // Restaure le mode d'envoi
     const mode = n.thread_mode || "none";
     document.getElementById("f-thread-mode").value = mode;
@@ -678,6 +697,7 @@ function buildPayload() {
     snooze_minutes: parseInt(fd.get("snooze_minutes") || "15", 10),
     thread_mode: document.getElementById("f-thread-mode").value,
     group_name: getGroupName(),
+    mention: getMentionValue(),
     buttons: buttons.map((b, i) => ({
       position: i,
       label: b.label,
@@ -745,6 +765,46 @@ async function bindGroupDatalist() {
     const dl = document.getElementById("group-list");
     dl.innerHTML = groups.map(g => `<option value="${esc(g)}">`).join("");
   } catch { /* ignore */ }
+}
+
+// ============================================================
+// Mention Discord
+// ============================================================
+document.getElementById("f-mention-type").addEventListener("change", function() {
+  const needId = this.value === "role" || this.value === "user";
+  document.getElementById("f-mention-id").style.display = needId ? "" : "none";
+});
+
+function getMentionValue() {
+  const type = document.getElementById("f-mention-type").value;
+  const id = document.getElementById("f-mention-id").value.trim();
+  if (type === "none")     return null;
+  if (type === "everyone") return "@everyone";
+  if (type === "here")     return "@here";
+  if (type === "role")     return id ? `<@&${id}>` : null;
+  if (type === "user")     return id ? `<@${id}>` : null;
+  return null;
+}
+
+function restoreMention(mention) {
+  const typeEl = document.getElementById("f-mention-type");
+  const idEl   = document.getElementById("f-mention-id");
+  if (!mention) { typeEl.value = "none"; return; }
+  if (mention === "@everyone") { typeEl.value = "everyone"; return; }
+  if (mention === "@here")     { typeEl.value = "here";     return; }
+  if (mention.startsWith("<@&")) {
+    typeEl.value = "role";
+    idEl.value = mention.replace(/^<@&/, "").replace(/>$/, "");
+    idEl.style.display = "";
+    return;
+  }
+  if (mention.startsWith("<@")) {
+    typeEl.value = "user";
+    idEl.value = mention.replace(/^<@/, "").replace(/>$/, "");
+    idEl.style.display = "";
+    return;
+  }
+  typeEl.value = "none";
 }
 
 // ============================================================

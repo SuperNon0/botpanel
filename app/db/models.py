@@ -55,6 +55,7 @@ class NotificationIn(BaseModel):
     snooze_minutes: int = 15
     group_name: Optional[str] = Field(default=None, max_length=64)
     thread_mode: Literal["none", "thread", "forum"] = "none"
+    mention: Optional[str] = Field(default=None, max_length=128)
     buttons: list[NotificationButton] = Field(default_factory=list)
     fields: list[NotificationField] = Field(default_factory=list)
 

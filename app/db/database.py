@@ -182,6 +182,7 @@ _MIGRATIONS_ALTER: list[str] = [
     "ALTER TABLE monitoring_blocks ADD COLUMN created_at TEXT",
     "ALTER TABLE notifications ADD COLUMN group_name TEXT",
     "ALTER TABLE notifications ADD COLUMN thread_mode TEXT DEFAULT 'none'",
+    "ALTER TABLE notifications ADD COLUMN mention TEXT",
 ]
 
 
