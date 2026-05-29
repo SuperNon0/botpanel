@@ -1016,7 +1016,30 @@ input[type="color"] {
   .gf-table-row span:nth-child(4) { display: none; }
 }
 
-/* ---------- Mention badge (apercu notification) ---------- */
+/* ---- Mobile: liste notifications ---- */
+@media (max-width: 540px) {
+  .card-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.55rem;
+  }
+  .row-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.3rem;
+  }
+  .row-actions .btn {
+    text-align: center;
+    justify-content: center;
+    padding: 0.45rem 0.2rem;
+    font-size: 0.6rem;
+  }
+  .group-card .group-list .card-row {
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
+  }
+}
 .mention-badge {
   display: inline-block;
   background: rgba(88,101,242,0.25);
