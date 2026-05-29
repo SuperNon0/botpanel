@@ -19,7 +19,7 @@ StandardError=journal
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/botpanel/data
+ReadWritePaths=/opt/botpanel
 PrivateTmp=true
 
 [Install]
