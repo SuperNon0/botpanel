@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Fond arrondi couleur card -->
+  <rect width="32" height="32" rx="7" fill="#1c1f25"/>
+  <!-- Bordure accent subtile -->
+  <rect width="32" height="32" rx="7" fill="none" stroke="#e8c547" stroke-width="1.5" stroke-opacity="0.4"/>
+  <!-- Lettre "b" -->
+  <text x="5" y="23"
+        font-family="'DM Mono', ui-monospace, monospace"
+        font-size="18"
+        font-weight="500"
+        fill="#e8c547">b</text>
+  <!-- Lettre "p" en légèrement plus clair -->
+  <text x="16" y="23"
+        font-family="'DM Mono', ui-monospace, monospace"
+        font-size="18"
+        font-weight="500"
+        fill="#c9a830">p</text>
+</svg>
