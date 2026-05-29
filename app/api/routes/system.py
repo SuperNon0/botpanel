@@ -107,35 +107,15 @@ async def system_update() -> dict:
 
 @router.post("/restart")
 async def system_restart() -> dict:
-    """Lance `sudo systemctl restart botpanel` en detache.
+    """Redémarre le service en quittant le process avec code 1.
 
-    Attend 2 s pour capturer les echecs immediats (droits sudo manquants, etc.).
+    systemd (Restart=on-failure) relanc automatiquement le service apres RestartSec.
     L'API devient inaccessible quelques secondes ; le client doit poller /api/system/info.
     """
-    import shutil  # noqa: PLC0415
 
-    systemctl = shutil.which("systemctl") or "/bin/systemctl"
-    cmd = ["sudo", "-n", systemctl, "restart", "botpanel"]
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            start_new_session=True,
-        )
-        try:
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=2.0)
-            # Si on arrive ici le process s'est termine avant 2 s → echec
-            if proc.returncode != 0:
-                err = stderr.decode("utf-8", errors="replace").strip()
-                raise HTTPException(
-                    500,
-                    err or f"systemctl a retourne le code {proc.returncode}. "
-                    "Vérifiez la règle sudoers : "
-                    f"botpanel ALL=NOPASSWD: {systemctl} restart botpanel",
-                )
-        except asyncio.TimeoutError:
-            pass  # Normal — le service est en train de redemarrer
-    except FileNotFoundError as exc:
-        raise HTTPException(500, f"Commande introuvable : {exc}") from exc
+    async def _exit_after_response() -> None:
+        await asyncio.sleep(0.4)
+        os._exit(1)  # noqa: SLF001 — exit code 1 → systemd restart
+
+    asyncio.create_task(_exit_after_response())
     return {"status": "restarting"}
