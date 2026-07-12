@@ -98,6 +98,16 @@
       </select>
     </div>
 
+    <!-- Direct mode : groupe visuel simple (envoi direct, pas de fil) -->
+    <div id="direct-section">
+      <div class="form-group">
+        <label class="form-label">Groupe (optionnel)</label>
+        <input class="form-input" id="f-group-direct" list="group-list"
+               maxlength="64" placeholder="AdGuard / Backup / Securite ...">
+        <div class="form-hint">Range la notification dans un groupe sur la liste du site. Le message est envoye normalement dans le channel (pas de fil).</div>
+      </div>
+    </div>
+
     <!-- Thread mode -->
     <div id="thread-section" style="display:none;">
       <div class="form-group">
@@ -670,9 +680,10 @@ async function loadExisting() {
       }
       updateNewPostWrap();
     } else {
-      // Mode direct : pre-selectionne le channel texte
+      // Mode direct : pre-selectionne le channel texte + restaure le groupe
       const sel = document.getElementById("channel-select");
       if (sel && n.channel_id) sel.value = n.channel_id;
+      document.getElementById("f-group-direct").value = n.group_name || "";
     }
   } catch (e) {
     toast("Erreur chargement : " + e.message, "error");
@@ -834,6 +845,7 @@ function restoreMention(mention) {
 // Mode d'envoi (thread / forum / none)
 // ============================================================
 function updateThreadModeUI(mode) {
+  document.getElementById("direct-section").style.display = mode === "none"   ? "" : "none";
   document.getElementById("thread-section").style.display = mode === "thread" ? "" : "none";
   document.getElementById("forum-section").style.display  = mode === "forum"  ? "" : "none";
   // En mode forum le channel texte est remplace par le forum picker
@@ -895,6 +907,7 @@ document.getElementById("forum-post-select").addEventListener("change", updateNe
 // Renvoie le group_name selon le mode actif
 function getGroupName() {
   const mode = document.getElementById("f-thread-mode").value;
+  if (mode === "none")   return document.getElementById("f-group-direct").value.trim() || null;
   if (mode === "thread") return document.getElementById("f-group-thread").value.trim() || null;
   if (mode === "forum") {
     const postSel = document.getElementById("forum-post-select");
