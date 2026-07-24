@@ -77,10 +77,11 @@ async function loadNotifications() {
       return;
     }
 
-    // Regroupement
+    // Regroupement : on utilise list_group (rangement site), avec fallback sur
+    // group_name pour les notifs anterieures a la separation des deux notions.
     const byGroup = new Map();
     for (const n of notifs) {
-      const key = n.group_name || "";
+      const key = n.list_group || n.group_name || "";
       if (!byGroup.has(key)) byGroup.set(key, []);
       byGroup.get(key).push(n);
     }

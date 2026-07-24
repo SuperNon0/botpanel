@@ -33,7 +33,10 @@ CREATE TABLE IF NOT EXISTS notifications (
     delete_button   INTEGER NOT NULL DEFAULT 0,       -- 0/1
     snooze_button   INTEGER NOT NULL DEFAULT 0,       -- 0/1
     snooze_minutes  INTEGER NOT NULL DEFAULT 15,
-    group_name      TEXT,                             -- regroupement libre sur le site
+    group_name      TEXT,                             -- nom du fil (thread) / post (forum) Discord
+    list_group      TEXT,                             -- rangement sur la liste du site (independant de Discord)
+    thread_mode     TEXT DEFAULT 'none',              -- none / thread / forum
+    mention         TEXT,                             -- mention Discord envoyee avec la notif
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -183,6 +186,7 @@ _MIGRATIONS_ALTER: list[str] = [
     "ALTER TABLE notifications ADD COLUMN group_name TEXT",
     "ALTER TABLE notifications ADD COLUMN thread_mode TEXT DEFAULT 'none'",
     "ALTER TABLE notifications ADD COLUMN mention TEXT",
+    "ALTER TABLE notifications ADD COLUMN list_group TEXT",
 ]
 
 
