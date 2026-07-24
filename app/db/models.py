@@ -53,7 +53,10 @@ class NotificationIn(BaseModel):
     delete_button: bool = False
     snooze_button: bool = False
     snooze_minutes: int = 15
+    # group_name : nom du fil (thread) ou du post (forum) cote Discord
     group_name: Optional[str] = Field(default=None, max_length=64)
+    # list_group : rangement sur la liste du site (independant de Discord)
+    list_group: Optional[str] = Field(default=None, max_length=64)
     thread_mode: Literal["none", "thread", "forum"] = "none"
     mention: Optional[str] = Field(default=None, max_length=128)
     buttons: list[NotificationButton] = Field(default_factory=list)
@@ -104,7 +107,7 @@ class MonitoringBlockIn(BaseModel):
           "fields": [
             {
               "label": "Temperature",
-              "icon": "🌡️",
+              "icon": "\U0001f321️",
               "entity_id": "sensor.temp_salon",
               "attribute": null,           # ou "humidity" pour lire un attribut
               "suffix": "°C",
