@@ -17,13 +17,14 @@
     <p>Identifiant unique appele depuis Home Assistant via <code>rest_command.bot_discord</code>.
        <strong>Minuscules + chiffres + underscore</strong> uniquement.</p>
 
-    <h4>Channel Discord</h4>
-    <p>Choisis dans la liste deroulante (channels detectes par le bot ou tes preconfigures dans
-       <a href="/settings">Parametres</a>) ou colle un ID brut.</p>
+    <h4>Mode d'envoi &amp; nom du fil / post</h4>
+    <p><strong>Direct</strong> : le message part dans le channel choisi.
+       <strong>Thread</strong> : le message va dans un fil du channel texte (le nom du fil regroupe).
+       <strong>Forum</strong> : le message est poste dans un channel forum (post existant ou nouveau).</p>
 
-    <h4>Groupe</h4>
-    <p>Range la notification dans un groupe sur la liste du site. En mode <em>Thread</em> ou
-       <em>Forum</em>, ce meme nom sert aussi de nom de fil / de post Discord.</p>
+    <h4>Groupe (rangement sur le site)</h4>
+    <p>Champ independant : il sert uniquement a <strong>organiser la liste des notifications sur ce site</strong>.
+       Il n'a aucun effet sur Discord.</p>
 
     <h4>Couleur</h4>
     <p>Click sur la pastille pour une couleur custom, ou utilise un preset enregistre dans
@@ -31,25 +32,16 @@
 
     <h4>Markdown dans le message</h4>
     <p>Discord supporte le markdown : <code>**gras**</code>, <code>*italique*</code>,
-       <code>__souligne__</code>, <code>~~barre~~</code>, <code>`code`</code>.
-       Selectionne un mot et clique sur les boutons <strong>B</strong> / <em>I</em>
-       pour les inserer rapidement.</p>
+       <code>__souligne__</code>, <code>~~barre~~</code>, <code>`code`</code>.</p>
 
     <h4>Champs (fields) &mdash; placeholders Home Assistant</h4>
-    <p>Les fields sont affiches en grille dans l'embed (un par carre quand
-       <em>"En grille"</em> est coche, sinon une ligne pleine).</p>
-    <p>Dans le <strong>message</strong> ou la <strong>valeur d'un field</strong>, deux syntaxes
-       sont supportees, melangeables :</p>
-
-    <p><strong>Syntaxe BotPanel</strong> (rapide, pas de round-trip) :</p>
+    <p>Dans le <strong>message</strong> ou la <strong>valeur d'un field</strong> :</p>
     <ul>
       <li><code>{state:sensor.temp}</code> &mdash; etat brut</li>
       <li><code>{state:sensor.temp|--}</code> &mdash; avec fallback si HA est down</li>
       <li><code>{attr:sensor.temp:friendly_name}</code> &mdash; un attribut precis</li>
       <li><code>{unit:sensor.temp}</code> &mdash; l'unite (ex. <em>&deg;C</em>)</li>
     </ul>
-
-    <p><strong>Syntaxe Jinja Home Assistant</strong> (toute la puissance HA) :</p>
     {% raw %}
     <ul>
       <li><code>{{ states('sensor.temp') }}</code></li>
@@ -57,19 +49,6 @@
       <li><code>{% if states('binary_sensor.porte') == 'on' %}ouverte{% else %}fermee{% endif %}</code></li>
     </ul>
     {% endraw %}
-
-    <p>Exemple : <code>{state:sensor.temp_salon} {unit:sensor.temp_salon}</code> affichera
-       <em>21.5 &deg;C</em>. Tu peux utiliser <strong>"Inserer une entite"</strong> sous le
-       message ou la valeur d'un field pour piocher une entite directement.</p>
-
-    <h4>Boutons</h4>
-    <p><strong>Supprimer</strong> et <strong>Snooze</strong> sont gerees par le bot.
-       Les <em>boutons d'action</em> appellent un service Home Assistant
-       (ex. <code>light.turn_on</code> sur <code>light.salon</code>).</p>
-
-    <h4>Timestamp</h4>
-    <p>Quand active, la date d'envoi est ajoutee dans le pied de l'embed
-       (ex. <em>28 avril 2026 a 14:05</em>).</p>
   </div>
 </details>
 
@@ -95,17 +74,6 @@
       </div>
     </div>
 
-    <!-- Channel forum (mode Forum uniquement) -->
-    <div id="forum-channel-row" style="display:none;">
-      <div class="form-group">
-        <label class="form-label">Channel forum</label>
-        <select class="form-select" id="forum-channel-select">
-          <option value="">— choisir un forum —</option>
-        </select>
-        <div class="form-hint">Seuls les channels de type Forum sont listes.</div>
-      </div>
-    </div>
-
     <div class="form-group">
       <label class="form-label">Mode d'envoi</label>
       <select class="form-select" id="f-thread-mode">
@@ -115,13 +83,46 @@
       </select>
     </div>
 
-    <!-- Groupe : toujours visible, tous les modes -->
-    <div class="form-group">
-      <label class="form-label">Groupe (optionnel)</label>
-      <input class="form-input" id="f-group" list="group-list"
+    <!-- Thread mode : nom du fil (= group_name Discord) -->
+    <div id="thread-section" style="display:none;">
+      <div class="form-group">
+        <label class="form-label">Nom du fil</label>
+        <input class="form-input" id="f-group-thread" list="thread-name-list"
+               maxlength="64" placeholder="Porte entree / Alarme ...">
+        <datalist id="thread-name-list"></datalist>
+        <div class="form-hint">Toutes les notifications avec ce nom de fil iront dans le meme fil du channel texte ci-dessus.</div>
+      </div>
+    </div>
+
+    <!-- Forum mode : channel forum + post (= group_name Discord) -->
+    <div id="forum-section" style="display:none;">
+      <div class="form-group">
+        <label class="form-label">Channel forum</label>
+        <select class="form-select" id="forum-channel-select">
+          <option value="">— choisir un forum —</option>
+        </select>
+        <div class="form-hint">Seuls les channels de type Forum sont listes.</div>
+      </div>
+      <div class="form-group" id="forum-post-wrap" style="display:none;">
+        <label class="form-label">Post du forum</label>
+        <select class="form-select" id="forum-post-select">
+          <option value="__new__">+ Nouveau post...</option>
+        </select>
+        <div class="form-hint">Choisir un post existant ou creer un nouveau.</div>
+      </div>
+      <div class="form-group" id="new-post-wrap" style="display:none;">
+        <label class="form-label">Nom du nouveau post</label>
+        <input class="form-input" id="f-group-forum-new" maxlength="64" placeholder="Alertes porte">
+      </div>
+    </div>
+
+    <!-- Groupe site : rangement sur la liste du site, INDEPENDANT de Discord -->
+    <div class="form-group" style="border-top:1px solid rgba(255,255,255,0.08); margin-top:1rem; padding-top:1rem;">
+      <label class="form-label">Groupe (rangement sur le site)</label>
+      <input class="form-input" id="f-list-group" list="group-list"
              maxlength="64" placeholder="AdGuard / Backup / Palworld ...">
       <datalist id="group-list"></datalist>
-      <div class="form-hint" id="group-hint">Range la notification dans un groupe sur la liste du site. Le message part directement dans le channel (pas de fil).</div>
+      <div class="form-hint">Sert uniquement a organiser la liste des notifications sur ce site. Aucun rapport avec Discord.</div>
     </div>
   </div>
 
@@ -267,7 +268,7 @@ const form = document.getElementById("notif-form");
 const builder = document.getElementById("btn-builder");
 
 // ============================================================
-// Markdown helpers (gras, italique, etc.)
+// Markdown helpers
 // ============================================================
 function wrapSelection(textarea, wrap) {
   const start = textarea.selectionStart;
@@ -288,7 +289,6 @@ document.querySelectorAll(".md-toolbar .md-btn[data-wrap]").forEach(btn => {
   });
 });
 
-// Convertit le markdown Discord -> HTML pour l'apercu
 function renderDiscordMd(text) {
   let html = esc(text);
   html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
@@ -305,11 +305,7 @@ function renderDiscordMd(text) {
 let _haEntities = null;
 async function loadEntities() {
   if (_haEntities) return _haEntities;
-  try {
-    _haEntities = await API.get("/ha/entities");
-  } catch {
-    _haEntities = [];
-  }
+  try { _haEntities = await API.get("/ha/entities"); } catch { _haEntities = []; }
   return _haEntities;
 }
 
@@ -405,7 +401,6 @@ async function bindChannelSelect() {
   sel.addEventListener("change", () => {
     if (sel.value) idIn.value = sel.value;
   });
-  // Si l'ID est deja saisi (edition), pre-selectionne dans le dropdown
   if (idIn.value) sel.value = idIn.value;
 }
 
@@ -433,8 +428,7 @@ async function bindColorPresets() {
 }
 
 // ============================================================
-// Apercu live (titre, message, footer, couleur, timestamp,
-// fields, boutons)
+// Apercu live
 // ============================================================
 function formatTsFr(d) {
   const months = ["janvier","fevrier","mars","avril","mai","juin",
@@ -468,7 +462,6 @@ function updatePreview() {
     : "";
   document.getElementById("preview").style.borderLeftColor = c;
 
-  // Fields
   const fHtml = fields.map(fl => `
     <div class="embed-field ${fl.inline !== false ? "inline" : ""}">
       <div class="embed-field-name">${renderDiscordMd(fl.name || "")}</div>
@@ -477,7 +470,6 @@ function updatePreview() {
   `).join("");
   document.getElementById("p-fields").innerHTML = fHtml;
 
-  // Boutons (Snooze/Supprimer + custom)
   const btnHtml = [];
   if (delBtn) btnHtml.push(`<span class="d-btn d-btn-secondary">Supprimer</span>`);
   if (snzBtn) btnHtml.push(`<span class="d-btn d-btn-secondary">Snooze</span>`);
@@ -540,13 +532,10 @@ function renderButtons() {
     });
   });
 
-  // Autocompletion HA
   builder.querySelectorAll(".ha-service-input").forEach(inp =>
-    attachAutocomplete(inp, "/ha/services",
-      it => it.service, it => it.service));
+    attachAutocomplete(inp, "/ha/services", it => it.service, it => it.service));
   builder.querySelectorAll(".ha-entity-input").forEach(inp =>
-    attachAutocomplete(inp, "/ha/entities",
-      it => it.friendly_name, it => it.entity_id));
+    attachAutocomplete(inp, "/ha/entities", it => it.friendly_name, it => it.entity_id));
 }
 
 document.getElementById("btn-add").addEventListener("click", () => {
@@ -638,23 +627,30 @@ async function loadExisting() {
     renderFields();
     updatePreview();
 
-    // Restaure la mention
     restoreMention(n.mention || null);
 
-    // Groupe (commun a tous les modes)
-    document.getElementById("f-group").value = n.group_name || "";
+    // Groupe site (independant) : fallback sur group_name pour les notifs existantes
+    document.getElementById("f-list-group").value = n.list_group || n.group_name || "";
 
-    // Restaure le mode d'envoi
     const mode = n.thread_mode || "none";
     document.getElementById("f-thread-mode").value = mode;
     updateThreadModeUI(mode);
 
-    if (mode === "forum") {
-      // Le channel_id est le forum ; on le pre-selectionne + charge les posts (datalist)
+    if (mode === "thread") {
+      document.getElementById("f-group-thread").value = n.group_name || "";
+    } else if (mode === "forum") {
       document.getElementById("forum-channel-select").value = n.channel_id || "";
       await loadForumPosts(n.channel_id);
+      const postSel = document.getElementById("forum-post-select");
+      const match = [...postSel.options].find(o => o.dataset.name === n.group_name);
+      if (match) {
+        postSel.value = match.value;
+      } else {
+        postSel.value = "__new__";
+        document.getElementById("f-group-forum-new").value = n.group_name || "";
+      }
+      updateNewPostWrap();
     } else {
-      // Modes direct / thread : pre-selectionne le channel texte
       const sel = document.getElementById("channel-select");
       if (sel && n.channel_id) sel.value = n.channel_id;
     }
@@ -682,6 +678,7 @@ function buildPayload() {
     snooze_minutes: parseInt(fd.get("snooze_minutes") || "15", 10),
     thread_mode: document.getElementById("f-thread-mode").value,
     group_name: getGroupName(),
+    list_group: document.getElementById("f-list-group").value.trim() || null,
     mention: getMentionValue(),
     buttons: buttons.map((b, i) => ({
       position: i,
@@ -703,27 +700,14 @@ function buildPayload() {
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
-  // Validation manuelle selon le mode
   const mode = document.getElementById("f-thread-mode").value;
   const channelId = document.getElementById("f-channel-id").value.trim();
   if (mode === "forum") {
-    if (!channelId) {
-      toast("Choisissez un channel forum.", "error");
-      return;
-    }
-    if (!getGroupName()) {
-      toast("Entrez un nom de groupe (= nom du post du forum).", "error");
-      return;
-    }
+    if (!channelId) { toast("Choisissez un channel forum.", "error"); return; }
+    if (!getGroupName()) { toast("Choisissez ou nommez un post du forum.", "error"); return; }
   } else {
-    if (!channelId) {
-      toast("Choisissez un channel Discord.", "error");
-      return;
-    }
-    if (mode === "thread" && !getGroupName()) {
-      toast("Entrez un nom de groupe (= nom du fil).", "error");
-      return;
-    }
+    if (!channelId) { toast("Choisissez un channel Discord.", "error"); return; }
+    if (mode === "thread" && !getGroupName()) { toast("Entrez un nom de fil.", "error"); return; }
   }
   const payload = buildPayload();
   try {
@@ -740,15 +724,8 @@ form.addEventListener("submit", async (e) => {
 });
 
 document.getElementById("btn-test-now").addEventListener("click", async () => {
-  // Validation minimale (sans soumettre le form)
-  if (!form.checkValidity()) {
-    form.reportValidity();
-    return;
-  }
+  if (!form.checkValidity()) { form.reportValidity(); return; }
   const payload = buildPayload();
-  // En mode edition on passe ?as_id=NOTIF_ID : les boutons utilisent les IDs
-  // sauvegardes en DB pour rester interactifs (ils executent la version
-  // SAUVEGARDEE de l'action, pas celle du formulaire en cours).
   const url = NOTIF_ID
     ? `/notifications/preview?as_id=${NOTIF_ID}`
     : "/notifications/preview";
@@ -763,14 +740,19 @@ document.getElementById("btn-test-now").addEventListener("click", async () => {
 });
 
 // ============================================================
-// Datalist des groupes existants
+// Datalists des groupes / fils existants
 // ============================================================
 async function bindGroupDatalist() {
   try {
     const all = await API.get("/notifications");
-    const groups = [...new Set(all.map(n => n.group_name).filter(Boolean))].sort();
-    const dl = document.getElementById("group-list");
-    dl.innerHTML = groups.map(g => `<option value="${esc(g)}">`).join("");
+    // Groupes site (pour f-list-group)
+    const listGroups = [...new Set(all.map(n => n.list_group).filter(Boolean))].sort();
+    const dlSite = document.getElementById("group-list");
+    if (dlSite) dlSite.innerHTML = listGroups.map(g => `<option value="${esc(g)}">`).join("");
+    // Noms de fils existants (pour f-group-thread)
+    const threadNames = [...new Set(all.map(n => n.group_name).filter(Boolean))].sort();
+    const dlThread = document.getElementById("thread-name-list");
+    if (dlThread) dlThread.innerHTML = threadNames.map(g => `<option value="${esc(g)}">`).join("");
   } catch { /* ignore */ }
 }
 
@@ -817,27 +799,17 @@ function restoreMention(mention) {
 // ============================================================
 // Mode d'envoi (thread / forum / none)
 // ============================================================
-const GROUP_HINTS = {
-  none:   "Range la notification dans un groupe sur la liste du site. Le message part directement dans le channel (pas de fil).",
-  thread: "Range la notification dans un groupe sur la liste du site. Ce meme nom sert de fil Discord dans le channel texte choisi.",
-  forum:  "Range la notification dans un groupe sur la liste du site. Ce meme nom sert de post dans le channel forum choisi.",
-};
-
 function updateThreadModeUI(mode) {
-  // Channel texte pour direct/thread, channel forum pour forum
+  document.getElementById("thread-section").style.display = mode === "thread" ? "" : "none";
+  document.getElementById("forum-section").style.display  = mode === "forum"  ? "" : "none";
   const chRow = document.getElementById("channel-row");
-  const fRow  = document.getElementById("forum-channel-row");
   if (chRow) chRow.style.display = mode === "forum" ? "none" : "";
-  if (fRow)  fRow.style.display  = mode === "forum" ? "" : "none";
-  const hint = document.getElementById("group-hint");
-  if (hint) hint.textContent = GROUP_HINTS[mode] || GROUP_HINTS.none;
 }
 
 document.getElementById("f-thread-mode").addEventListener("change", function() {
   updateThreadModeUI(this.value);
 });
 
-// Charge les channels forum dans le select
 async function loadForumChannels() {
   const sel = document.getElementById("forum-channel-select");
   const forums = await API.get("/discord/forum-channels").catch(() => []);
@@ -847,32 +819,53 @@ async function loadForumChannels() {
     ).join("");
 }
 
-// Ajoute les noms de posts existants du forum a la datalist de groupes (autocompletion)
 async function loadForumPosts(channelId) {
-  if (!channelId) return;
+  const postSel = document.getElementById("forum-post-select");
+  const wrap    = document.getElementById("forum-post-wrap");
+
+  if (!channelId) { wrap.style.display = "none"; return; }
+
+  wrap.style.display = "";
+  postSel.innerHTML = '<option value="__new__">+ Nouveau post...</option>';
   try {
     const posts = await API.get(`/discord/forum-posts?channel_id=${encodeURIComponent(channelId)}`);
-    const dl = document.getElementById("group-list");
-    const existing = new Set([...dl.options].map(o => o.value));
     posts.forEach(p => {
-      if (!existing.has(p.name)) {
-        const opt = document.createElement("option");
-        opt.value = p.name;
-        dl.appendChild(opt);
-      }
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = p.name + (p.message_count ? ` (${p.message_count} msg)` : "");
+      opt.dataset.name = p.name;
+      postSel.appendChild(opt);
     });
   } catch { /* ignore */ }
+  updateNewPostWrap();
+}
+
+function updateNewPostWrap() {
+  const postSel = document.getElementById("forum-post-select");
+  const newWrap = document.getElementById("new-post-wrap");
+  newWrap.style.display = postSel.value === "__new__" ? "" : "none";
 }
 
 document.getElementById("forum-channel-select").addEventListener("change", async function() {
-  // En mode forum, le channel_id de la notif = l'ID du forum
   document.getElementById("f-channel-id").value = this.value;
   await loadForumPosts(this.value);
 });
 
-// Renvoie le nom du groupe (commun a tous les modes)
+document.getElementById("forum-post-select").addEventListener("change", updateNewPostWrap);
+
+// Renvoie le nom du fil / post Discord selon le mode (group_name)
 function getGroupName() {
-  return document.getElementById("f-group").value.trim() || null;
+  const mode = document.getElementById("f-thread-mode").value;
+  if (mode === "thread") return document.getElementById("f-group-thread").value.trim() || null;
+  if (mode === "forum") {
+    const postSel = document.getElementById("forum-post-select");
+    if (postSel.value === "__new__") {
+      return document.getElementById("f-group-forum-new").value.trim() || null;
+    }
+    const opt = postSel.options[postSel.selectedIndex];
+    return opt ? (opt.dataset.name || opt.textContent.split(" (")[0]) : null;
+  }
+  return null;
 }
 
 // ============================================================
