@@ -21,6 +21,10 @@
     <p>Choisis dans la liste deroulante (channels detectes par le bot ou tes preconfigures dans
        <a href="/settings">Parametres</a>) ou colle un ID brut.</p>
 
+    <h4>Groupe</h4>
+    <p>Range la notification dans un groupe sur la liste du site. En mode <em>Thread</em> ou
+       <em>Forum</em>, ce meme nom sert aussi de nom de fil / de post Discord.</p>
+
     <h4>Couleur</h4>
     <p>Click sur la pastille pour une couleur custom, ou utilise un preset enregistre dans
        <a href="/settings">Parametres &gt; Couleurs</a>.</p>
@@ -80,6 +84,7 @@
       <div class="form-hint">minuscules, chiffres, underscore — identifiant appele depuis Home Assistant</div>
     </div>
 
+    <!-- Channel texte (modes Direct et Thread) -->
     <div id="channel-row">
       <div class="form-group">
         <label class="form-label">Channel Discord</label>
@@ -89,6 +94,18 @@
         <div class="form-hint">choisis un preset ou colle un ID brut</div>
       </div>
     </div>
+
+    <!-- Channel forum (mode Forum uniquement) -->
+    <div id="forum-channel-row" style="display:none;">
+      <div class="form-group">
+        <label class="form-label">Channel forum</label>
+        <select class="form-select" id="forum-channel-select">
+          <option value="">— choisir un forum —</option>
+        </select>
+        <div class="form-hint">Seuls les channels de type Forum sont listes.</div>
+      </div>
+    </div>
+
     <div class="form-group">
       <label class="form-label">Mode d'envoi</label>
       <select class="form-select" id="f-thread-mode">
@@ -98,47 +115,13 @@
       </select>
     </div>
 
-    <!-- Direct mode : groupe visuel simple (envoi direct, pas de fil) -->
-    <div id="direct-section">
-      <div class="form-group">
-        <label class="form-label">Groupe (optionnel)</label>
-        <input class="form-input" id="f-group-direct" list="group-list"
-               maxlength="64" placeholder="AdGuard / Backup / Securite ...">
-        <div class="form-hint">Range la notification dans un groupe sur la liste du site. Le message est envoye normalement dans le channel (pas de fil).</div>
-      </div>
-    </div>
-
-    <!-- Thread mode -->
-    <div id="thread-section" style="display:none;">
-      <div class="form-group">
-        <label class="form-label">Nom du fil (groupe)</label>
-        <input class="form-input" id="f-group-thread" list="group-list"
-               maxlength="64" placeholder="Porte entree / Alarme ...">
-        <datalist id="group-list"></datalist>
-        <div class="form-hint">Toutes les notifications avec ce nom iront dans le meme fil du channel texte ci-dessus.</div>
-      </div>
-    </div>
-
-    <!-- Forum mode -->
-    <div id="forum-section" style="display:none;">
-      <div class="form-group">
-        <label class="form-label">Channel forum</label>
-        <select class="form-select" id="forum-channel-select">
-          <option value="">— choisir un forum —</option>
-        </select>
-        <div class="form-hint">Seuls les channels de type Forum sont listes.</div>
-      </div>
-      <div class="form-group" id="forum-post-wrap" style="display:none;">
-        <label class="form-label">Post du forum</label>
-        <select class="form-select" id="forum-post-select">
-          <option value="__new__">+ Nouveau post...</option>
-        </select>
-        <div class="form-hint">Choisir un post existant ou creer un nouveau.</div>
-      </div>
-      <div class="form-group" id="new-post-wrap" style="display:none;">
-        <label class="form-label">Nom du nouveau post</label>
-        <input class="form-input" id="f-group-forum-new" maxlength="64" placeholder="Alertes porte">
-      </div>
+    <!-- Groupe : toujours visible, tous les modes -->
+    <div class="form-group">
+      <label class="form-label">Groupe (optionnel)</label>
+      <input class="form-input" id="f-group" list="group-list"
+             maxlength="64" placeholder="AdGuard / Backup / Palworld ...">
+      <datalist id="group-list"></datalist>
+      <div class="form-hint" id="group-hint">Range la notification dans un groupe sur la liste du site. Le message part directement dans le channel (pas de fil).</div>
     </div>
   </div>
 
@@ -658,32 +641,22 @@ async function loadExisting() {
     // Restaure la mention
     restoreMention(n.mention || null);
 
+    // Groupe (commun a tous les modes)
+    document.getElementById("f-group").value = n.group_name || "";
+
     // Restaure le mode d'envoi
     const mode = n.thread_mode || "none";
     document.getElementById("f-thread-mode").value = mode;
     updateThreadModeUI(mode);
 
-    if (mode === "thread") {
-      document.getElementById("f-group-thread").value = n.group_name || "";
-    } else if (mode === "forum") {
-      // Le channel_id est le forum ; on le pre-selectionne
+    if (mode === "forum") {
+      // Le channel_id est le forum ; on le pre-selectionne + charge les posts (datalist)
       document.getElementById("forum-channel-select").value = n.channel_id || "";
       await loadForumPosts(n.channel_id);
-      // Cherche le post par group_name dans les options chargees
-      const postSel = document.getElementById("forum-post-select");
-      const match = [...postSel.options].find(o => o.dataset.name === n.group_name);
-      if (match) {
-        postSel.value = match.value;
-      } else {
-        postSel.value = "__new__";
-        document.getElementById("f-group-forum-new").value = n.group_name || "";
-      }
-      updateNewPostWrap();
     } else {
-      // Mode direct : pre-selectionne le channel texte + restaure le groupe
+      // Modes direct / thread : pre-selectionne le channel texte
       const sel = document.getElementById("channel-select");
       if (sel && n.channel_id) sel.value = n.channel_id;
-      document.getElementById("f-group-direct").value = n.group_name || "";
     }
   } catch (e) {
     toast("Erreur chargement : " + e.message, "error");
@@ -739,7 +712,7 @@ form.addEventListener("submit", async (e) => {
       return;
     }
     if (!getGroupName()) {
-      toast("Entrez un nom pour le post du forum.", "error");
+      toast("Entrez un nom de groupe (= nom du post du forum).", "error");
       return;
     }
   } else {
@@ -748,7 +721,7 @@ form.addEventListener("submit", async (e) => {
       return;
     }
     if (mode === "thread" && !getGroupName()) {
-      toast("Entrez un nom pour le fil (groupe).", "error");
+      toast("Entrez un nom de groupe (= nom du fil).", "error");
       return;
     }
   }
@@ -844,13 +817,20 @@ function restoreMention(mention) {
 // ============================================================
 // Mode d'envoi (thread / forum / none)
 // ============================================================
+const GROUP_HINTS = {
+  none:   "Range la notification dans un groupe sur la liste du site. Le message part directement dans le channel (pas de fil).",
+  thread: "Range la notification dans un groupe sur la liste du site. Ce meme nom sert de fil Discord dans le channel texte choisi.",
+  forum:  "Range la notification dans un groupe sur la liste du site. Ce meme nom sert de post dans le channel forum choisi.",
+};
+
 function updateThreadModeUI(mode) {
-  document.getElementById("direct-section").style.display = mode === "none"   ? "" : "none";
-  document.getElementById("thread-section").style.display = mode === "thread" ? "" : "none";
-  document.getElementById("forum-section").style.display  = mode === "forum"  ? "" : "none";
-  // En mode forum le channel texte est remplace par le forum picker
+  // Channel texte pour direct/thread, channel forum pour forum
   const chRow = document.getElementById("channel-row");
+  const fRow  = document.getElementById("forum-channel-row");
   if (chRow) chRow.style.display = mode === "forum" ? "none" : "";
+  if (fRow)  fRow.style.display  = mode === "forum" ? "" : "none";
+  const hint = document.getElementById("group-hint");
+  if (hint) hint.textContent = GROUP_HINTS[mode] || GROUP_HINTS.none;
 }
 
 document.getElementById("f-thread-mode").addEventListener("change", function() {
@@ -867,33 +847,21 @@ async function loadForumChannels() {
     ).join("");
 }
 
-// Charge les posts du forum selectionne
+// Ajoute les noms de posts existants du forum a la datalist de groupes (autocompletion)
 async function loadForumPosts(channelId) {
-  const postSel = document.getElementById("forum-post-select");
-  const wrap    = document.getElementById("forum-post-wrap");
-  const newWrap = document.getElementById("new-post-wrap");
-
-  if (!channelId) { wrap.style.display = "none"; return; }
-
-  wrap.style.display = "";
-  postSel.innerHTML = '<option value="__new__">+ Nouveau post...</option>';
+  if (!channelId) return;
   try {
     const posts = await API.get(`/discord/forum-posts?channel_id=${encodeURIComponent(channelId)}`);
+    const dl = document.getElementById("group-list");
+    const existing = new Set([...dl.options].map(o => o.value));
     posts.forEach(p => {
-      const opt = document.createElement("option");
-      opt.value = p.id;
-      opt.textContent = p.name + (p.message_count ? ` (${p.message_count} msg)` : "");
-      opt.dataset.name = p.name;
-      postSel.appendChild(opt);
+      if (!existing.has(p.name)) {
+        const opt = document.createElement("option");
+        opt.value = p.name;
+        dl.appendChild(opt);
+      }
     });
   } catch { /* ignore */ }
-  updateNewPostWrap();
-}
-
-function updateNewPostWrap() {
-  const postSel = document.getElementById("forum-post-select");
-  const newWrap = document.getElementById("new-post-wrap");
-  newWrap.style.display = postSel.value === "__new__" ? "" : "none";
 }
 
 document.getElementById("forum-channel-select").addEventListener("change", async function() {
@@ -902,22 +870,9 @@ document.getElementById("forum-channel-select").addEventListener("change", async
   await loadForumPosts(this.value);
 });
 
-document.getElementById("forum-post-select").addEventListener("change", updateNewPostWrap);
-
-// Renvoie le group_name selon le mode actif
+// Renvoie le nom du groupe (commun a tous les modes)
 function getGroupName() {
-  const mode = document.getElementById("f-thread-mode").value;
-  if (mode === "none")   return document.getElementById("f-group-direct").value.trim() || null;
-  if (mode === "thread") return document.getElementById("f-group-thread").value.trim() || null;
-  if (mode === "forum") {
-    const postSel = document.getElementById("forum-post-select");
-    if (postSel.value === "__new__") {
-      return document.getElementById("f-group-forum-new").value.trim() || null;
-    }
-    const opt = postSel.options[postSel.selectedIndex];
-    return opt ? (opt.dataset.name || opt.textContent.split(" (")[0]) : null;
-  }
-  return null;
+  return document.getElementById("f-group").value.trim() || null;
 }
 
 // ============================================================
@@ -925,6 +880,7 @@ function getGroupName() {
 // ============================================================
 async function boot() {
   bindPreview();
+  updateThreadModeUI(document.getElementById("f-thread-mode").value);
   await Promise.all([bindChannelSelect(), bindColorPresets(), bindGroupDatalist(), loadForumChannels()]);
   await loadExisting();
 }
