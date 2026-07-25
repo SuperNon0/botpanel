@@ -285,6 +285,16 @@ action:
 - **Redémarrage depuis l'UI** : `POST /api/system/restart` lance le restart en tâche détachée. L'API devient inaccessible quelques secondes ; le frontend poll `/health` pour détecter le retour.
 - **Mise à jour depuis l'UI** : `POST /api/system/update` effectue un `git pull --ff-only`. Le sudoers est configuré automatiquement par `install_lxc.sh` — aucune manipulation manuelle nécessaire.
 
+## Sécurité et accès
+
+> ⚠️ **Le panel d'administration n'a pas d'authentification intégrée.** Toute personne pouvant atteindre `http://IP:8080` peut piloter le bot et Home Assistant.
+
+- **Garde le site sur ton réseau local** (LXC non exposé sur Internet), ou
+- place-le **derrière un reverse-proxy avec authentification** (Authelia, Cloudflare Access, oauth2-proxy…), ou un VPN.
+- Ne publie **jamais** ton fichier `.env` (il est déjà ignoré par `.gitignore`).
+
+Un système de connexion natif (compte admin + login Google avec approbation des comptes) est prévu.
+
 ## Livrables
 
 - Code source versionné
