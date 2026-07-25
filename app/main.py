@@ -61,11 +61,20 @@ async def _main() -> None:
             # Windows ne supporte pas add_signal_handler
             pass
 
-    bot_task = asyncio.create_task(start_bot(), name="bot")
-    api_task = asyncio.create_task(_run_api(), name="api")
+    # Le bot Discord ne demarre que si la configuration est complete.
+    # Sinon, seul le site tourne (mode configuration) pour afficher /setup.
+    tasks: list[asyncio.Task] = [asyncio.create_task(_run_api(), name="api")]
+    if settings.is_configured:
+        tasks.append(asyncio.create_task(start_bot(), name="bot"))
+    else:
+        logger.warning(
+            "Configuration incomplete — demarrage en MODE CONFIGURATION. "
+            "Ouvre http://<IP>:%s/setup pour configurer BotPanel.",
+            settings.api_port,
+        )
 
     done, pending = await asyncio.wait(
-        [bot_task, api_task, asyncio.create_task(stop_event.wait())],
+        [*tasks, asyncio.create_task(stop_event.wait())],
         return_when=asyncio.FIRST_COMPLETED,
     )
 

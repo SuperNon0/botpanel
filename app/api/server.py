@@ -9,7 +9,10 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from starlette.middleware.base import BaseHTTPMiddleware
+
 from app.api.routes import (
+    backup as backup_routes,
     dashboard as dashboard_routes,
     discord as discord_routes,
     ha_hook,
@@ -17,13 +20,35 @@ from app.api.routes import (
     logs,
     monitoring,
     notifications,
+    setup as setup_routes,
     settings as settings_routes,
     slash_commands,
     system as system_routes,
     web,
 )
+from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+# Chemins toujours accessibles, meme en mode configuration (sinon on ne pourrait
+# pas afficher /setup, servir le CSS, ni verifier l'etat du service).
+_SETUP_ALLOWED_PREFIXES = ("/setup", "/api/setup", "/static", "/health", "/api/system")
+
+
+async def _setup_guard(request, call_next):
+    """En mode configuration, redirige les pages web vers l'assistant /setup.
+
+    IMPORTANT : ne bloque JAMAIS les routes /api/... utilisees par des machines
+    (Home Assistant, Proxmox). Seule la navigation web (GET HTML) est redirigee.
+    """
+    if not settings.is_configured:
+        path = request.url.path
+        if not any(path.startswith(p) for p in _SETUP_ALLOWED_PREFIXES):
+            accept = request.headers.get("accept", "")
+            if request.method == "GET" and "text/html" in accept:
+                return RedirectResponse("/setup")
+    return await call_next(request)
 
 
 def create_app() -> FastAPI:
@@ -37,7 +62,12 @@ def create_app() -> FastAPI:
         openapi_url="/api/openapi.json",
     )
 
+    # Redirection vers l'assistant de configuration au premier lancement.
+    app.add_middleware(BaseHTTPMiddleware, dispatch=_setup_guard)
+
     # --- API ---
+    app.include_router(setup_routes.router, prefix="/api/setup", tags=["setup"])
+    app.include_router(backup_routes.router, prefix="/api/backup", tags=["backup"])
     app.include_router(dashboard_routes.router, prefix="/api/dashboard", tags=["dashboard"])
     app.include_router(ha_hook.router, prefix="/api", tags=["ha-hook"])
     app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
@@ -59,6 +89,8 @@ def create_app() -> FastAPI:
 
     @app.get("/", include_in_schema=False)
     async def _root() -> RedirectResponse:
+        if not settings.is_configured:
+            return RedirectResponse("/setup")
         return RedirectResponse("/dashboard")
 
     @app.get("/health", include_in_schema=False)

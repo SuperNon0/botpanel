@@ -76,6 +76,23 @@
   </p>
   <div id="threads-list"><div class="empty-state">Chargement...</div></div>
 </div>
+
+<div class="card" id="backup-card">
+  <h3>Sauvegarde &amp; migration</h3>
+  <p class="hint">
+    Exporte toutes tes données (notifications, commandes, monitoring, paramètres) dans un fichier JSON,
+    pour les sauvegarder ou les <strong>importer sur une nouvelle instance</strong> de BotPanel.
+    L'historique et les états Discord ne sont pas inclus.
+  </p>
+  <div style="display:flex; gap:0.7rem; flex-wrap:wrap; align-items:center;">
+    <a class="btn btn-primary" href="/api/backup/export">Exporter les données</a>
+    <button type="button" class="btn btn-secondary" id="import-btn">Importer un fichier…</button>
+    <input type="file" id="import-file" accept="application/json,.json" style="display:none;">
+  </div>
+  <p class="hint" style="margin-top:0.7rem; color:#f59e0b;">
+    ⚠️ L'import <strong>remplace</strong> toutes les données de configuration existantes. À utiliser sur une nouvelle instance ou pour restaurer une sauvegarde.
+  </p>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -343,10 +360,42 @@ async function loadForums() {
   }
 }
 
+// ============================================================
+// Sauvegarde / import
+// ============================================================
+function bindBackup() {
+  const btn = document.getElementById("import-btn");
+  const fileInput = document.getElementById("import-file");
+  if (!btn || !fileInput) return;
+
+  btn.addEventListener("click", () => fileInput.click());
+
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    if (!confirm("Importer ce fichier ? Toutes les données de configuration actuelles seront REMPLACÉES.")) {
+      fileInput.value = "";
+      return;
+    }
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const res = await API.post("/backup/import", data);
+      toast(`Import réussi (${res.total} éléments). Rechargement…`);
+      setTimeout(() => window.location.reload(), 900);
+    } catch (e) {
+      toast("Échec de l'import : " + e.message, "error");
+    } finally {
+      fileInput.value = "";
+    }
+  });
+}
+
 loadHomeUrl();
 loadSystemInfo();
 loadAll();
 loadForums();
 loadThreads();
+bindBackup();
 </script>
 {% endblock %}

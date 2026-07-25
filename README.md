@@ -285,6 +285,18 @@ action:
 - **Redémarrage depuis l'UI** : `POST /api/system/restart` lance le restart en tâche détachée. L'API devient inaccessible quelques secondes ; le frontend poll `/health` pour détecter le retour.
 - **Mise à jour depuis l'UI** : `POST /api/system/update` effectue un `git pull --ff-only`. Le sudoers est configuré automatiquement par `install_lxc.sh` — aucune manipulation manuelle nécessaire.
 
+## Premier lancement — assistant de configuration
+
+Au tout premier démarrage, si le fichier `.env` est absent ou incomplet, BotPanel démarre en **mode configuration** : ouvre `http://IP:8080` et un **assistant** te demande toutes les informations (token Discord, IDs de serveur/channels, URL + token Home Assistant). Tu remplis, tu cliques **Enregistrer et démarrer** : le `.env` est écrit automatiquement et le service redémarre tout seul. **Aucune édition de fichier en SSH n'est nécessaire.**
+
+Les appels machine (`/api/notify`, etc.) ne sont jamais bloqués par ce mode.
+
+## Sauvegarde & migration (export / import)
+
+Depuis **Paramètres → Sauvegarde & migration** :
+- **Exporter** : télécharge un fichier JSON contenant toutes tes données de configuration (notifications, commandes, monitoring, paramètres).
+- **Importer** : recharge ce fichier sur une **nouvelle instance** (ou pour restaurer). ⚠️ L'import remplace les données de configuration existantes. L'historique et les états Discord (threads/posts) ne sont pas concernés.
+
 ## Sécurité et accès
 
 > ⚠️ **Le panel d'administration n'a pas d'authentification intégrée.** Toute personne pouvant atteindre `http://IP:8080` peut piloter le bot et Home Assistant.
@@ -294,6 +306,16 @@ action:
 - Ne publie **jamais** ton fichier `.env` (il est déjà ignoré par `.gitignore`).
 
 Un système de connexion natif (compte admin + login Google avec approbation des comptes) est prévu.
+
+## Évolutions futures
+
+Idées prévues (non encore implémentées) :
+
+- **Protection intégrée du panel** avec un interrupteur activer/désactiver dans les Paramètres.
+- **Intégration Cloudflare Access** : afficher l'utilisateur connecté (en-tête `Cf-Access-Authenticated-User-Email`) et un bouton **Se déconnecter** (`/cdn-cgi/access/logout`), pour ceux qui exposent le panel derrière Cloudflare Zero Trust.
+- **Gestion de comptes** : compte administrateur, connexion Google, approbation des nouveaux comptes par l'admin.
+
+> Note : les routes machine (`/api/notify`, webhooks) resteront toujours accessibles sans authentification, pour ne pas casser les intégrations Home Assistant / Proxmox.
 
 ## Livrables
 

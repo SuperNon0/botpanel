@@ -14,6 +14,13 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 router = APIRouter()
 
 
+@router.get("/setup", response_class=HTMLResponse)
+async def page_setup(request: Request):
+    return templates.TemplateResponse(
+        "setup.html", {"request": request, "active_page": "setup"}
+    )
+
+
 @router.get("/dashboard", response_class=HTMLResponse)
 async def page_dashboard(request: Request):
     return templates.TemplateResponse(

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <title>Configuration — BotPanel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<header class="header">
+  <div class="logo"><span class="bot">bot</span><span class="panel">panel</span></div>
+  <div class="header-right">assistant de configuration</div>
+</header>
+
+<main>
+  <div class="page-header">
+    <h2>Bienvenue 👋</h2>
+  </div>
+
+  <div class="card">
+    <p class="hint">
+      Première configuration de BotPanel. Renseigne les informations ci-dessous :
+      elles seront enregistrées automatiquement (fichier <code>.env</code>) et le
+      service redémarrera tout seul. <strong>Aucune manipulation en console nécessaire.</strong>
+    </p>
+  </div>
+
+  <form id="setup-form">
+    <div class="card">
+      <h3>Discord</h3>
+      <div class="form-group">
+        <label class="form-label">Token du bot</label>
+        <input class="form-input" name="discord_token" type="password" required
+               placeholder="Token depuis le Discord Developer Portal" autocomplete="off">
+        <div class="form-hint">Portail développeur Discord → ton application → Bot → Reset/Copy Token</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ID du serveur (Guild ID)</label>
+        <input class="form-input" name="discord_guild_id" inputmode="numeric" required
+               placeholder="123456789012345678">
+        <div class="form-hint">Clic droit sur ton serveur Discord → Copier l'identifiant (mode développeur activé)</div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Channel par défaut (notifications)</label>
+          <input class="form-input" name="discord_default_channel_id" inputmode="numeric" required
+                 placeholder="123456789012345678">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Channel de monitoring</label>
+          <input class="form-input" name="discord_monitoring_channel_id" inputmode="numeric" required
+                 placeholder="123456789012345678">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Home Assistant</h3>
+      <div class="form-group">
+        <label class="form-label">URL de Home Assistant</label>
+        <input class="form-input" name="ha_base_url" required
+               placeholder="http://192.168.1.10:8123">
+        <div class="form-hint">URL locale de ton instance HA (avec le port)</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Token longue durée</label>
+        <input class="form-input" name="ha_token" type="password" required
+               placeholder="Token d'accès longue durée HA" autocomplete="off">
+        <div class="form-hint">HA → ton profil → Tokens d'accès longue durée → Créer</div>
+      </div>
+    </div>
+
+    <details class="card">
+      <summary style="cursor:pointer;"><strong>Options avancées</strong> (facultatif)</summary>
+      <div style="margin-top:1rem;">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Port de l'API / site</label>
+            <input class="form-input" name="api_port" inputmode="numeric" value="8080">
+          </div>
+          <div class="form-group">
+            <label class="form-label">URL publique du site (optionnel)</label>
+            <input class="form-input" name="site_base_url" placeholder="https://botpanel.exemple.com">
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <div style="display:flex; gap:0.7rem; justify-content:flex-end; flex-wrap:wrap;">
+      <button type="submit" class="btn btn-primary" id="save-btn">Enregistrer et démarrer</button>
+    </div>
+  </form>
+
+  <div class="card" id="restart-box" style="display:none;">
+    <h3>Redémarrage en cours…</h3>
+    <p class="hint" id="restart-msg">Configuration enregistrée. Le service redémarre, patiente quelques secondes…</p>
+  </div>
+</main>
+
+<div id="toast" class="toast">Ok</div>
+
+<script>
+const form = document.getElementById("setup-form");
+const saveBtn = document.getElementById("save-btn");
+const restartBox = document.getElementById("restart-box");
+const restartMsg = document.getElementById("restart-msg");
+
+function showToast(msg, kind) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "toast show" + (kind === "error" ? " toast-error" : "");
+  setTimeout(() => { t.className = "toast"; }, 3500);
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const fd = new FormData(form);
+  const payload = {
+    discord_token: (fd.get("discord_token") || "").trim(),
+    discord_guild_id: parseInt(fd.get("discord_guild_id") || "0", 10),
+    discord_default_channel_id: parseInt(fd.get("discord_default_channel_id") || "0", 10),
+    discord_monitoring_channel_id: parseInt(fd.get("discord_monitoring_channel_id") || "0", 10),
+    ha_base_url: (fd.get("ha_base_url") || "").trim(),
+    ha_token: (fd.get("ha_token") || "").trim(),
+    api_port: parseInt(fd.get("api_port") || "8080", 10),
+    site_base_url: (fd.get("site_base_url") || "").trim(),
+  };
+
+  if (!payload.discord_guild_id || !payload.discord_default_channel_id || !payload.discord_monitoring_channel_id) {
+    showToast("Les IDs de channel/serveur doivent être des nombres.", "error");
+    return;
+  }
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = "Enregistrement…";
+
+  try {
+    const res = await fetch("/api/setup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || ("Erreur " + res.status));
+    }
+  } catch (err) {
+    saveBtn.disabled = false;
+    saveBtn.textContent = "Enregistrer et démarrer";
+    showToast(err.message, "error");
+    return;
+  }
+
+  // Enregistré : le service redémarre. On attend qu'il revienne configuré.
+  form.style.display = "none";
+  restartBox.style.display = "";
+  waitForRestart();
+});
+
+async function waitForRestart() {
+  let attempts = 0;
+  const maxAttempts = 60; // ~2 min max
+  const timer = setInterval(async () => {
+    attempts++;
+    try {
+      const res = await fetch("/api/setup/status", { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.configured) {
+          clearInterval(timer);
+          restartMsg.textContent = "Configuration terminée ! Redirection…";
+          setTimeout(() => { window.location.href = "/dashboard"; }, 800);
+          return;
+        }
+      }
+    } catch (_) {
+      // service en cours de redémarrage : normal, on réessaie
+    }
+    if (attempts >= maxAttempts) {
+      clearInterval(timer);
+      restartMsg.textContent = "Le redémarrage prend plus de temps que prévu. Recharge la page dans un instant.";
+    }
+  }, 2000);
+}
+</script>
+
+</body>
+</html>
