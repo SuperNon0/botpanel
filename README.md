@@ -1,4 +1,8 @@
-# BotPanel
+<p align="center">
+  <img src="app/web/static/favicon.svg" width="96" alt="BotPanel">
+</p>
+
+<h1 align="center">BotPanel</h1>
 
 Bot Discord × Home Assistant, administré depuis un site web dédié.  
 Hébergé dans un conteneur LXC Proxmox.
