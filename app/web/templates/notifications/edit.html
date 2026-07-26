@@ -7,50 +7,10 @@
   <a href="/notifications" class="btn btn-secondary">Retour</a>
 </div>
 
-<details class="card help-card" id="help-guide">
-  <summary>
-    <span class="help-arrow">&#9656;</span>
-    Guide rapide &mdash; comment utiliser les champs ?
-  </summary>
-  <div class="help-body">
-    <h4>Slug</h4>
-    <p>Identifiant unique appele depuis Home Assistant via <code>rest_command.bot_discord</code>.
-       <strong>Minuscules + chiffres + underscore</strong> uniquement.</p>
-
-    <h4>Mode d'envoi &amp; nom du fil / post</h4>
-    <p><strong>Direct</strong> : le message part dans le channel choisi.
-       <strong>Thread</strong> : le message va dans un fil du channel texte (le nom du fil regroupe).
-       <strong>Forum</strong> : le message est poste dans un channel forum (post existant ou nouveau).</p>
-
-    <h4>Groupe (rangement sur le site)</h4>
-    <p>Champ independant : il sert uniquement a <strong>organiser la liste des notifications sur ce site</strong>.
-       Il n'a aucun effet sur Discord.</p>
-
-    <h4>Couleur</h4>
-    <p>Click sur la pastille pour une couleur custom, ou utilise un preset enregistre dans
-       <a href="/settings">Parametres &gt; Couleurs</a>.</p>
-
-    <h4>Markdown dans le message</h4>
-    <p>Discord supporte le markdown : <code>**gras**</code>, <code>*italique*</code>,
-       <code>__souligne__</code>, <code>~~barre~~</code>, <code>`code`</code>.</p>
-
-    <h4>Champs (fields) &mdash; placeholders Home Assistant</h4>
-    <p>Dans le <strong>message</strong> ou la <strong>valeur d'un field</strong> :</p>
-    <ul>
-      <li><code>{state:sensor.temp}</code> &mdash; etat brut</li>
-      <li><code>{state:sensor.temp|--}</code> &mdash; avec fallback si HA est down</li>
-      <li><code>{attr:sensor.temp:friendly_name}</code> &mdash; un attribut precis</li>
-      <li><code>{unit:sensor.temp}</code> &mdash; l'unite (ex. <em>&deg;C</em>)</li>
-    </ul>
-    {% raw %}
-    <ul>
-      <li><code>{{ states('sensor.temp') }}</code></li>
-      <li><code>{{ state_attr('sensor.x', 'attr') }}</code></li>
-      <li><code>{% if states('binary_sensor.porte') == 'on' %}ouverte{% else %}fermee{% endif %}</code></li>
-    </ul>
-    {% endraw %}
-  </div>
-</details>
+<p class="hint" style="margin:-0.3rem 0 1rem;">
+  Besoin d'un coup de main ? Tout est expliqué sur la <a href="/aide">page Aide</a>
+  (modes d'envoi, placeholders, groupes…).
+</p>
 
 <form id="notif-form">
   <div class="card">

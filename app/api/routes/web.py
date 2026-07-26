@@ -109,3 +109,10 @@ async def page_history(request: Request):
     return templates.TemplateResponse(
         "history/index.html", {"request": request, "active_page": "historique"}
     )
+
+
+@router.get("/aide", response_class=HTMLResponse)
+async def page_help(request: Request):
+    return templates.TemplateResponse(
+        "help/index.html", {"request": request, "active_page": "aide"}
+    )
