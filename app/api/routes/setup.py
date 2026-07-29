@@ -37,6 +37,9 @@ class SetupPayload(BaseModel):
     api_port: int = 8080
     site_base_url: str = ""
     log_level: str = "INFO"
+    # Protection par mot de passe (facultative)
+    admin_username: str = "admin"
+    admin_password: str = ""
 
 
 @router.get("/status")
@@ -105,6 +108,17 @@ async def save_setup(payload: SetupPayload) -> dict[str, object]:
             status_code=500,
             detail=f"Impossible d'ecrire le fichier .env ({exc}).",
         )
+
+    # Mot de passe admin optionnel : active la protection des le depart.
+    if payload.admin_password and len(payload.admin_password) >= 6:
+        from app.auth import hash_password
+        from app.db.repositories import AuthRepository
+
+        await AuthRepository().set_password(
+            hash_password(payload.admin_password),
+            username=(payload.admin_username or "admin").strip() or "admin",
+        )
+        logger.info("Protection par mot de passe activee depuis l'assistant.")
 
     logger.info("Configuration enregistree dans %s — redemarrage...", ENV_PATH)
 

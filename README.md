@@ -308,6 +308,7 @@ Depuis **Paramètres → Sauvegarde & migration** :
 - **Garde le site sur ton réseau local** (LXC non exposé sur Internet), ou
 - place-le **derrière un reverse-proxy avec authentification** (Authelia, Cloudflare Access, oauth2-proxy…), ou un VPN.
 - Ne publie **jamais** ton fichier `.env` (il est déjà ignoré par `.gitignore`).
+- **Protection par mot de passe** intégrée (optionnelle) : Paramètres → Compte & sécurité. Voir [docs/CONNEXION.md](docs/CONNEXION.md).
 
 Un système de connexion natif (compte admin + login Google avec approbation des comptes) est prévu.
 
@@ -317,7 +318,7 @@ Idées prévues (non encore implémentées) :
 
 - **Protection intégrée du panel** avec un interrupteur activer/désactiver dans les Paramètres.
 - **Intégration Cloudflare Access** : afficher l'utilisateur connecté (en-tête `Cf-Access-Authenticated-User-Email`) et un bouton **Se déconnecter** (`/cdn-cgi/access/logout`), pour ceux qui exposent le panel derrière Cloudflare Zero Trust.
-- **Gestion de comptes** : compte administrateur, connexion Google, approbation des nouveaux comptes par l'admin.
+- **Connexion Google + approbation de comptes** (le login admin par mot de passe est déjà disponible, voir docs/CONNEXION.md).
 
 > Note : les routes machine (`/api/notify`, webhooks) resteront toujours accessibles sans authentification, pour ne pas casser les intégrations Home Assistant / Proxmox.
 

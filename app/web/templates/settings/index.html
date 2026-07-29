@@ -93,6 +93,48 @@
     ⚠️ L'import <strong>remplace</strong> toutes les données de configuration existantes. À utiliser sur une nouvelle instance ou pour restaurer une sauvegarde.
   </p>
 </div>
+
+<div class="card" id="auth-card">
+  <h3>Compte &amp; sécurité</h3>
+  <p class="hint" id="auth-status">Chargement…</p>
+
+  <!-- Activer (aucun mot de passe encore) -->
+  <div id="auth-enable" style="display:none;">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Nom d'utilisateur</label>
+        <input class="form-input" id="ae-user" value="admin">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mot de passe (min. 6 caractères)</label>
+        <input class="form-input" id="ae-pass" type="password" autocomplete="new-password">
+      </div>
+    </div>
+    <button type="button" class="btn btn-primary" id="ae-btn">Activer la protection</button>
+  </div>
+
+  <!-- Changer / désactiver (mot de passe déjà défini) -->
+  <div id="auth-manage" style="display:none;">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Mot de passe actuel</label>
+        <input class="form-input" id="am-current" type="password" autocomplete="current-password">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nouveau mot de passe (min. 6)</label>
+        <input class="form-input" id="am-new" type="password" autocomplete="new-password">
+      </div>
+    </div>
+    <div style="display:flex; gap:0.7rem; flex-wrap:wrap;">
+      <button type="button" class="btn btn-primary" id="am-change">Changer le mot de passe</button>
+      <button type="button" class="btn btn-danger" id="am-disable">Désactiver la protection</button>
+    </div>
+    <p class="hint" style="margin-top:0.8rem;">
+      💡 Si tu utilises <strong>Cloudflare Access</strong>, tu peux laisser la protection désactivée : Cloudflare gère déjà la connexion.
+      En cas d'oubli du mot de passe, utilise le script <code>deploy/reset_admin.sh</code> sur le serveur.
+    </p>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -391,11 +433,70 @@ function bindBackup() {
   });
 }
 
+// ============================================================
+// Compte & securite
+// ============================================================
+async function loadAuth() {
+  const status = document.getElementById("auth-status");
+  const enable = document.getElementById("auth-enable");
+  const manage = document.getElementById("auth-manage");
+  let me;
+  try { me = await API.get("/auth/me"); } catch { status.textContent = "Indisponible."; return; }
+  if (me.enabled) {
+    status.innerHTML = `Protection <strong style="color:#4ade80;">activée</strong> — connecté en tant que <code>${esc(me.username || "admin")}</code>.`;
+    enable.style.display = "none";
+    manage.style.display = "";
+  } else {
+    status.innerHTML = `Protection <strong style="color:#f59e0b;">désactivée</strong> — le panel est ouvert (pense à Cloudflare ou au réseau local).`;
+    enable.style.display = "";
+    manage.style.display = "none";
+  }
+}
+
+function bindAuth() {
+  document.getElementById("ae-btn").addEventListener("click", async () => {
+    const user = document.getElementById("ae-user").value.trim() || "admin";
+    const pass = document.getElementById("ae-pass").value;
+    if (pass.length < 6) { toast("Mot de passe trop court (min. 6).", "error"); return; }
+    try {
+      await API.post("/auth/password", { username: user, new_password: pass, current_password: "" });
+      toast("Protection activée !");
+      loadAuth();
+      document.getElementById("ae-pass").value = "";
+    } catch (e) { toast(e.message, "error"); }
+  });
+
+  document.getElementById("am-change").addEventListener("click", async () => {
+    const cur = document.getElementById("am-current").value;
+    const nw = document.getElementById("am-new").value;
+    if (nw.length < 6) { toast("Nouveau mot de passe trop court (min. 6).", "error"); return; }
+    try {
+      await API.post("/auth/password", { new_password: nw, current_password: cur });
+      toast("Mot de passe changé.");
+      document.getElementById("am-current").value = "";
+      document.getElementById("am-new").value = "";
+    } catch (e) { toast(e.message, "error"); }
+  });
+
+  document.getElementById("am-disable").addEventListener("click", async () => {
+    const cur = document.getElementById("am-current").value;
+    if (!cur) { toast("Entre ton mot de passe actuel pour désactiver.", "error"); return; }
+    if (!confirm("Désactiver la protection ? Le panel deviendra accessible sans mot de passe.")) return;
+    try {
+      await API.post("/auth/disable", { current_password: cur });
+      toast("Protection désactivée.");
+      loadAuth();
+    } catch (e) { toast(e.message, "error"); }
+  });
+}
+
 loadHomeUrl();
 loadSystemInfo();
 loadAll();
 loadForums();
 loadThreads();
 bindBackup();
+loadAuth();
+bindAuth();
 </script>
 {% endblock %}

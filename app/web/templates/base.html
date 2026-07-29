@@ -27,7 +27,12 @@
     </svg>
     <span><span class="bot">bot</span><span class="panel">panel</span></span>
   </a>
-  <div class="header-right">super-nono.cc</div>
+  <div class="header-right">
+    <span id="user-box" style="display:none; align-items:center; gap:0.6rem;">
+      <span id="user-name" style="opacity:.75;"></span>
+      <a href="#" id="logout-link" title="Se deconnecter" style="text-decoration:none;">Deconnexion</a>
+    </span>
+  </div>
 </header>
 
 <nav class="nav">
@@ -59,6 +64,23 @@
       if (r.url) link.href = r.url;
     } catch { /* garde /dashboard si erreur */ }
   }
+})();
+
+// Profil / deconnexion (affiche seulement si la protection est active et connecte)
+(async function() {
+  try {
+    const me = await API.get("/auth/me");
+    if (me.enabled && me.authenticated) {
+      const box = document.getElementById("user-box");
+      document.getElementById("user-name").textContent = me.username || "admin";
+      box.style.display = "inline-flex";
+      document.getElementById("logout-link").addEventListener("click", async (e) => {
+        e.preventDefault();
+        try { await API.post("/auth/logout"); } catch {}
+        window.location.href = "/login";
+      });
+    }
+  } catch { /* pas d'auth : rien a afficher */ }
 })();
 </script>
 {% block scripts %}{% endblock %}

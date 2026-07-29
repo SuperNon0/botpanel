@@ -1,5 +1,6 @@
 """Acces DB par entite (pattern repository)."""
 
+from app.db.repositories.auth import AuthRepository
 from app.db.repositories.logs import LogRepository
 from app.db.repositories.monitoring import MonitoringRepository
 from app.db.repositories.notifications import NotificationRepository
@@ -14,4 +15,5 @@ __all__ = [
     "SettingsRepository",
     "LogRepository",
     "ThreadRepository",
+    "AuthRepository",
 ]

@@ -88,6 +88,19 @@
             <input class="form-input" name="site_base_url" placeholder="https://botpanel.exemple.com">
           </div>
         </div>
+
+        <h4 style="margin:1rem 0 0.4rem;">Protection par mot de passe (facultatif)</h4>
+        <p class="hint" style="margin-top:0;">Laisse vide pour un panel ouvert (ex. derrière Cloudflare ou en réseau local). Tu pourras l'activer plus tard dans Paramètres.</p>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Nom d'utilisateur admin</label>
+            <input class="form-input" name="admin_username" value="admin" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Mot de passe admin (min. 6, optionnel)</label>
+            <input class="form-input" name="admin_password" type="password" autocomplete="new-password">
+          </div>
+        </div>
       </div>
     </details>
 
@@ -129,6 +142,8 @@ form.addEventListener("submit", async (e) => {
     ha_token: (fd.get("ha_token") || "").trim(),
     api_port: parseInt(fd.get("api_port") || "8080", 10),
     site_base_url: (fd.get("site_base_url") || "").trim(),
+    admin_username: (fd.get("admin_username") || "admin").trim() || "admin",
+    admin_password: (fd.get("admin_password") || "").trim(),
   };
 
   if (!payload.discord_guild_id || !payload.discord_default_channel_id || !payload.discord_monitoring_channel_id) {

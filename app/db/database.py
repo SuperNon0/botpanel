@@ -135,6 +135,19 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 -- ==========================================================
+-- COMPTE ADMIN (authentification du panel)
+-- Table a une seule ligne (id = 1). password_hash NULL => protection
+-- desactivee (panel ouvert). session_secret sert a signer les cookies.
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS admin_auth (
+    id              INTEGER PRIMARY KEY CHECK (id = 1),
+    username        TEXT NOT NULL DEFAULT 'admin',
+    password_hash   TEXT,
+    session_secret  TEXT,
+    updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- ==========================================================
 -- THREADS DISCORD
 -- Associe un group_name + channel_id a un thread_id Discord.
 -- Permet de retrouver le thread existant sans scanner Discord.

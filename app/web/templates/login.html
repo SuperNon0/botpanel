@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <title>Connexion — BotPanel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    .login-wrap { min-height: 82vh; display: grid; place-items: center; padding: 1.2rem; }
+    .login-card { width: 100%; max-width: 380px; }
+    .login-logo { display: flex; align-items: center; gap: .55rem; justify-content: center; margin-bottom: 1.4rem; }
+    .login-logo svg { width: 32px; height: 32px; }
+    .login-logo .name { font-family: "DM Serif Display", serif; font-size: 1.6rem; }
+    .login-logo .name .bot { color: var(--accent); }
+    .login-logo .name .panel { color: var(--text); font-style: italic; }
+  </style>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <g stroke="currentColor" stroke-opacity="0.32" stroke-width="7" stroke-linecap="round" fill="none">
+          <line x1="26" y1="34" x2="74" y2="34"/><line x1="26" y1="50" x2="74" y2="50"/><line x1="26" y1="66" x2="74" y2="66"/>
+        </g>
+        <circle cx="58" cy="34" r="8.5" fill="#e8c547"/><circle cx="38" cy="50" r="8.5" fill="#8b5cf6"/><circle cx="62" cy="66" r="8.5" fill="#4ade80"/>
+      </svg>
+      <span class="name"><span class="bot">bot</span><span class="panel">panel</span></span>
+    </div>
+
+    <div class="card">
+      <h3>Connexion</h3>
+      <form id="login-form">
+        <div class="form-group">
+          <label class="form-label">Nom d'utilisateur</label>
+          <input class="form-input" name="username" value="admin" autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mot de passe</label>
+          <input class="form-input" name="password" type="password" required autocomplete="current-password" autofocus>
+        </div>
+        <button type="submit" class="btn btn-primary" id="login-btn" style="width:100%;">Se connecter</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast">Ok</div>
+
+<script>
+  const form = document.getElementById("login-form");
+  const btn = document.getElementById("login-btn");
+  function toast(msg, kind) {
+    const t = document.getElementById("toast");
+    t.textContent = msg; t.className = "toast show" + (kind === "error" ? " toast-error" : "");
+    setTimeout(() => { t.className = "toast"; }, 3500);
+  }
+  const params = new URLSearchParams(location.search);
+  const next = params.get("next") || "/dashboard";
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    btn.disabled = true; btn.textContent = "Connexion…";
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: (fd.get("username") || "admin").trim(), password: fd.get("password") }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Erreur " + res.status);
+      }
+      window.location.href = next;
+    } catch (err) {
+      btn.disabled = false; btn.textContent = "Se connecter";
+      toast(err.message, "error");
+    }
+  });
+</script>
+</body>
+</html>

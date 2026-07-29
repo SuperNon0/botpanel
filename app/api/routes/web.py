@@ -21,6 +21,13 @@ async def page_setup(request: Request):
     )
 
 
+@router.get("/login", response_class=HTMLResponse)
+async def page_login(request: Request):
+    return templates.TemplateResponse(
+        "login.html", {"request": request, "active_page": "login"}
+    )
+
+
 @router.get("/dashboard", response_class=HTMLResponse)
 async def page_dashboard(request: Request):
     return templates.TemplateResponse(
