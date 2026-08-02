@@ -4,277 +4,306 @@
 {% block content %}
 <div class="page-header">
   <h2>Aide</h2>
-  <span class="card-row-meta">Tout ce qu'il faut savoir pour utiliser BotPanel</span>
+  <span class="card-row-meta">Guides &amp; explications — clique sur un thème pour le déplier</span>
 </div>
 
-<!-- Sommaire -->
-<div class="card">
-  <h3>Sommaire</h3>
-  <ul class="help-toc">
-    <li><a href="#bot-discord">1. Créer son bot Discord (pas à pas)</a></li>
-    <li><a href="#inviter">2. Inviter le bot &amp; récupérer les IDs</a></li>
-    <li><a href="#home-assistant">3. Connecter Home Assistant</a></li>
-    <li><a href="#config">4. Assistant de configuration (1er lancement)</a></li>
-    <li><a href="#notifications">5. Notifications</a></li>
-    <li><a href="#placeholders">6. Placeholders &amp; templates</a></li>
-    <li><a href="#commandes">7. Commandes slash</a></li>
-    <li><a href="#monitoring">8. Monitoring</a></li>
-    <li><a href="#parametres">9. Paramètres, mise à jour &amp; sauvegarde</a></li>
-    <li><a href="#api">10. Déclencher une notification depuis un projet (API)</a></li>
-  </ul>
+<!-- Navigation par thèmes -->
+<div class="help-nav">
+  <a class="help-nav-card" href="#demarrage">
+    <span class="help-nav-emoji">🚀</span>
+    <span class="help-nav-t">Démarrage</span>
+    <span class="help-nav-d">Créer le bot, connecter Home Assistant</span>
+  </a>
+  <a class="help-nav-card" href="#utilisation">
+    <span class="help-nav-emoji">🔔</span>
+    <span class="help-nav-t">Utilisation</span>
+    <span class="help-nav-d">Notifications, commandes, monitoring</span>
+  </a>
+  <a class="help-nav-card" href="#api">
+    <span class="help-nav-emoji">🔌</span>
+    <span class="help-nav-t">API</span>
+    <span class="help-nav-d">Déclencher une notif depuis un projet</span>
+  </a>
+  <a class="help-nav-card" href="#admin">
+    <span class="help-nav-emoji">⚙️</span>
+    <span class="help-nav-t">Administration</span>
+    <span class="help-nav-d">Paramètres, sauvegarde, sécurité</span>
+  </a>
 </div>
 
-<!-- 1. BOT DISCORD -->
-<div class="card" id="bot-discord">
-  <h3>1. Créer son bot Discord (pas à pas)</h3>
-  <p class="hint">Compte à prévoir : environ 5 minutes. Aucune ligne de code.</p>
+<!-- ================= DÉMARRAGE ================= -->
+<h3 class="help-cat" id="demarrage">🚀 Démarrage</h3>
 
-  <h4>Étape 1 — Créer l'application</h4>
-  <ol class="help-steps">
-    <li>Va sur le <a href="https://discord.com/developers/applications" target="_blank" rel="noopener">Discord Developer Portal</a> et connecte-toi.</li>
-    <li>Clique sur <strong>New Application</strong> (en haut à droite).</li>
-    <li>Donne un nom (ex. <em>BotPanel</em>) → <strong>Create</strong>.</li>
-  </ol>
+<details class="card help-card">
+  <summary><span class="help-arrow">&#9656;</span> Créer son bot Discord</summary>
+  <div class="help-body">
+    <ol class="help-steps">
+      <li>Va sur le <a href="https://discord.com/developers/applications" target="_blank" rel="noopener">Discord Developer Portal</a> → <strong>New Application</strong> → donne un nom.</li>
+      <li>Onglet <strong>Bot</strong> → <strong>Reset Token</strong> → <strong>Copy</strong> pour récupérer le <strong>token</strong> (garde-le secret).</li>
+      <li>Onglet <strong>OAuth2 → URL Generator</strong> : coche les scopes <code>bot</code> et <code>applications.commands</code>.</li>
+      <li>Dans <strong>Bot Permissions</strong> : <em>Send Messages, Embed Links, Manage Messages, Read Message History, Create Public Threads, Send Messages in Threads, Manage Threads</em>.</li>
+      <li>Copie l'URL générée en bas, ouvre-la, choisis ton serveur → <strong>Autoriser</strong>.</li>
+    </ol>
+    <p class="help-note">💡 Aucun <em>intent privilégié</em> n'est nécessaire — laisse-les désactivés.</p>
+  </div>
+</details>
 
-  <h4>Étape 2 — Activer le bot &amp; copier le token</h4>
-  <ol class="help-steps">
-    <li>Dans le menu de gauche, ouvre l'onglet <strong>Bot</strong>.</li>
-    <li>Clique sur <strong>Reset Token</strong> (ou <em>Add Bot</em> selon la version) → confirme.</li>
-    <li>Clique sur <strong>Copy</strong> pour copier le <strong>token</strong>. ⚠️ Garde-le secret, ne le partage jamais.</li>
-  </ol>
-  <p class="help-note">💡 <strong>Bonne nouvelle :</strong> BotPanel n'a <strong>pas besoin d'intents privilégiés</strong>. Tu peux laisser <em>Message Content Intent</em>, <em>Server Members</em> et <em>Presence</em> <strong>désactivés</strong>.</p>
+<details class="card help-card">
+  <summary><span class="help-arrow">&#9656;</span> Récupérer les IDs (serveur &amp; channels)</summary>
+  <div class="help-body">
+    <p>Active le <strong>mode développeur</strong> dans Discord : <em>Paramètres → Avancés → Mode développeur</em>.</p>
+    <ul>
+      <li><strong>ID du serveur</strong> : clic droit sur l'icône du serveur → <em>Copier l'identifiant</em>.</li>
+      <li><strong>Channel par défaut</strong> : clic droit sur le salon des notifications → <em>Copier l'identifiant</em>.</li>
+      <li><strong>Channel de monitoring</strong> : idem sur le salon dédié au suivi.</li>
+    </ul>
+    <p class="help-note">Les IDs sont de longs nombres, ex. <code>123456789012345678</code>.</p>
+  </div>
+</details>
 
-  <h4>Étape 3 — Générer le lien d'invitation</h4>
-  <ol class="help-steps">
-    <li>Ouvre l'onglet <strong>OAuth2</strong> → <strong>URL Generator</strong>.</li>
-    <li>Dans <strong>Scopes</strong>, coche : <code>bot</code> et <code>applications.commands</code>.</li>
-    <li>Dans <strong>Bot Permissions</strong>, coche au minimum :
-      <ul>
-        <li>Send Messages</li>
-        <li>Embed Links</li>
-        <li>Manage Messages <span class="help-dim">(pour le bouton Supprimer)</span></li>
-        <li>Read Message History</li>
-        <li>Create Public Threads &amp; Send Messages in Threads <span class="help-dim">(pour les modes Thread / Forum)</span></li>
-        <li>Manage Threads</li>
-      </ul>
-    </li>
-    <li>Copie l'URL générée tout en bas.</li>
-  </ol>
-</div>
-
-<!-- 2. INVITER + IDS -->
-<div class="card" id="inviter">
-  <h3>2. Inviter le bot &amp; récupérer les IDs</h3>
-
-  <h4>Inviter le bot</h4>
-  <ol class="help-steps">
-    <li>Colle l'URL générée dans ton navigateur.</li>
-    <li>Choisis ton <strong>serveur</strong> Discord → <strong>Autoriser</strong>.</li>
-    <li>Le bot apparaît (hors-ligne pour l'instant, c'est normal tant que BotPanel n'est pas lancé).</li>
-  </ol>
-
-  <h4>Activer le mode développeur</h4>
-  <p>Dans Discord : <strong>Paramètres utilisateur → Avancés → Mode développeur</strong> (active-le). Ça débloque le « Copier l'identifiant ».</p>
-
-  <h4>Récupérer les IDs à saisir dans BotPanel</h4>
-  <ul>
-    <li><strong>ID du serveur</strong> : clic droit sur l'icône de ton serveur → <em>Copier l'identifiant du serveur</em>.</li>
-    <li><strong>Channel par défaut</strong> : clic droit sur le salon texte où arriveront les notifications → <em>Copier l'identifiant du salon</em>.</li>
-    <li><strong>Channel de monitoring</strong> : pareil, sur le salon dédié aux messages de suivi (température, conso…).</li>
-  </ul>
-  <p class="help-note">Ces IDs sont de longs nombres (ex. <code>123456789012345678</code>).</p>
-</div>
-
-<!-- 3. HOME ASSISTANT -->
-<div class="card" id="home-assistant">
-  <h3>3. Connecter Home Assistant</h3>
-
-  <h4>Créer un token longue durée</h4>
-  <ol class="help-steps">
-    <li>Dans Home Assistant : clique sur ton <strong>profil</strong> (en bas à gauche).</li>
-    <li>Onglet <strong>Sécurité</strong> → section <strong>Jetons d'accès longue durée</strong> → <strong>Créer un jeton</strong>.</li>
-    <li>Donne un nom, puis <strong>copie</strong> le jeton (il ne sera affiché qu'une fois).</li>
-  </ol>
-  <p class="help-note">🔒 Conseil : ce jeton donne accès à ton HA. Ne le partage pas.</p>
-
-  <h4>Déclencher une notification depuis HA</h4>
-  <p>Une fois BotPanel configuré, HA n'a qu'un seul appel à faire. Ajoute ce <code>rest_command</code> dans ta config HA :</p>
-  <pre class="help-code">rest_command:
+<details class="card help-card">
+  <summary><span class="help-arrow">&#9656;</span> Connecter Home Assistant</summary>
+  <div class="help-body">
+    <p>Dans HA : <strong>profil → Sécurité → Jetons d'accès longue durée → Créer</strong>, puis copie le jeton.</p>
+    <p>Pour déclencher une notif depuis HA, ajoute ce <code>rest_command</code> :</p>
+    <pre class="help-code">rest_command:
   bot_discord:
-    url: "http://IP_DE_BOTPANEL:8080/api/notify"
+    url: "http://IP_BOTPANEL:8080/api/notify"
     method: POST
     content_type: "application/json"
     payload: '{"id": "{{ id }}"}'</pre>
-  <p>Puis, dans une automatisation, appelle&nbsp;:</p>
-  <pre class="help-code">action:
-  - service: rest_command.bot_discord
-    data:
-      id: "slug_de_ta_notification"</pre>
-</div>
+    <p>Puis dans une automatisation : <code>service: rest_command.bot_discord</code> avec <code>id: "mon_slug"</code>.</p>
+  </div>
+</details>
 
-<!-- 4. CONFIG -->
-<div class="card" id="config">
-  <h3>4. Assistant de configuration (1er lancement)</h3>
-  <p>Au tout premier démarrage, si BotPanel n'est pas encore configuré, ouvre <code>http://IP:8080</code> :
-     un <strong>assistant</strong> te demande le token Discord, les IDs et les infos Home Assistant.
-     Tu remplis, tu cliques <strong>Enregistrer et démarrer</strong> — tout est sauvegardé et le service redémarre seul.
-     Aucune manipulation de fichier n'est nécessaire.</p>
-</div>
+<details class="card help-card">
+  <summary><span class="help-arrow">&#9656;</span> Assistant de configuration (1er lancement)</summary>
+  <div class="help-body">
+    <p>Au premier démarrage, si rien n'est configuré, ouvre <code>http://IP:8080</code> : un formulaire te demande
+       le token Discord, les IDs et les infos Home Assistant. Tu remplis, tu enregistres, le service redémarre seul.
+       <strong>Aucune manipulation en console.</strong></p>
+  </div>
+</details>
 
-<!-- 5. NOTIFICATIONS -->
-<div class="card" id="notifications">
-  <h3>5. Notifications</h3>
+<!-- ================= UTILISATION ================= -->
+<h3 class="help-cat" id="utilisation">🔔 Utilisation</h3>
 
-  <h4>Slug</h4>
-  <p>Identifiant unique appelé depuis Home Assistant (<code>rest_command.bot_discord</code> avec <code>id: &lt;slug&gt;</code>).
-     <strong>Minuscules, chiffres et underscore</strong> uniquement.</p>
+<details class="card help-card">
+  <summary><span class="help-arrow">&#9656;</span> Créer une notification</summary>
+  <div class="help-body">
+    <h4>Slug</h4>
+    <p>Identifiant unique (minuscules, chiffres, underscore) : c'est lui qu'on appelle pour déclencher la notif.</p>
+    <h4>Mode d'envoi</h4>
+    <ul>
+      <li><strong>Direct</strong> : message dans le channel choisi.</li>
+      <li><strong>Thread</strong> : message dans un fil du channel texte (regroupé par le nom du fil).</li>
+      <li><strong>Forum</strong> : message dans un post d'un channel forum Discord.</li>
+    </ul>
+    <h4>Groupe (rangement sur le site)</h4>
+    <p>Champ <strong>indépendant de Discord</strong> : sert juste à ranger les notifications dans la liste du site.</p>
+    <h4>Embed</h4>
+    <p>Titre, message (Markdown : <code>**gras**</code>, <code>*italique*</code>…), couleur, icône, footer, timestamp,
+       boutons (Supprimer / Snooze / action HA) et champs.</p>
+  </div>
+</details>
 
-  <h4>Mode d'envoi &amp; nom du fil / post</h4>
-  <ul>
-    <li><strong>Direct</strong> : le message part dans le channel choisi.</li>
-    <li><strong>Thread</strong> : le message va dans un <em>fil</em> du channel texte (le nom du fil regroupe les messages). Le fil est créé/réutilisé automatiquement.</li>
-    <li><strong>Forum</strong> : le message est posté dans un channel <em>forum</em> Discord (tu choisis un post existant ou tu en crées un nouveau).</li>
-  </ul>
+<details class="card help-card">
+  <summary><span class="help-arrow">&#9656;</span> Placeholders — afficher des valeurs Home Assistant</summary>
+  <div class="help-body">
+    <p>Dans le message ou un champ, insère des états HA :</p>
+    <ul>
+      <li><code>{state:sensor.temp}</code> — état brut</li>
+      <li><code>{state:sensor.temp|--}</code> — avec valeur de secours si HA est indisponible</li>
+      <li><code>{attr:sensor.temp:friendly_name}</code> — un attribut précis</li>
+      <li><code>{unit:sensor.temp}</code> — l'unité (ex. <em>°C</em>)</li>
+    </ul>
+    {% raw %}
+    <p>Syntaxe Jinja HA aussi supportée : <code>{{ states('sensor.temp') }}</code>, <code>{% if ... %}…{% endif %}</code>.</p>
+    {% endraw %}
+    <p class="help-note">👉 Pour des valeurs envoyées par un <strong>projet externe</strong> (pas HA), vois la section <a href="#api">API</a> et les variables <code>{var:...}</code>.</p>
+  </div>
+</details>
 
-  <h4>Groupe (rangement sur le site)</h4>
-  <p>Champ <strong>indépendant de Discord</strong> : il sert uniquement à organiser la liste des notifications
-     <em>sur ce site</em> (les notifications d'un même groupe sont regroupées dans un bloc repliable).</p>
+<details class="card help-card">
+  <summary><span class="help-arrow">&#9656;</span> Commandes slash</summary>
+  <div class="help-body">
+    <p>Des commandes <code>/</code> personnalisées, gérées depuis le site et synchronisées avec Discord.</p>
+    <ul>
+      <li>Action : service HA, script, scène, ou envoi d'une notification.</li>
+      <li>Message de réponse (éphémère) après exécution.</li>
+      <li>Activable / désactivable. Les noms <code>ha</code> et <code>clear</code> sont réservés.</li>
+    </ul>
+  </div>
+</details>
 
-  <h4>Couleur</h4>
-  <p>Clique sur la pastille pour une couleur personnalisée, ou choisis un preset enregistré dans
-     <a href="/settings">Paramètres → Couleurs</a>.</p>
+<details class="card help-card">
+  <summary><span class="help-arrow">&#9656;</span> Monitoring</summary>
+  <div class="help-body">
+    <p>Des messages épinglés qui se mettent à jour tout seuls à intervalle régulier (température, conso…).</p>
+    <ul>
+      <li>Chaque bloc affiche des champs (entité HA + icône + suffixe).</li>
+      <li>Intervalle minimum : 30 secondes.</li>
+      <li>Si le message est supprimé sur Discord, il est recréé automatiquement.</li>
+    </ul>
+  </div>
+</details>
 
-  <h4>Markdown dans le message</h4>
-  <p>Discord supporte le markdown : <code>**gras**</code>, <code>*italique*</code>,
-     <code>__souligné__</code>, <code>~~barré~~</code>, <code>`code`</code>.
-     Sélectionne du texte et utilise les boutons <strong>B</strong> / <em>I</em> de la barre d'outils.</p>
+<!-- ================= API (mise en avant) ================= -->
+<h3 class="help-cat" id="api">🔌 Envoyer une notif depuis un projet (API)</h3>
 
-  <h4>Boutons</h4>
-  <p><strong>Supprimer</strong> et <strong>Snooze</strong> sont gérés par le bot. Les <em>boutons d'action</em>
-     appellent un service Home Assistant au clic (ex. <code>light.turn_on</code> sur <code>light.salon</code>).</p>
+<div class="card help-api">
+  <p class="help-api-lead">
+    <strong>L'idée en une phrase :</strong> tu crées la notification <em>ici</em> (avec un slug),
+    et n'importe quel projet peut la déclencher en envoyant ce slug par une simple requête.
+  </p>
 
-  <h4>Champs (fields)</h4>
-  <p>Affichés en grille dans l'embed Discord. Leur valeur peut contenir des placeholders (voir section suivante).</p>
-
-  <h4>Mention</h4>
-  <p>Ajoute une mention (<code>@everyone</code>, <code>@here</code>, un rôle ou un utilisateur) envoyée
-     <em>avec</em> la notification pour qu'elle notifie vraiment.</p>
-
-  <h4>Timestamp</h4>
-  <p>Quand activé, la date d'envoi est ajoutée au pied de l'embed (ex. <em>28 avril 2026 à 14:05</em>).</p>
-</div>
-
-<!-- 6. PLACEHOLDERS -->
-<div class="card" id="placeholders">
-  <h3>6. Placeholders &amp; templates</h3>
-  <p>Dans le <strong>message</strong> ou la <strong>valeur d'un champ</strong>, deux syntaxes sont supportées (mélangeables).</p>
-
-  <h4>Syntaxe BotPanel (rapide)</h4>
-  <ul>
-    <li><code>{state:sensor.temp}</code> — état brut</li>
-    <li><code>{state:sensor.temp|--}</code> — avec valeur de secours si HA est indisponible</li>
-    <li><code>{attr:sensor.temp:friendly_name}</code> — un attribut précis</li>
-    <li><code>{unit:sensor.temp}</code> — l'unité (ex. <em>°C</em>)</li>
-  </ul>
-
-  <h4>Syntaxe Jinja Home Assistant (puissante)</h4>
-  {% raw %}
-  <ul>
-    <li><code>{{ states('sensor.temp') }}</code></li>
-    <li><code>{{ state_attr('sensor.x', 'attr') }}</code></li>
-    <li><code>{% if states('binary_sensor.porte') == 'on' %}ouverte{% else %}fermée{% endif %}</code></li>
-  </ul>
-  {% endraw %}
-  <p class="help-note">Exemple : <code>{state:sensor.temp_salon} {unit:sensor.temp_salon}</code> affichera <em>21.5 °C</em>.</p>
-</div>
-
-<!-- 7. COMMANDES -->
-<div class="card" id="commandes">
-  <h3>7. Commandes slash</h3>
-  <p>Des commandes <code>/</code> personnalisées, gérées depuis le site et synchronisées avec Discord à chaque modification.</p>
-  <ul>
-    <li>Chaque commande a une <strong>action</strong> : appeler un service HA, lancer un script, activer une scène, ou envoyer une notification.</li>
-    <li>Un <strong>message de réponse</strong> (éphémère) confirme l'exécution.</li>
-    <li>Les commandes sont poussées sur ton <strong>serveur</strong> (propagation immédiate). Les noms <code>ha</code> et <code>clear</code> sont réservés.</li>
-    <li>Une commande peut être <strong>désactivée</strong> sans la supprimer.</li>
-  </ul>
-</div>
-
-<!-- 8. MONITORING -->
-<div class="card" id="monitoring">
-  <h3>8. Monitoring</h3>
-  <p>Des messages Discord <strong>épinglés</strong> et mis à jour automatiquement à intervalle régulier
-     (température, consommation, état des machines…).</p>
-  <ul>
-    <li>Chaque bloc affiche une série de champs (entité HA + icône + suffixe).</li>
-    <li>Intervalle de rafraîchissement configurable (minimum 30 secondes).</li>
-    <li>Si le message épinglé est supprimé côté Discord, il est <strong>recréé automatiquement</strong> au cycle suivant.</li>
-  </ul>
-</div>
-
-<!-- 9. PARAMETRES -->
-<div class="card" id="parametres">
-  <h3>9. Paramètres, mise à jour &amp; sauvegarde</h3>
-  <ul>
-    <li><strong>Presets de couleurs / channels</strong> : réutilisables dans tous les formulaires.</li>
-    <li><strong>Mise à jour</strong> : récupère la dernière version depuis GitHub (<code>git</code>), directement depuis l'UI.</li>
-    <li><strong>Redémarrage</strong> : relance le service depuis l'UI (l'interface revient après quelques secondes).</li>
-    <li><strong>Threads Discord actifs</strong> : liste des fils créés ; supprimer une entrée force la recréation au prochain envoi.</li>
-    <li><strong>Sauvegarde &amp; migration</strong> : <em>Exporte</em> toutes tes données (notifications, commandes, monitoring, paramètres) dans un fichier JSON, puis <em>Importe</em>-le sur une nouvelle instance. ⚠️ L'import remplace les données de configuration existantes.</li>
-  </ul>
-</div>
-
-<!-- 10. API -->
-<div class="card" id="api">
-  <h3>10. Déclencher une notification depuis un projet (API)</h3>
-  <p>N'importe quel projet (script, serveur, app…) peut déclencher une notification
-     Discord via une simple requête HTTP. Tu crées la notification <strong>une fois</strong>
-     ici (avec un <em>slug</em>), et ton projet envoie ce slug.</p>
+  <div class="help-3">
+    <div class="help-3-step">
+      <span class="help-3-num">1</span>
+      <div><strong>Crée la notif</strong><br><span class="help-dim">dans <a href="/notifications">Notifications</a>, note son slug (ex. <code>backup_done</code>).</span></div>
+    </div>
+    <div class="help-3-step">
+      <span class="help-3-num">2</span>
+      <div><strong>Ton projet l'appelle</strong><br><span class="help-dim">une requête HTTP avec le slug.</span></div>
+    </div>
+    <div class="help-3-step">
+      <span class="help-3-num">3</span>
+      <div><strong>Ça part sur Discord</strong> ✨<br><span class="help-dim">BotPanel gère toute la mise en forme.</span></div>
+    </div>
+  </div>
 
   <h4>La requête</h4>
   <pre class="help-code">POST http://IP_BOTPANEL:8080/api/notify
 Content-Type: application/json
 
-{ "id": "mon_slug" }</pre>
-  <p class="help-note">Cette route reste <strong>toujours accessible</strong>, même avec la protection par mot de passe activée : tes intégrations ne sont jamais bloquées.</p>
+{ "id": "backup_done" }</pre>
 
-  <h4>Texte dynamique — variables <code>{var:...}</code></h4>
-  <p>Pour insérer des valeurs dynamiques (nombres, noms, durées…), écris des trous
-     <code>{var:nom}</code> dans le <strong>titre</strong>, le <strong>message</strong> ou un <strong>champ</strong> de la notification :</p>
+  <h4>Avec du texte qui change (variables)</h4>
+  <p>Mets des trous <code>{var:nom}</code> dans le texte de la notif…</p>
+  <pre class="help-code">Titre :   ✅ Backup VM {var:vmid} terminé
+Message : Durée : {var:duree} · Taille : {var:taille|inconnue}</pre>
+  <p>…puis envoie les valeurs dans <code>vars</code> :</p>
+  <pre class="help-code">{ "id": "backup_done",
+  "vars": { "vmid": "100", "duree": "2m34s", "taille": "2.1 Go" } }</pre>
+  <p class="help-result">→ <strong>✅ Backup VM 100 terminé</strong> — Durée : 2m34s · Taille : 2.1 Go</p>
+
   <ul>
-    <li>Titre : <code>✅ Backup VM {var:vmid} terminé</code></li>
-    <li>Message : <code>Durée : {var:duree} · Taille : {var:taille|inconnue}</code></li>
-  </ul>
-  <p>Puis ton projet envoie les valeurs dans <code>vars</code> :</p>
-  <pre class="help-code">POST http://IP_BOTPANEL:8080/api/notify
-{
-  "id": "backup_done",
-  "vars": { "vmid": "100", "duree": "2m34s", "taille": "2.1 Go" }
-}</pre>
-  <p>→ Résultat : <em>✅ Backup VM <strong>100</strong> terminé — Durée : 2m34s · Taille : 2.1 Go</em></p>
-  <ul>
-    <li><code>{var:nom}</code> — remplacé par la valeur ; vide si non fournie</li>
-    <li><code>{var:nom|défaut}</code> — remplacé par la valeur, ou <code>défaut</code> si non fournie</li>
+    <li><code>{var:nom}</code> → la valeur envoyée (vide si oubliée)</li>
+    <li><code>{var:nom|défaut}</code> → la valeur, ou <code>défaut</code> si oubliée</li>
   </ul>
 
-  <p class="help-note">📄 Guide complet à envoyer à un développeur (exemples Python, Node.js, PHP, Bash, Home Assistant) : voir le fichier <code>docs/API.md</code> du projet.</p>
+  <p class="help-note">🔓 Cette route reste <strong>toujours accessible</strong>, même avec la protection par mot de passe :
+     tes projets ne sont jamais bloqués.<br>
+     📄 Fichier complet à donner à un développeur (exemples Python, Node.js, PHP, Bash) : <code>docs/API.md</code>.</p>
 </div>
+
+<!-- ================= ADMINISTRATION ================= -->
+<h3 class="help-cat" id="admin">⚙️ Administration</h3>
+
+<details class="card help-card">
+  <summary><span class="help-arrow">&#9656;</span> Paramètres, mise à jour &amp; redémarrage</summary>
+  <div class="help-body">
+    <ul>
+      <li><strong>Presets</strong> de couleurs et de channels, réutilisables partout.</li>
+      <li><strong>Mise à jour</strong> : récupère la dernière version depuis GitHub, depuis l'UI.</li>
+      <li><strong>Redémarrage</strong> : relance le service (l'interface revient après quelques secondes).</li>
+      <li><strong>Threads actifs</strong> : liste des fils créés ; supprimer une entrée force la recréation.</li>
+    </ul>
+  </div>
+</details>
+
+<details class="card help-card">
+  <summary><span class="help-arrow">&#9656;</span> Sauvegarde &amp; migration</summary>
+  <div class="help-body">
+    <p>Dans <a href="/settings">Paramètres → Sauvegarde &amp; migration</a> :</p>
+    <ul>
+      <li><strong>Exporter</strong> : télécharge un fichier JSON de toutes tes données (notifs, commandes, monitoring, presets).</li>
+      <li><strong>Importer</strong> : recharge ce fichier sur une nouvelle instance. ⚠️ Remplace les données existantes.</li>
+    </ul>
+  </div>
+</details>
+
+<details class="card help-card">
+  <summary><span class="help-arrow">&#9656;</span> Compte &amp; sécurité (login)</summary>
+  <div class="help-body">
+    <p>La protection par mot de passe est <strong>optionnelle</strong> (compte unique <code>admin</code>).</p>
+    <ul>
+      <li><strong>Activer / changer / désactiver</strong> : Paramètres → Compte &amp; sécurité.</li>
+      <li><strong>Mot de passe oublié</strong> : sur le serveur, <code>bash deploy/reset_admin.sh</code> puis redémarre.</li>
+      <li>Les routes machine (<code>/api/notify</code>) restent toujours ouvertes.</li>
+    </ul>
+    <p class="help-note">Détails : fichier <code>docs/CONNEXION.md</code> du projet.</p>
+  </div>
+</details>
 
 {% endblock %}
 
 {% block scripts %}
 <style>
-  .help-toc { list-style:none; padding:0; margin:0; display:grid; gap:0.4rem; }
-  .help-toc a { text-decoration:none; }
-  .help-toc a:hover { text-decoration:underline; }
-  .help-steps { margin:0.3rem 0 0.8rem 1.1rem; padding:0; }
-  .help-steps li { margin-bottom:0.35rem; }
-  .help-note { background:rgba(255,255,255,0.04); border-radius:8px; padding:0.6rem 0.8rem; font-size:0.9rem; }
-  .help-dim { opacity:0.65; font-size:0.85em; }
-  .help-code {
-    background:#12131a; border:1px solid rgba(255,255,255,0.08); border-radius:8px;
-    padding:0.8rem 1rem; overflow-x:auto; font-size:0.82rem; line-height:1.5; margin:0.5rem 0;
+  /* Navigation par thèmes */
+  .help-nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.8rem;
+    margin-bottom: 1.6rem;
   }
-  .card[id] { scroll-margin-top: 1rem; }
+  .help-nav-card {
+    display: block;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.1rem;
+    text-decoration: none;
+    color: var(--text);
+    transition: border-color .15s ease, transform .15s ease;
+  }
+  .help-nav-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .help-nav-emoji { font-size: 1.4rem; display: block; margin-bottom: 0.35rem; }
+  .help-nav-t { font-weight: 500; display: block; }
+  .help-nav-d { color: var(--text-dim, #8a8c9e); font-size: 0.8rem; display: block; margin-top: 0.2rem; }
+
+  /* Titres de catégorie */
+  .help-cat {
+    margin: 2rem 0 0.8rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border);
+    scroll-margin-top: 1rem;
+    font-size: 1.15rem;
+  }
+
+  /* Accordéons plus compacts */
+  .help-card > summary { cursor: pointer; font-weight: 500; }
+  .help-steps { margin: 0.3rem 0 0.6rem 1.1rem; padding: 0; }
+  .help-steps li { margin-bottom: 0.35rem; }
+  .help-note {
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px; padding: 0.6rem 0.8rem; font-size: 0.88rem;
+  }
+  .help-dim { color: var(--text-dim, #8a8c9e); }
+  .help-code {
+    background: #12131a; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;
+    padding: 0.8rem 1rem; overflow-x: auto; font-size: 0.82rem; line-height: 1.5; margin: 0.5rem 0;
+  }
+
+  /* Bloc API mis en avant */
+  .help-api { border-left: 3px solid var(--accent); }
+  .help-api-lead { font-size: 1rem; margin-top: 0; }
+  .help-3 {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.8rem; margin: 1rem 0 1.4rem;
+  }
+  .help-3-step {
+    display: flex; gap: 0.7rem; align-items: flex-start;
+    background: rgba(255,255,255,0.03); border-radius: 10px; padding: 0.8rem;
+  }
+  .help-3-num {
+    flex: none; width: 26px; height: 26px; border-radius: 50%;
+    background: var(--accent); color: #1a1a1a; font-weight: 600;
+    display: grid; place-items: center; font-size: 0.85rem;
+  }
+  .help-result {
+    background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.25);
+    border-radius: 8px; padding: 0.7rem 0.9rem; font-size: 0.9rem;
+  }
 </style>
 {% endblock %}
