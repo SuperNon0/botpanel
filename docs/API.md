@@ -46,6 +46,45 @@ projets seraient bloqués). Aucun token n'est requis.
 
 ---
 
+## Texte dynamique — variables `{var:...}`
+
+Ton projet peut injecter des **valeurs dynamiques** dans la notification (nombres,
+noms, durées…). Tu écris des **trous** dans le template de la notification (côté
+panel), et tu les remplis à l'envoi via le champ `vars`.
+
+**1. Dans le panel**, écris ta notification avec des `{var:nom}` dans le titre, le
+message ou les champs :
+
+> Titre : `✅ Backup VM {var:vmid} terminé`
+> Message : `Durée : {var:duree} · Taille : {var:taille|inconnue}`
+
+**2. Depuis ton projet**, envoie les valeurs :
+
+```json
+POST /api/notify
+{
+  "id": "backup_done",
+  "vars": { "vmid": "100", "duree": "2m34s", "taille": "2.1 Go" }
+}
+```
+
+**Résultat sur Discord** :
+> ✅ Backup VM **100** terminé
+> Durée : 2m34s · Taille : 2.1 Go
+
+### Syntaxe des variables
+
+| Écriture dans le template | Comportement |
+|---------------------------|--------------|
+| `{var:nom}` | Remplacé par la valeur envoyée ; **vide** si non fournie |
+| `{var:nom\|défaut}` | Remplacé par la valeur, ou par `défaut` si non fournie |
+
+- Les noms de variables : lettres, chiffres, underscore (ex. `vmid`, `user_name`).
+- Les valeurs sont converties en texte. Tu peux même mettre du **Markdown** dans le template autour des variables (`**{var:duree}**`).
+- `vars` est **optionnel** : sans lui, les `{var:...}` prennent leur valeur par défaut (ou restent vides).
+
+---
+
 ## Exemples
 
 ### cURL
@@ -61,10 +100,16 @@ import requests
 
 BOTPANEL_URL = "http://192.168.1.20:8080"
 
-def notify(slug: str) -> None:
-    requests.post(f"{BOTPANEL_URL}/api/notify", json={"id": slug}, timeout=5)
+def notify(slug: str, **vars) -> None:
+    body = {"id": slug}
+    if vars:
+        body["vars"] = vars
+    requests.post(f"{BOTPANEL_URL}/api/notify", json=body, timeout=5)
 
+# simple
 notify("backup_termine")
+# avec variables dynamiques
+notify("backup_done", vmid="100", duree="2m34s", taille="2.1 Go")
 ```
 
 ### Node.js (fetch)

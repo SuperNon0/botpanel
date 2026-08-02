@@ -20,6 +20,7 @@
     <li><a href="#commandes">7. Commandes slash</a></li>
     <li><a href="#monitoring">8. Monitoring</a></li>
     <li><a href="#parametres">9. Paramètres, mise à jour &amp; sauvegarde</a></li>
+    <li><a href="#api">10. Déclencher une notification depuis un projet (API)</a></li>
   </ul>
 </div>
 
@@ -221,6 +222,42 @@
     <li><strong>Threads Discord actifs</strong> : liste des fils créés ; supprimer une entrée force la recréation au prochain envoi.</li>
     <li><strong>Sauvegarde &amp; migration</strong> : <em>Exporte</em> toutes tes données (notifications, commandes, monitoring, paramètres) dans un fichier JSON, puis <em>Importe</em>-le sur une nouvelle instance. ⚠️ L'import remplace les données de configuration existantes.</li>
   </ul>
+</div>
+
+<!-- 10. API -->
+<div class="card" id="api">
+  <h3>10. Déclencher une notification depuis un projet (API)</h3>
+  <p>N'importe quel projet (script, serveur, app…) peut déclencher une notification
+     Discord via une simple requête HTTP. Tu crées la notification <strong>une fois</strong>
+     ici (avec un <em>slug</em>), et ton projet envoie ce slug.</p>
+
+  <h4>La requête</h4>
+  <pre class="help-code">POST http://IP_BOTPANEL:8080/api/notify
+Content-Type: application/json
+
+{ "id": "mon_slug" }</pre>
+  <p class="help-note">Cette route reste <strong>toujours accessible</strong>, même avec la protection par mot de passe activée : tes intégrations ne sont jamais bloquées.</p>
+
+  <h4>Texte dynamique — variables <code>{var:...}</code></h4>
+  <p>Pour insérer des valeurs dynamiques (nombres, noms, durées…), écris des trous
+     <code>{var:nom}</code> dans le <strong>titre</strong>, le <strong>message</strong> ou un <strong>champ</strong> de la notification :</p>
+  <ul>
+    <li>Titre : <code>✅ Backup VM {var:vmid} terminé</code></li>
+    <li>Message : <code>Durée : {var:duree} · Taille : {var:taille|inconnue}</code></li>
+  </ul>
+  <p>Puis ton projet envoie les valeurs dans <code>vars</code> :</p>
+  <pre class="help-code">POST http://IP_BOTPANEL:8080/api/notify
+{
+  "id": "backup_done",
+  "vars": { "vmid": "100", "duree": "2m34s", "taille": "2.1 Go" }
+}</pre>
+  <p>→ Résultat : <em>✅ Backup VM <strong>100</strong> terminé — Durée : 2m34s · Taille : 2.1 Go</em></p>
+  <ul>
+    <li><code>{var:nom}</code> — remplacé par la valeur ; vide si non fournie</li>
+    <li><code>{var:nom|défaut}</code> — remplacé par la valeur, ou <code>défaut</code> si non fournie</li>
+  </ul>
+
+  <p class="help-note">📄 Guide complet à envoyer à un développeur (exemples Python, Node.js, PHP, Bash, Home Assistant) : voir le fichier <code>docs/API.md</code> du projet.</p>
 </div>
 
 {% endblock %}

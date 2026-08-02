@@ -40,11 +40,35 @@ PLACEHOLDER_RE = re.compile(
     r"\{(state|attr|unit):([a-zA-Z0-9_.]+)(?::([a-zA-Z0-9_]+))?(?:\|([^}]*))?\}"
 )
 
+# Variables dynamiques envoyees via l'API : {var:nom} ou {var:nom|valeur_par_defaut}
+VAR_RE = re.compile(r"\{var:([a-zA-Z0-9_]+)(?:\|([^}]*))?\}")
 
-async def _resolve_template(template: str) -> str:
+
+def _resolve_vars(template: str, variables: dict | None) -> str:
+    """Remplace les {var:nom} par les valeurs fournies via l'API.
+
+    {var:nom}            -> valeur, ou '' si absente
+    {var:nom|defaut}     -> valeur, ou 'defaut' si absente
+    """
+    if not template or "{var:" not in template:
+        return template
+    variables = variables or {}
+
+    def replace(match: re.Match) -> str:
+        name = match.group(1)
+        fallback = match.group(2) if match.group(2) is not None else ""
+        value = variables.get(name)
+        return str(value) if value is not None else fallback
+
+    return VAR_RE.sub(replace, template)
+
+
+async def _resolve_template(template: str, variables: dict | None = None) -> str:
     """Remplace les placeholders dans une string.
 
-    Deux syntaxes supportees :
+    Trois syntaxes supportees :
+      0. Variables API (remplacees en premier, sans round-trip) :
+         {var:nom}  {var:nom|defaut}
       1. Syntaxe BotPanel (rapide, no round-trip si pas utilisee) :
          {state:sensor.x}  {state:sensor.x|--}
          {attr:sensor.x:friendly_name}  {unit:sensor.x}
@@ -53,11 +77,14 @@ async def _resolve_template(template: str) -> str:
          {{ state_attr('sensor.x', 'attr') }}
          {% if ... %}...{% endif %}
 
-    Si les deux sont presentes : on resout d'abord les placeholders BotPanel,
-    puis on envoie le resultat a HA pour rendre le Jinja restant.
+    Si plusieurs sont presentes : on resout d'abord les variables API, puis les
+    placeholders BotPanel, puis on envoie le resultat a HA pour le Jinja restant.
     """
     if not template or "{" not in template:
         return template
+
+    # 0) Variables dynamiques fournies par l'API
+    template = _resolve_vars(template, variables)
 
     # 1) Resolution des placeholders BotPanel (rapide, fetch en local)
     if PLACEHOLDER_RE.search(template):
@@ -123,12 +150,17 @@ def _format_fr_datetime(now: dt.datetime) -> str:
     return f"{now.day} {_FR_MONTHS[now.month - 1]} {now.year} a {now:%H:%M}"
 
 
-async def build_embed(notif: Notification) -> discord.Embed:
-    """Construit l'embed Discord d'une notification (resolution des placeholders incluse)."""
-    description = await _resolve_template(notif.message)
+async def build_embed(notif: Notification, variables: dict | None = None) -> discord.Embed:
+    """Construit l'embed Discord d'une notification (resolution des placeholders incluse).
+
+    `variables` : dictionnaire optionnel fourni via l'API pour remplir les {var:nom}
+    dans le titre, le message et les champs.
+    """
+    title = await _resolve_template(notif.title, variables)
+    description = await _resolve_template(notif.message, variables)
 
     embed = discord.Embed(
-        title=notif.title,
+        title=title,
         description=description,
         color=notif.color,
     )
@@ -138,7 +170,7 @@ async def build_embed(notif: Notification) -> discord.Embed:
     # Footer = footer texte + (optionnel) date absolue.
     footer_parts: list[str] = []
     if notif.footer:
-        footer_parts.append(notif.footer)
+        footer_parts.append(await _resolve_template(notif.footer, variables))
     if notif.show_timestamp:
         footer_parts.append(_format_fr_datetime(dt.datetime.now()))
     if footer_parts:
@@ -146,7 +178,7 @@ async def build_embed(notif: Notification) -> discord.Embed:
 
     # Fields custom (resolution des placeholders dans value)
     for fld in sorted(notif.fields, key=lambda f: (f.position, f.id or 0)):
-        value = await _resolve_template(fld.value_template)
+        value = await _resolve_template(fld.value_template, variables)
         embed.add_field(name=fld.name, value=value or "\u200b", inline=fld.inline)
 
     return embed
@@ -169,14 +201,17 @@ async def _resolve_channel(channel_id: str) -> discord.abc.Messageable | None:
     return channel  # type: ignore[return-value]
 
 
-async def send_notification(slug: str) -> discord.Message | None:
-    """Envoie la notification identifiee par `slug` dans son channel Discord."""
+async def send_notification(slug: str, variables: dict | None = None) -> discord.Message | None:
+    """Envoie la notification identifiee par `slug` dans son channel Discord.
+
+    `variables` : valeurs dynamiques optionnelles (API) pour les {var:nom}.
+    """
     repo = NotificationRepository()
     notif = await repo.get_by_slug(slug)
     if notif is None:
         logger.warning("Notification inconnue : %s", slug)
         return None
-    return await send_notification_object(notif)
+    return await send_notification_object(notif, variables)
 
 
 async def _get_or_create_thread(
@@ -257,13 +292,15 @@ async def _send_to_forum(
     return result.message, f"forum_new:{group_name}"
 
 
-async def send_notification_object(notif: Notification) -> discord.Message | None:
+async def send_notification_object(notif: Notification, variables: dict | None = None) -> discord.Message | None:
     """Envoie une notification selon son thread_mode.
 
     - none   : envoi direct dans le channel
     - thread : envoi dans un fil du channel texte (cree/recupere par group_name)
     - forum  : envoi dans un post du channel forum (cree/recupere par group_name)
     Les tests et previews (notif.id == 0) ignorent thread/forum et vont dans le channel.
+
+    `variables` : valeurs dynamiques optionnelles (API) pour les {var:nom}.
     """
     channel_id = notif.channel_id or str(settings.discord_default_channel_id)
     channel = await _resolve_channel(channel_id)
@@ -280,7 +317,7 @@ async def send_notification_object(notif: Notification) -> discord.Message | Non
         )
         return None
 
-    embed = await build_embed(notif)
+    embed = await build_embed(notif, variables)
     view = build_notification_view(notif)
 
     message: discord.Message | None = None
