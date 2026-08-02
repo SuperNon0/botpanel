@@ -132,13 +132,31 @@ app/
     └── static/           # CSS + JS
 ```
 
+## Intégrer un projet (API notifications)
+
+N'importe quel projet peut déclencher une notification Discord via une simple
+requête HTTP. Tu crées la notification une fois dans le panel (avec un **slug**),
+et ton projet envoie ce slug :
+
+```bash
+curl -X POST http://IP_BOTPANEL:8080/api/notify \
+  -H "Content-Type: application/json" \
+  -d '{"id": "mon_slug"}'
+```
+
+Cette route reste **toujours accessible** (même avec la protection par mot de passe
+activée), pour ne jamais bloquer tes intégrations.
+
+👉 **Guide complet avec exemples (Python, Node.js, PHP, Bash, Home Assistant) :
+[docs/API.md](docs/API.md)**
+
 ## Endpoints
 
 ### API REST
 
 | Méthode | Route | Usage |
 |---------|-------|-------|
-| `POST` | `/api/notify` | Appelé par HA — `{"id": "<slug>"}` |
+| `POST` | `/api/notify` | Déclenche une notification — `{"id": "<slug>"}` (HA ou tout projet, voir [docs/API.md](docs/API.md)) |
 | `GET` | `/api/notifications` | Liste toutes les notifications |
 | `POST` | `/api/notifications` | Crée une notification |
 | `GET` | `/api/notifications/{id}` | Détail d'une notification |
