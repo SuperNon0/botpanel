@@ -26,11 +26,11 @@ Hébergé dans un conteneur LXC Proxmox.
 
 ## Le site web
 
-Le site est l'interface d'administration du bot, accessible sur `http://IP_LXC:8080`. Il se compose de cinq sections.
+Le site est l'interface d'administration du bot, accessible sur `http://IP_LXC:8080`. Il regroupe plusieurs sections : Accueil, Notifications, Commandes, Monitoring, Historique, Paramètres et Aide.
 
 ### Notifications (`/notifications`)
 
-Page principale. Elle liste toutes les notifications enregistrées, **groupées par `group_name`** si défini. Pour chaque notification on peut : tester l'envoi, éditer, cloner ou supprimer.
+Page principale. Elle liste toutes les notifications enregistrées, **groupées par leur groupe** (le champ « rangement sur le site », indépendant de Discord) si défini. Pour chaque notification on peut : tester l'envoi, éditer, cloner ou supprimer.
 
 Le formulaire d'édition permet de configurer :
 - **Identification** : slug, channel Discord cible, **mode d'envoi** (Direct / Thread / Forum) et nom de groupe/post selon le mode
