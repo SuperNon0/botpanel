@@ -48,6 +48,7 @@ class NotificationIn(BaseModel):
     message: str = Field(..., max_length=4000)
     color: int = 0xFFFF00
     icon_url: Optional[str] = None
+    image_url: Optional[str] = None
     footer: Optional[str] = None
     show_timestamp: bool = False
     delete_button: bool = False

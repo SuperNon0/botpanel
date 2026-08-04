@@ -59,8 +59,8 @@ class NotificationRepository:
                 INSERT INTO notifications (
                     slug, channel_id, title, message, color, icon_url, footer,
                     show_timestamp, delete_button, snooze_button, snooze_minutes,
-                    group_name, thread_mode, mention, list_group
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    group_name, thread_mode, mention, list_group, image_url
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     payload.slug, payload.channel_id, payload.title, payload.message,
@@ -69,6 +69,7 @@ class NotificationRepository:
                     int(payload.snooze_button), payload.snooze_minutes,
                     payload.group_name or None, payload.thread_mode,
                     payload.mention or None, payload.list_group or None,
+                    payload.image_url or None,
                 ),
             )
             notif_id = cursor.lastrowid
@@ -87,7 +88,7 @@ class NotificationRepository:
                     slug = ?, channel_id = ?, title = ?, message = ?, color = ?,
                     icon_url = ?, footer = ?, show_timestamp = ?, delete_button = ?,
                     snooze_button = ?, snooze_minutes = ?, group_name = ?,
-                    thread_mode = ?, mention = ?, list_group = ?,
+                    thread_mode = ?, mention = ?, list_group = ?, image_url = ?,
                     updated_at = datetime('now')
                 WHERE id = ?
                 """,
@@ -97,7 +98,8 @@ class NotificationRepository:
                     int(payload.show_timestamp), int(payload.delete_button),
                     int(payload.snooze_button), payload.snooze_minutes,
                     payload.group_name or None, payload.thread_mode,
-                    payload.mention or None, payload.list_group or None, notif_id,
+                    payload.mention or None, payload.list_group or None,
+                    payload.image_url or None, notif_id,
                 ),
             )
             if cursor.rowcount == 0:
@@ -205,6 +207,7 @@ class NotificationRepository:
         list_group = row["list_group"] if "list_group" in keys else None
         thread_mode = row["thread_mode"] if "thread_mode" in keys else "none"
         mention = row["mention"] if "mention" in keys else None
+        image_url = row["image_url"] if "image_url" in keys else None
         return Notification(
             id=row["id"],
             slug=row["slug"],
@@ -213,6 +216,7 @@ class NotificationRepository:
             message=row["message"],
             color=row["color"],
             icon_url=row["icon_url"],
+            image_url=image_url,
             footer=row["footer"],
             show_timestamp=bool(row["show_timestamp"]),
             delete_button=bool(row["delete_button"]),

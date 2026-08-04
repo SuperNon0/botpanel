@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS notifications (
     title           TEXT NOT NULL,
     message         TEXT NOT NULL,
     color           INTEGER NOT NULL DEFAULT 16776960,-- couleur embed (0xFFFF00)
-    icon_url        TEXT,                             -- thumbnail optionnel
+    icon_url        TEXT,                             -- thumbnail optionnel (petite image)
+    image_url       TEXT,                             -- grande image optionnelle (affiche)
     footer          TEXT,
     show_timestamp  INTEGER NOT NULL DEFAULT 0,       -- 0/1
     delete_button   INTEGER NOT NULL DEFAULT 0,       -- 0/1
@@ -200,6 +201,7 @@ _MIGRATIONS_ALTER: list[str] = [
     "ALTER TABLE notifications ADD COLUMN thread_mode TEXT DEFAULT 'none'",
     "ALTER TABLE notifications ADD COLUMN mention TEXT",
     "ALTER TABLE notifications ADD COLUMN list_group TEXT",
+    "ALTER TABLE notifications ADD COLUMN image_url TEXT",
 ]
 
 

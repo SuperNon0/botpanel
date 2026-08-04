@@ -119,9 +119,16 @@
         <div class="form-hint"><a href="/settings">Gerer les presets</a></div>
       </div>
       <div class="form-group">
-        <label class="form-label">Icone (URL)</label>
-        <input class="form-input" name="icon_url" placeholder="https://...">
+        <label class="form-label">Miniature (petite image, URL)</label>
+        <input class="form-input" name="icon_url" id="f-icon" placeholder="https://...">
+        <div class="form-hint">Petite image en haut à droite. Accepte <code>{var:...}</code>.</div>
       </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Grande image (URL)</label>
+      <input class="form-input" name="image_url" id="f-image" placeholder="https://.../affiche.jpg">
+      <div class="form-hint">Grande image affichée sous le texte (ex. affiche de film/série). Accepte <code>{var:...}</code>.</div>
     </div>
 
     <div class="form-row">
@@ -141,6 +148,7 @@
       <div class="embed-title" id="p-title">Titre</div>
       <div class="embed-desc"  id="p-desc">Message</div>
       <div class="embed-fields" id="p-fields"></div>
+      <img id="p-image" alt="" style="display:none; max-width:100%; border-radius:6px; margin:0.5rem 0;">
       <div class="embed-footer-row">
         <span class="embed-footer" id="p-footer"></span>
         <span class="embed-ts" id="p-ts"></span>
@@ -438,10 +446,21 @@ function updatePreview() {
     btnHtml.push(`<span class="d-btn" style="background:${bg};">${esc(b.label || "Action")}</span>`);
   });
   document.getElementById("p-buttons").innerHTML = btnHtml.join("");
+
+  // Grande image : on l'affiche seulement si c'est une vraie URL (pas un {var:...})
+  const img = document.getElementById("p-image");
+  const imgUrl = (document.getElementById("f-image").value || "").trim();
+  if (imgUrl && /^https?:\/\//i.test(imgUrl)) {
+    img.src = imgUrl;
+    img.style.display = "";
+  } else {
+    img.removeAttribute("src");
+    img.style.display = "none";
+  }
 }
 
 function bindPreview() {
-  ["f-title","f-message","f-footer","f-color","f-ts","f-del-btn","f-snz-btn"]
+  ["f-title","f-message","f-footer","f-color","f-ts","f-del-btn","f-snz-btn","f-image"]
     .forEach(id => {
       const el = document.getElementById(id);
       el.addEventListener("input", updatePreview);
@@ -631,6 +650,7 @@ function buildPayload() {
     message: fd.get("message"),
     color: parseInt(fd.get("color").replace("#", ""), 16),
     icon_url: fd.get("icon_url") || null,
+    image_url: fd.get("image_url") || null,
     footer: fd.get("footer") || null,
     show_timestamp: fd.get("show_timestamp") === "on",
     delete_button: fd.get("delete_button") === "on",

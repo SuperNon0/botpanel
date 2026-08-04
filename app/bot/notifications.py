@@ -170,6 +170,11 @@ async def build_embed(notif: Notification, variables: dict | None = None) -> dis
     if icon_url and icon_url.strip():
         embed.set_thumbnail(url=icon_url.strip())
 
+    # Grande image (affichee en grand sous le texte), variables supportees.
+    image_url = await _resolve_template(notif.image_url, variables) if notif.image_url else ""
+    if image_url and image_url.strip():
+        embed.set_image(url=image_url.strip())
+
     # Footer = footer texte + (optionnel) date absolue.
     footer_parts: list[str] = []
     if notif.footer:
