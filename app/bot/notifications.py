@@ -164,8 +164,11 @@ async def build_embed(notif: Notification, variables: dict | None = None) -> dis
         description=description,
         color=notif.color,
     )
-    if notif.icon_url:
-        embed.set_thumbnail(url=notif.icon_url)
+    # L'URL de l'image (miniature) supporte aussi les {var:...} et placeholders,
+    # ex. une affiche de film/serie envoyee via l'API.
+    icon_url = await _resolve_template(notif.icon_url, variables) if notif.icon_url else ""
+    if icon_url and icon_url.strip():
+        embed.set_thumbnail(url=icon_url.strip())
 
     # Footer = footer texte + (optionnel) date absolue.
     footer_parts: list[str] = []

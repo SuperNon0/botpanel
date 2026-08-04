@@ -82,6 +82,10 @@ POST /api/notify
 - Les noms de variables : lettres, chiffres, underscore (ex. `vmid`, `user_name`).
 - Les valeurs sont converties en texte. Tu peux même mettre du **Markdown** dans le template autour des variables (`**{var:duree}**`).
 - `vars` est **optionnel** : sans lui, les `{var:...}` prennent leur valeur par défaut (ou restent vides).
+- Les `{var:...}` fonctionnent dans le **titre, le message, les champs, le footer** et
+  aussi dans l'**URL de l'image (miniature)** — pratique pour envoyer une affiche de
+  film/série dynamique. Exemple : mets `{var:poster}` dans le champ *Icône (URL)* de la
+  notification, puis envoie `"vars": { "poster": "https://.../affiche.jpg" }`.
 
 ---
 
