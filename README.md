@@ -19,6 +19,8 @@ Hébergé dans un conteneur LXC Proxmox.
 - **Commandes slash Discord** : deux commandes fixes (`/ha`, `/clear`) + commandes personnalisées entièrement gérées depuis le site (service / script / scène / notification)
 - **Monitoring temps réel** : messages épinglés édités à intervalle configurable (min. 30 s), recréés automatiquement si supprimés côté Discord
 - **Templates dans les champs** : syntaxe BotPanel (`{state:sensor.x}`, `{attr:sensor.x:attr}`, `{unit:sensor.x}`) et Jinja HA natif (`{{ states('...') }}`, `{{ state_attr(...) }}`)
+- **Texte dynamique via l'API** : variables `{var:nom}` (avec valeur par défaut `{var:nom|défaut}`) remplies par n'importe quel projet — voir [docs/API.md](docs/API.md)
+- **Images** : miniature (petite) et **grande image** (affiche), toutes deux compatibles avec les variables — idéal pour une affiche de film/série envoyée dynamiquement (Sonarr, Radarr…)
 - **Autocomplétion live** des entités HA, services HA et channels Discord dans tous les formulaires
 - **Page Paramètres** : presets de couleurs et de channels, liste des forums détectés, gestion des threads/posts actifs, mise à jour et redémarrage depuis l'UI
 - **Page Historique** : logs de tous les envois et clics de boutons, avec filtre et purge
