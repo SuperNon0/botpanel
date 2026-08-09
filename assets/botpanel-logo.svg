@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-label="BotPanel">
+  <rect x="4" y="4" width="92" height="92" rx="24" fill="#1b1d26"/>
+  <g stroke="#3d4152" stroke-width="6" stroke-linecap="round" fill="none">
+    <line x1="26" y1="34" x2="74" y2="34"/>
+    <line x1="26" y1="50" x2="74" y2="50"/>
+    <line x1="26" y1="66" x2="74" y2="66"/>
+  </g>
+  <circle cx="58" cy="34" r="8" fill="#e8c547"/>
+  <circle cx="38" cy="50" r="8" fill="#8b5cf6"/>
+  <circle cx="62" cy="66" r="8" fill="#4ade80"/>
+</svg>
