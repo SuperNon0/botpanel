@@ -184,10 +184,11 @@ async def build_embed(notif: Notification, variables: dict | None = None) -> dis
     if footer_parts:
         embed.set_footer(text=" \u00b7 ".join(footer_parts))
 
-    # Fields custom (resolution des placeholders dans value)
+    # Fields custom (resolution des placeholders dans le nom ET la valeur)
     for fld in sorted(notif.fields, key=lambda f: (f.position, f.id or 0)):
+        name = await _resolve_template(fld.name, variables)
         value = await _resolve_template(fld.value_template, variables)
-        embed.add_field(name=fld.name, value=value or "\u200b", inline=fld.inline)
+        embed.add_field(name=name or "\u200b", value=value or "\u200b", inline=fld.inline)
 
     return embed
 
