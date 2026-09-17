@@ -4,216 +4,79 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="dark">
-  <title>Connexion — BotPanel</title>
+  <title>Connexion locale — botpanel</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <style>
-    :root {
-      --bg: #101014;
-      --card: #1b1c23;
-      --field: #16171d;
-      --border: rgba(255,255,255,0.08);
-      --text: #e9e9ef;
-      --muted: #8a8c9e;
-      --gold: #e8c547;
-      --link: #8ea2c9;
+    :root{
+      --bg:#0e0f11; --card:#1c1f25; --border:#2a2d35; --accent:#e8c547;
+      --text:#f0ede6; --muted:#6b6f7a; --input:#0e0f11;
+      --serif:"DM Serif Display",Georgia,serif; --mono:"DM Mono",ui-monospace,monospace;
     }
-    * { box-sizing: border-box; }
-    html, body { height: 100%; }
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: "DM Mono", ui-monospace, monospace;
-      display: grid;
-      place-items: center;
-      padding: 1.2rem;
-    }
-    .card {
-      width: 100%;
-      max-width: 384px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 2.4rem 2rem 2rem;
-      box-shadow: 0 24px 60px -24px rgba(0,0,0,0.6);
-    }
-    .brand { text-align: center; margin-bottom: 1.8rem; }
-    .wordmark {
-      font-family: "DM Serif Display", serif;
-      font-size: 2.3rem;
-      line-height: 1;
-      letter-spacing: .01em;
-    }
-    .wordmark .bot { color: var(--gold); }
-    .wordmark .panel { color: var(--text); font-style: italic; }
-    .chip {
-      display: inline-block;
-      margin-top: 0.9rem;
-      padding: 0.3rem 0.8rem;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      font-size: 0.62rem;
-      letter-spacing: 0.22em;
-      color: var(--muted);
-    }
-    .field {
-      width: 100%;
-      background: var(--field);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      color: var(--text);
-      font-family: inherit;
-      font-size: 0.95rem;
-      padding: 0.85rem 1rem;
-      margin-bottom: 0.9rem;
-    }
-    .field::placeholder { color: var(--muted); }
-    .field:focus { outline: none; border-color: var(--gold); }
-    .btn {
-      width: 100%;
-      background: var(--gold);
-      color: #1a1a1a;
-      border: none;
-      border-radius: 10px;
-      font-family: inherit;
-      font-weight: 500;
-      font-size: 0.95rem;
-      padding: 0.85rem 1rem;
-      cursor: pointer;
-      transition: filter .15s ease;
-    }
-    .btn:hover { filter: brightness(1.06); }
-    .btn:disabled { opacity: 0.6; cursor: default; }
-    .forgot {
-      display: block;
-      text-align: center;
-      margin-top: 1.1rem;
-      color: var(--link);
-      font-size: 0.85rem;
-      text-decoration: none;
-      cursor: pointer;
-    }
-    .forgot:hover { text-decoration: underline; }
-
-    /* Modal "mot de passe oublié" */
-    .overlay {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.6);
-      display: none;
-      place-items: center;
-      padding: 1.2rem;
-      z-index: 50;
-    }
-    .overlay.open { display: grid; }
-    .modal {
-      width: 100%; max-width: 460px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 1.6rem;
-    }
-    .modal h3 { margin: 0 0 0.6rem; font-family: "DM Serif Display", serif; font-weight: 400; }
-    .modal p { color: var(--muted); font-size: 0.9rem; line-height: 1.55; margin: 0.4rem 0; }
-    .modal pre {
-      background: var(--field); border: 1px solid var(--border); border-radius: 8px;
-      padding: 0.8rem 1rem; overflow-x: auto; font-size: 0.8rem; color: var(--text); margin: 0.7rem 0;
-    }
-    .modal .close {
-      margin-top: 1rem; width: 100%;
-      background: transparent; color: var(--text);
-      border: 1px solid var(--border); border-radius: 10px;
-      padding: 0.7rem; font-family: inherit; cursor: pointer;
-    }
-    .modal .close:hover { border-color: var(--gold); }
-
-    .toast {
-      position: fixed; left: 50%; bottom: 1.4rem; transform: translateX(-50%);
-      background: #22232c; color: var(--text); border: 1px solid var(--border);
-      padding: 0.7rem 1.1rem; border-radius: 10px; font-size: 0.85rem;
-      opacity: 0; pointer-events: none; transition: opacity .2s ease;
-    }
-    .toast.show { opacity: 1; }
-    .toast.err { border-color: #ef4444; }
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);
+      font-family:var(--mono);display:flex;flex-direction:column;align-items:center;
+      justify-content:center;gap:12px;padding:24px}
+    .login-card{width:100%;max-width:430px;background:var(--card);border:1px solid var(--border);
+      border-radius:20px;padding:34px 30px;display:flex;flex-direction:column;gap:16px}
+    .login-logo{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:4px}
+    .login-logo svg{width:44px;height:44px;display:block}
+    .logo{font-family:var(--serif);font-size:1.7rem;line-height:1;letter-spacing:.01em}
+    .logo .g{color:var(--accent)} .logo .i{color:var(--text);font-style:italic}
+    .badge{align-self:center;font-family:var(--mono);font-size:.68rem;text-transform:uppercase;
+      letter-spacing:.08em;color:var(--muted);background:rgba(255,255,255,.03);
+      border:1px solid var(--border);border-radius:999px;padding:.4rem .95rem}
+    input[type=password]{width:100%;background:var(--input);border:1px solid var(--border);
+      border-radius:10px;color:var(--text);font-family:inherit;font-size:.95rem;padding:.85rem 1rem}
+    input[type=password]:focus{outline:none;border-color:var(--accent)}
+    .btn{width:100%;background:var(--accent);color:#1a1a1a;border:none;border-radius:10px;
+      font-family:inherit;font-weight:500;font-size:.95rem;padding:.85rem 1rem;cursor:pointer}
+    .btn:hover{filter:brightness(1.06)} .btn:disabled{opacity:.6;cursor:default}
+    .forgot-link{text-align:center;color:var(--muted);font-size:.78rem;text-decoration:none}
+    .forgot-link:hover{color:var(--text);text-decoration:underline}
+    .access-note{color:var(--muted);font-size:.72rem;text-align:center;margin:0}
+    .toast{position:fixed;left:50%;bottom:1.4rem;transform:translateX(-50%);background:#22232c;
+      color:var(--text);border:1px solid var(--border);padding:.7rem 1.1rem;border-radius:10px;
+      font-size:.85rem;opacity:0;pointer-events:none;transition:opacity .2s}
+    .toast.show{opacity:1} .toast.err{border-color:#e85c47}
   </style>
 </head>
 <body>
-  <div class="card">
-    <div class="brand">
-      <div class="wordmark"><span class="bot">bot</span><span class="panel">panel</span></div>
-      <span class="chip">PANEL · ADMINISTRATION</span>
+  <form class="login-card" id="login-form">
+    <div class="login-logo">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <rect x="4" y="4" width="92" height="92" rx="24" fill="#1b1d26"/>
+        <g stroke="#3d4152" stroke-width="6" stroke-linecap="round" fill="none">
+          <line x1="26" y1="34" x2="74" y2="34"/><line x1="26" y1="50" x2="74" y2="50"/><line x1="26" y1="66" x2="74" y2="66"/>
+        </g>
+        <circle cx="58" cy="34" r="8" fill="#e8c547"/><circle cx="38" cy="50" r="8" fill="#8b5cf6"/><circle cx="62" cy="66" r="8" fill="#4ade80"/>
+      </svg>
+      <span class="logo"><span class="g">bot</span><span class="i">panel</span></span>
     </div>
-
-    <form id="login-form">
-      <input class="field" id="password" type="password" placeholder="Mot de passe"
-             required autocomplete="current-password" autofocus>
-      <button type="submit" class="btn" id="login-btn">Se connecter</button>
-    </form>
-
-    <a class="forgot" id="forgot">Mot de passe oublié ?</a>
-  </div>
-
-  <!-- Modal : réinitialisation -->
-  <div class="overlay" id="forgot-modal">
-    <div class="modal">
-      <h3>Mot de passe oublié</h3>
-      <p>Pas d'e-mail ici : la réinitialisation se fait <strong>sur le serveur</strong> où tourne BotPanel,
-         avec un petit script de secours.</p>
-      <p>Connecte-toi au serveur (ou au conteneur) puis lance&nbsp;:</p>
-      <pre># Efface le mot de passe (panel de nouveau ouvert) :
-bash deploy/reset_admin.sh
-
-# ...ou définis-en un nouveau directement :
-bash deploy/reset_admin.sh "nouveau-mot-de-passe"
-
-sudo systemctl restart botpanel</pre>
-      <p>Ensuite, reconnecte-toi (ou redéfinis un mot de passe dans Paramètres → Compte &amp; sécurité).</p>
-      <button class="close" id="forgot-close">Fermer</button>
-    </div>
-  </div>
+    <span class="badge">administration</span>
+    <input type="password" id="password" placeholder="Mot de passe" autofocus autocomplete="current-password">
+    <button type="submit" class="btn" id="login-btn">Se connecter</button>
+    <a class="forgot-link" href="/login/forgot">Mot de passe oublié ?</a>
+    <p class="access-note">Accès local (réseau domestique) · administrateur</p>
+  </form>
 
   <div id="toast" class="toast">Ok</div>
-
-<script>
-  const form = document.getElementById("login-form");
-  const btn = document.getElementById("login-btn");
-  const modal = document.getElementById("forgot-modal");
-
-  function toast(msg, err) {
-    const t = document.getElementById("toast");
-    t.textContent = msg;
-    t.className = "toast show" + (err ? " err" : "");
-    setTimeout(() => { t.className = "toast"; }, 3500);
-  }
-
-  const next = new URLSearchParams(location.search).get("next") || "/dashboard";
-
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const password = document.getElementById("password").value;
-    btn.disabled = true; btn.textContent = "Connexion…";
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),   // compte unique : admin
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || "Erreur " + res.status);
-      }
-      window.location.href = next;
-    } catch (err) {
-      btn.disabled = false; btn.textContent = "Se connecter";
-      toast(err.message, true);
-    }
-  });
-
-  document.getElementById("forgot").addEventListener("click", (e) => { e.preventDefault(); modal.classList.add("open"); });
-  document.getElementById("forgot-close").addEventListener("click", () => modal.classList.remove("open"));
-  modal.addEventListener("click", (e) => { if (e.target === modal) modal.classList.remove("open"); });
-</script>
+  <script>
+    const form=document.getElementById("login-form"),btn=document.getElementById("login-btn");
+    const next=new URLSearchParams(location.search).get("next")||"/dashboard";
+    function toast(m,e){const t=document.getElementById("toast");t.textContent=m;t.className="toast show"+(e?" err":"");setTimeout(()=>t.className="toast",3500);}
+    form.addEventListener("submit",async(ev)=>{
+      ev.preventDefault();
+      const password=document.getElementById("password").value;
+      btn.disabled=true;btn.textContent="Connexion…";
+      try{
+        const r=await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password})});
+        if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.detail||("Erreur "+r.status));}
+        window.location.href=next;
+      }catch(e){btn.disabled=false;btn.textContent="Se connecter";toast(e.message,true);}
+    });
+  </script>
 </body>
 </html>

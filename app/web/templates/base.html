@@ -72,10 +72,16 @@
     const me = await API.get("/auth/me");
     if (me.enabled && me.authenticated) {
       const box = document.getElementById("user-box");
-      document.getElementById("user-name").textContent = me.username || "admin";
+      const isCf = me.method === "cloudflare";
+      document.getElementById("user-name").textContent = isCf ? (me.email || "cloudflare") : (me.username || "admin");
       box.style.display = "inline-flex";
       document.getElementById("logout-link").addEventListener("click", async (e) => {
         e.preventDefault();
+        if (isCf) {
+          // Session geree par Cloudflare : on se deconnecte cote Cloudflare.
+          window.location.href = "/cdn-cgi/access/logout";
+          return;
+        }
         try { await API.post("/auth/logout"); } catch {}
         window.location.href = "/login";
       });

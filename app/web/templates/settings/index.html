@@ -125,10 +125,41 @@
       <button type="button" class="btn btn-danger" id="am-disable">Désactiver la protection</button>
     </div>
     <p class="hint" style="margin-top:0.8rem;">
-      💡 Si tu utilises <strong>Cloudflare Access</strong>, tu peux laisser la protection désactivée : Cloudflare gère déjà la connexion.
-      En cas d'oubli du mot de passe, utilise le script <code>deploy/reset_admin.sh</code> sur le serveur.
+      💡 En cas d'oubli du mot de passe, utilise le script <code>deploy/reset_admin.sh</code> sur le serveur.
     </p>
   </div>
+</div>
+
+<div class="card" id="cf-card">
+  <h3>Badge Cloudflare / Accès</h3>
+  <p class="hint">
+    Deuxième porte d'entrée : quand tu accèdes via <strong>Cloudflare</strong>, tu passes
+    <strong>sans mot de passe</strong> (le badge signé est vérifié). En local, le mot de passe reste requis.
+    Les routes machine (<code>/api/notify</code>) restent toujours ouvertes.
+  </p>
+
+  <div class="form-group">
+    <label class="form-label">Équipe (nom seul, ex. <code>super-nono</code>)</label>
+    <input class="form-input" id="cf-team" placeholder="super-nono">
+  </div>
+  <div class="form-group">
+    <label class="form-label">AUD (Application Audience tag)</label>
+    <input class="form-input" id="cf-aud" placeholder="a1b2c3…">
+  </div>
+  <label class="form-checkbox" style="margin-bottom:0.8rem;">
+    <input type="checkbox" id="cf-verify" checked> Vérifier le badge (JWT) — recommandé
+  </label>
+  <div style="display:flex; gap:0.7rem; flex-wrap:wrap;">
+    <button type="button" class="btn btn-secondary" id="cf-test">Tester</button>
+    <button type="button" class="btn btn-primary" id="cf-save">Enregistrer</button>
+  </div>
+
+  <h4 style="margin:1.2rem 0 0.5rem;">Statut</h4>
+  <div id="cf-result" class="cf-result"><div class="hint">Clique sur « Tester » pour vérifier la connexion.</div></div>
+  <p class="hint" style="margin-top:0.6rem;">
+    « non testé » = aucun badge reçu (tu n'es pas derrière Cloudflare). Erreur « audience » → l'AUD ne
+    correspond pas à l'app Access. Erreur « …cloudflareaccess.com… » → mets le <strong>nom seul</strong> dans Équipe.
+  </p>
 </div>
 {% endblock %}
 
@@ -438,7 +469,11 @@ async function loadAuth() {
   let me;
   try { me = await API.get("/auth/me"); } catch { status.textContent = "Indisponible."; return; }
   if (me.enabled) {
-    status.innerHTML = `Protection <strong style="color:#4ade80;">activée</strong> — connecté en tant que <code>${esc(me.username || "admin")}</code>.`;
+    let via;
+    if (me.method === "cloudflare") via = `via <strong style="color:#e8c547;">Cloudflare</strong> — <code>${esc(me.email || "")}</code>`;
+    else if (me.method === "password") via = `via <strong>mot de passe</strong> (<code>${esc(me.username || "admin")}</code>)`;
+    else via = "non connecté";
+    status.innerHTML = `Protection <strong style="color:#4ade80;">activée</strong> — connecté ${via}.`;
     enable.style.display = "none";
     manage.style.display = "";
   } else {
@@ -484,6 +519,63 @@ function bindAuth() {
   });
 }
 
+// ============================================================
+// Badge Cloudflare / Acces
+// ============================================================
+function cfBadge(cls, txt) { return `<span class="cf-pill ${cls}">${esc(txt)}</span>`; }
+function cfRow(label, valueHtml) {
+  return `<div class="cf-row"><span class="cf-label">${label}</span>${valueHtml}</div>`;
+}
+function cfRender(d) {
+  const jwtCls = (d.jwt_status || "").indexOf("OK") === 0 ? "cf-ok"
+              : ((d.jwt_status || "").indexOf("echec") === 0 || (d.jwt_status || "").indexOf("échec") === 0 ? "cf-ko" : "cf-neutral");
+  let h = "";
+  h += cfRow("Badge Cloudflare reçu", cfBadge(d.has_token ? "cf-ok" : "cf-ko", d.has_token ? "oui" : "non"));
+  h += cfRow("En-tête e-mail", `<span class="cf-val">${esc(d.header_email || "—")}</span>`);
+  h += cfRow("Équipe / AUD", `<span class="cf-val">${esc(d.team || "—")} / ${esc(d.aud || "—")}</span>`);
+  h += cfRow("Vérification du badge", cfBadge(jwtCls, d.jwt_status));
+  if (d.jwt_email) h += cfRow("E-mail du badge", `<span class="cf-val" style="color:#4ade80;">${esc(d.jwt_email)}</span>`);
+  if (d.jwt_error) h += cfRow("Détail", `<span class="cf-val">${esc(d.jwt_error)}</span>`);
+  document.getElementById("cf-result").innerHTML = h;
+}
+
+async function loadCf() {
+  try {
+    const cfg = await API.get("/auth/cf-config");
+    document.getElementById("cf-team").value = cfg.team || "";
+    document.getElementById("cf-aud").value = cfg.aud || "";
+    document.getElementById("cf-verify").checked = cfg.verify !== false;
+  } catch { /* ignore */ }
+}
+
+function bindCf() {
+  document.getElementById("cf-save").addEventListener("click", async () => {
+    try {
+      await API.post("/auth/cf-config", {
+        team: document.getElementById("cf-team").value,
+        aud: document.getElementById("cf-aud").value,
+        verify: document.getElementById("cf-verify").checked,
+      });
+      toast("Configuration Cloudflare enregistrée.");
+      loadCf();
+    } catch (e) { toast(e.message, "error"); }
+  });
+
+  document.getElementById("cf-test").addEventListener("click", async () => {
+    const btn = document.getElementById("cf-test");
+    btn.disabled = true; const old = btn.textContent; btn.textContent = "Test…";
+    try {
+      const d = await API.post("/auth/cf-test", {
+        team: document.getElementById("cf-team").value,
+        aud: document.getElementById("cf-aud").value,
+      });
+      cfRender(d);
+    } catch (e) {
+      document.getElementById("cf-result").innerHTML = `<div class="hint">Erreur : ${esc(e.message)}</div>`;
+    } finally { btn.disabled = false; btn.textContent = old; }
+  });
+}
+
 loadHomeUrl();
 loadSystemInfo();
 loadAll();
@@ -492,5 +584,19 @@ loadThreads();
 bindBackup();
 loadAuth();
 bindAuth();
+loadCf();
+bindCf();
 </script>
+<style>
+  .cf-result { display:flex; flex-direction:column; gap:8px; }
+  .cf-row { display:flex; align-items:center; gap:12px; padding:10px 12px; background:var(--surface);
+    border:1px solid var(--border); border-radius:10px; flex-wrap:wrap; }
+  .cf-label { flex:1; min-width:150px; font-size:0.82rem; }
+  .cf-val { font-size:0.78rem; color:var(--text-dim,#8a8c9e); word-break:break-all; }
+  .cf-pill { font-size:0.62rem; text-transform:uppercase; letter-spacing:0.05em; padding:3px 9px;
+    border-radius:999px; border:1px solid var(--border); background:rgba(255,255,255,0.03); white-space:nowrap; }
+  .cf-ok { color:#4ade80; border-color:#4ade80; }
+  .cf-ko { color:#e85c47; border-color:#e85c47; }
+  .cf-neutral { color:var(--text-dim,#8a8c9e); }
+</style>
 {% endblock %}

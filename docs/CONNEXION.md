@@ -74,3 +74,39 @@ local de Home Assistant à `/api/notify`, qu'il faut garder joignable.
 - 💾 Le mot de passe est dans la base (`data/botpanel.db`) — il est donc inclus dans
   l'export/import ; ne partage pas ta sauvegarde n'importe où.
 - 🔁 Après un `reset_admin.sh`, **redémarre** le service pour appliquer le changement.
+
+---
+
+## Connexion via Cloudflare Access (le « badge »)
+
+BotPanel accepte **deux portes d'entrée** quand la protection par mot de passe est activée :
+
+1. **En local (LAN)** → **mot de passe** admin (voir plus haut).
+2. **Via Cloudflare Access** → **connexion automatique, sans mot de passe** : Cloudflare a
+   déjà vérifié ton e-mail Google, et BotPanel vérifie le **badge signé** (`Cf-Access-Jwt-Assertion`).
+
+> 🔐 **Anti-usurpation** : BotPanel vérifie la **signature du badge** (JWT RS256 + `aud` + `iss`)
+> contre les clés publiques de ton équipe Cloudflare. Un simple en-tête `Cf-Access-Authenticated-User-Email`
+> **forgé en local** (sans badge signé valide) est **ignoré** → personne ne peut se faire passer
+> pour une connexion Cloudflare.
+
+### Configuration
+
+**Paramètres → Badge Cloudflare / Accès** (ou via `.env`) :
+
+| Champ | Exemple | Rôle |
+|---|---|---|
+| **Équipe** | `super-nono` | nom d'équipe **seul** (pas l'URL) |
+| **AUD** | `a1b2c3…` | Application Audience tag de l'app Access |
+| **Vérifier le badge** | coché | vérifie la signature (recommandé) |
+
+Le bouton **Tester** affiche un diagnostic (badge reçu ? équipe/AUD ? vérification OK ? e-mail du badge).
+La config saisie dans les Paramètres **prime** sur le `.env`.
+
+### Important
+
+- Les **routes machine** (`/api/notify`, webhooks) restent **toujours ouvertes** — HA/Proxmox
+  ne présentent pas de badge et ne doivent pas être bloqués.
+- Rends l'origine **injoignable sans Cloudflare** (tunnel `cloudflared` / pare-feu IP Cloudflare)
+  pour l'interface web, tout en laissant `/api/notify` joignable sur le LAN.
+- Garde un **mot de passe local** en secours : si Cloudflare tombe, tu peux toujours entrer sur le LAN.

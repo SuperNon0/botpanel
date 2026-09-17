@@ -18,3 +18,7 @@ aiosqlite==0.20.0
 
 # Compatibilite Python 3.13 (audioop supprime de la stdlib)
 audioop-lts==0.2.1
+
+# Auth Cloudflare Access (verification du badge JWT)
+PyJWT==2.9.0
+cryptography==43.0.1

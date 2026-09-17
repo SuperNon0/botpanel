@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <title>Mot de passe oublié — botpanel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <style>
+    :root{
+      --bg:#0e0f11; --card:#1c1f25; --border:#2a2d35; --accent:#e8c547;
+      --text:#f0ede6; --muted:#6b6f7a; --input:#0e0f11;
+      --serif:"DM Serif Display",Georgia,serif; --mono:"DM Mono",ui-monospace,monospace;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--mono);
+      display:flex;align-items:center;justify-content:center;padding:24px}
+    .login-card{width:100%;max-width:520px;background:var(--card);border:1px solid var(--border);
+      border-radius:20px;padding:34px 30px;display:flex;flex-direction:column;gap:16px;align-items:center}
+    .login-logo{display:flex;align-items:center;justify-content:center;gap:14px}
+    .login-logo svg{width:44px;height:44px}
+    .logo{font-family:var(--serif);font-size:1.7rem;line-height:1}
+    .logo .g{color:var(--accent)} .logo .i{color:var(--text);font-style:italic}
+    .access-icon{width:60px;height:60px;display:flex;align-items:center;justify-content:center;
+      border-radius:50%;border:1px solid var(--border);background:var(--input)}
+    .access-icon svg{width:28px;height:28px}
+    h2{text-align:center;font-family:var(--serif);font-weight:400;margin:0}
+    .access-text{color:var(--muted);font-size:.8rem;text-align:center;line-height:1.65;margin:0}
+    .fl-label{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em}
+    .cmd{font-family:var(--mono);font-size:.78rem;color:var(--accent);background:var(--input);
+      border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin:0;overflow-x:auto;white-space:pre}
+    .access-note{color:var(--muted);font-size:.72rem;text-align:center}
+    .forgot-link{text-align:center;color:var(--muted);font-size:.78rem;text-decoration:none}
+    .forgot-link:hover{color:var(--text);text-decoration:underline}
+    .block{text-align:left;width:100%}
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="login-logo">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <rect x="4" y="4" width="92" height="92" rx="24" fill="#1b1d26"/>
+        <g stroke="#3d4152" stroke-width="6" stroke-linecap="round" fill="none">
+          <line x1="26" y1="34" x2="74" y2="34"/><line x1="26" y1="50" x2="74" y2="50"/><line x1="26" y1="66" x2="74" y2="66"/>
+        </g>
+        <circle cx="58" cy="34" r="8" fill="#e8c547"/><circle cx="38" cy="50" r="8" fill="#8b5cf6"/><circle cx="62" cy="66" r="8" fill="#4ade80"/>
+      </svg>
+      <span class="logo"><span class="g">bot</span><span class="i">panel</span></span>
+    </div>
+    <div class="access-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>
+      </svg>
+    </div>
+    <h2>Mot de passe oublié</h2>
+    <p class="access-text">Le mot de passe administrateur se réinitialise
+      <b style="color:var(--text)">sur le serveur</b> (accès shell), sans avoir besoin
+      d'être connecté. Lance l'une de ces commandes :</p>
+
+    <div class="block">
+      <p class="fl-label" style="margin-bottom:6px">Déploiement (LXC / VM)</p>
+      <pre class="cmd">sudo bash /opt/botpanel/deploy/reset_admin.sh</pre>
+      <p class="fl-label" style="margin:14px 0 6px">En local (dev)</p>
+      <pre class="cmd">python -m app.reset_admin</pre>
+    </div>
+
+    <p class="access-note">La commande définit le nouveau mot de passe, puis tu te
+      reconnectes en local. (Redémarre le service ensuite.)</p>
+    <a class="forgot-link" href="/login">← Retour à la connexion</a>
+  </div>
+</body>
+</html>

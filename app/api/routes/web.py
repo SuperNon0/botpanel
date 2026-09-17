@@ -28,6 +28,13 @@ async def page_login(request: Request):
     )
 
 
+@router.get("/login/forgot", response_class=HTMLResponse)
+async def page_forgot(request: Request):
+    return templates.TemplateResponse(
+        "forgot.html", {"request": request, "active_page": "login"}
+    )
+
+
 @router.get("/dashboard", response_class=HTMLResponse)
 async def page_dashboard(request: Request):
     return templates.TemplateResponse(

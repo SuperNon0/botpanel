@@ -51,6 +51,12 @@ class Settings(BaseSettings):
     # --- Logs ---
     log_level: str = "INFO"
 
+    # --- Cloudflare Access (valeurs de repli ; l'UI Parametres est prioritaire) ---
+    # Nom d'equipe seul, ex. "super-nono" (pas l'URL complete).
+    cf_access_team_domain: str = ""
+    cf_access_aud: str = ""       # Application Audience (AUD) tag de l'app Access
+    cf_verify_jwt: bool = True    # verifier la signature du badge (recommande)
+
     @property
     def ha_api_url(self) -> str:
         """URL de base de l'API REST de Home Assistant."""

@@ -27,7 +27,7 @@ from app.api.routes import (
     system as system_routes,
     web,
 )
-from app.auth import auth_state, verify_session_token, COOKIE_NAME
+from app.auth import auth_state, verify_session_token, COOKIE_NAME, cf_access_email
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -64,6 +64,9 @@ async def _setup_guard(request, call_next):
 async def _auth_guard(request, call_next):
     """Si un mot de passe admin est defini, exige une session valide.
 
+    Deux portes d'entree acceptees :
+      1. un badge Cloudflare valide (JWT verifie), OU
+      2. une session mot de passe (LAN).
     Les routes machine (/api/notify, webhooks) restent toujours ouvertes.
     Les pages web sont redirigees vers /login ; les appels API renvoient 401.
     """
@@ -72,9 +75,19 @@ async def _auth_guard(request, call_next):
         if not any(path.startswith(p) for p in _AUTH_PUBLIC_PREFIXES):
             state = await auth_state()
             if state["enabled"]:
-                token = request.cookies.get(COOKIE_NAME)
-                user = verify_session_token(token, state["secret"]) if (token and state["secret"]) else None
-                if user is None:
+                authed = False
+                # 1) Badge Cloudflare verifie ?
+                try:
+                    if await cf_access_email(request):
+                        authed = True
+                except Exception:  # noqa: BLE001
+                    authed = False
+                # 2) Sinon, session mot de passe (LAN)
+                if not authed:
+                    token = request.cookies.get(COOKIE_NAME)
+                    if token and state["secret"] and verify_session_token(token, state["secret"]):
+                        authed = True
+                if not authed:
                     accept = request.headers.get("accept", "")
                     if request.method == "GET" and "text/html" in accept:
                         return RedirectResponse("/login")
