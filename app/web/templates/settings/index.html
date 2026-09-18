@@ -131,30 +131,33 @@
 </div>
 
 <div class="card" id="cf-card">
-  <h3>Badge Cloudflare / Accès</h3>
-  <p class="hint">
-    Deuxième porte d'entrée : quand tu accèdes via <strong>Cloudflare</strong>, tu passes
-    <strong>sans mot de passe</strong> (le badge signé est vérifié). En local, le mot de passe reste requis.
-    Les routes machine (<code>/api/notify</code>) restent toujours ouvertes.
-  </p>
+  <h3>Cloudflare / Accès</h3>
 
   <div class="form-group">
-    <label class="form-label">Équipe (nom seul, ex. <code>super-nono</code>)</label>
+    <label class="form-label">Équipe (nom seul, ex. super-nono)</label>
     <input class="form-input" id="cf-team" placeholder="super-nono">
   </div>
   <div class="form-group">
     <label class="form-label">AUD (Application Audience tag)</label>
     <input class="form-input" id="cf-aud" placeholder="a1b2c3…">
   </div>
-  <label class="form-checkbox" style="margin-bottom:0.8rem;">
-    <input type="checkbox" id="cf-verify" checked> Vérifier le badge (JWT) — recommandé
+  <label class="form-checkbox" style="margin-bottom:0.6rem;">
+    <input type="checkbox" id="cf-verify" checked> Vérifier le JWT Cloudflare (recommandé en production)
   </label>
+  <label class="form-checkbox" style="margin-bottom:0.8rem;">
+    <input type="checkbox" id="cf-allow-local" checked> Autoriser l'accès local (mot de passe LAN / secours)
+  </label>
+  <p class="hint" style="margin:-0.4rem 0 0.8rem;">
+    ⚠️ Décoché = accès <strong>uniquement via Cloudflare</strong> : tout accès direct (sans badge) est
+    refusé (403). Ne le décoche que si l'origine est bien injoignable hors Cloudflare, sinon tu risques
+    de te verrouiller dehors.
+  </p>
   <div style="display:flex; gap:0.7rem; flex-wrap:wrap;">
     <button type="button" class="btn btn-secondary" id="cf-test">Tester</button>
     <button type="button" class="btn btn-primary" id="cf-save">Enregistrer</button>
   </div>
 
-  <h4 style="margin:1.2rem 0 0.5rem;">Statut</h4>
+  <label class="form-label" style="display:block; margin:1.3rem 0 0.6rem;">Résultat du test</label>
   <div id="cf-result" class="cf-result"><div class="hint">Clique sur « Tester » pour vérifier la connexion.</div></div>
   <p class="hint" style="margin-top:0.6rem;">
     « non testé » = aucun badge reçu (tu n'es pas derrière Cloudflare). Erreur « audience » → l'AUD ne
@@ -526,16 +529,20 @@ function cfBadge(cls, txt) { return `<span class="cf-pill ${cls}">${esc(txt)}</s
 function cfRow(label, valueHtml) {
   return `<div class="cf-row"><span class="cf-label">${label}</span>${valueHtml}</div>`;
 }
+function cfRowStacked(label, valueText) {
+  return `<div class="cf-row cf-col"><span class="cf-label">${label}</span><span class="cf-val">${valueText}</span></div>`;
+}
 function cfRender(d) {
-  const jwtCls = (d.jwt_status || "").indexOf("OK") === 0 ? "cf-ok"
-              : ((d.jwt_status || "").indexOf("echec") === 0 || (d.jwt_status || "").indexOf("échec") === 0 ? "cf-ko" : "cf-neutral");
+  const st = d.jwt_status || "";
+  const jwtCls = st.indexOf("OK") === 0 ? "cf-gold"
+              : ((st.indexOf("echec") === 0 || st.indexOf("échec") === 0) ? "cf-ko" : "cf-neutral");
   let h = "";
-  h += cfRow("Badge Cloudflare reçu", cfBadge(d.has_token ? "cf-ok" : "cf-ko", d.has_token ? "oui" : "non"));
+  h += cfRow("Jeton Cloudflare reçu", cfBadge(d.has_token ? "cf-ok" : "cf-ko", d.has_token ? "oui" : "non"));
   h += cfRow("En-tête e-mail", `<span class="cf-val">${esc(d.header_email || "—")}</span>`);
-  h += cfRow("Équipe / AUD", `<span class="cf-val">${esc(d.team || "—")} / ${esc(d.aud || "—")}</span>`);
-  h += cfRow("Vérification du badge", cfBadge(jwtCls, d.jwt_status));
-  if (d.jwt_email) h += cfRow("E-mail du badge", `<span class="cf-val" style="color:#4ade80;">${esc(d.jwt_email)}</span>`);
-  if (d.jwt_error) h += cfRow("Détail", `<span class="cf-val">${esc(d.jwt_error)}</span>`);
+  h += cfRowStacked("Équipe / AUD", `${esc(d.team || "—")} / ${esc(d.aud || "—")}`);
+  h += cfRow("Vérification JWT", cfBadge(jwtCls, st));
+  if (d.jwt_email) h += cfRow("E-mail du jeton", `<span class="cf-val">${esc(d.jwt_email)}</span>`);
+  if (d.jwt_error) h += cfRowStacked("Détail", esc(d.jwt_error));
   document.getElementById("cf-result").innerHTML = h;
 }
 
@@ -545,6 +552,7 @@ async function loadCf() {
     document.getElementById("cf-team").value = cfg.team || "";
     document.getElementById("cf-aud").value = cfg.aud || "";
     document.getElementById("cf-verify").checked = cfg.verify !== false;
+    document.getElementById("cf-allow-local").checked = cfg.allow_local !== false;
   } catch { /* ignore */ }
 }
 
@@ -555,6 +563,7 @@ function bindCf() {
         team: document.getElementById("cf-team").value,
         aud: document.getElementById("cf-aud").value,
         verify: document.getElementById("cf-verify").checked,
+        allow_local: document.getElementById("cf-allow-local").checked,
       });
       toast("Configuration Cloudflare enregistrée.");
       loadCf();
@@ -588,15 +597,17 @@ loadCf();
 bindCf();
 </script>
 <style>
-  .cf-result { display:flex; flex-direction:column; gap:8px; }
-  .cf-row { display:flex; align-items:center; gap:12px; padding:10px 12px; background:var(--surface);
-    border:1px solid var(--border); border-radius:10px; flex-wrap:wrap; }
-  .cf-label { flex:1; min-width:150px; font-size:0.82rem; }
-  .cf-val { font-size:0.78rem; color:var(--text-dim,#8a8c9e); word-break:break-all; }
-  .cf-pill { font-size:0.62rem; text-transform:uppercase; letter-spacing:0.05em; padding:3px 9px;
+  .cf-result { display:flex; flex-direction:column; gap:10px; }
+  .cf-row { display:flex; align-items:center; gap:12px; padding:12px 14px;
+    background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:12px; flex-wrap:wrap; }
+  .cf-row.cf-col { flex-direction:column; align-items:flex-start; gap:6px; }
+  .cf-label { flex:1; min-width:150px; font-size:0.9rem; color:var(--text); }
+  .cf-val { font-size:0.78rem; color:var(--muted); word-break:break-all; }
+  .cf-pill { font-size:0.62rem; text-transform:uppercase; letter-spacing:0.05em; padding:4px 11px;
     border-radius:999px; border:1px solid var(--border); background:rgba(255,255,255,0.03); white-space:nowrap; }
   .cf-ok { color:#4ade80; border-color:#4ade80; }
+  .cf-gold { color:var(--accent); border-color:var(--accent); }
   .cf-ko { color:#e85c47; border-color:#e85c47; }
-  .cf-neutral { color:var(--text-dim,#8a8c9e); }
+  .cf-neutral { color:var(--muted); }
 </style>
 {% endblock %}

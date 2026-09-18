@@ -323,25 +323,25 @@ Depuis **Paramètres → Sauvegarde & migration** :
 
 ## Sécurité et accès
 
-> ⚠️ **Le panel d'administration n'a pas d'authentification intégrée.** Toute personne pouvant atteindre `http://IP:8080` peut piloter le bot et Home Assistant.
+BotPanel intègre une **authentification à deux portes** (voir [docs/CONNEXION.md](docs/CONNEXION.md)). Elle est **additive** : inerte tant que rien n'est configuré (panel ouvert en LAN), activable quand tu veux.
 
-- **Garde le site sur ton réseau local** (LXC non exposé sur Internet), ou
-- place-le **derrière un reverse-proxy avec authentification** (Authelia, Cloudflare Access, oauth2-proxy…), ou un VPN.
-- Ne publie **jamais** ton fichier `.env` (il est déjà ignoré par `.gitignore`).
-- **Deux portes de connexion** (voir [docs/CONNEXION.md](docs/CONNEXION.md)) :
-  - **En local (LAN)** : mot de passe admin (Paramètres → Compte & sécurité).
-  - **Via Cloudflare Access** : connexion automatique sans mot de passe — BotPanel **vérifie le badge signé** (JWT), donc pas d'usurpation possible en local. Configurable dans **Paramètres → Badge Cloudflare / Accès** (équipe, AUD, test).
-- Les **routes machine** (`/api/notify`, webhooks) restent **toujours ouvertes** (HA / Proxmox jamais bloqués).
-- Ne publie **jamais** ton fichier `.env` (il est déjà ignoré par `.gitignore`).
+- **En local (LAN)** : mot de passe admin — **un seul champ, aucun identifiant** (Paramètres → Compte & sécurité). Réinitialisable sur le serveur (`deploy/reset_admin.sh`).
+- **Via Cloudflare Access** : connexion automatique **sans mot de passe** — BotPanel **vérifie le badge signé** (JWT **RS256 + `aud` + `iss`**), donc **pas d'usurpation possible** en local (l'en-tête `Cf-Access-Authenticated-User-Email` seul n'est jamais cru). Configurable dans **Paramètres → Cloudflare / Accès** (équipe, AUD, bouton **Tester**).
+- **Mode « Cloudflare uniquement »** (`ALLOW_LOCAL_LOGIN=false`, ou la case dans les réglages) : tout accès direct **sans badge** est **refusé (403)**, même en POST. À n'activer que si l'origine est injoignable hors Cloudflare (tunnel `cloudflared` / pare-feu IP Cloudflare), sinon risque de verrouillage.
+- **Routes machine** (`/api/notify`, webhooks) : **toujours ouvertes** (HA / Proxmox jamais bloqués), protégées par le réseau.
+- **Première install** : `ADMIN_PASSWORD` (et `CF_ACCESS_*` / `ALLOW_LOCAL_LOGIN`) dans `.env` sont **amorcés une fois** au démarrage — le mot de passe est **hashé** (PBKDF2). Ensuite, tout se gère dans les Paramètres.
+- Ne publie **jamais** ton fichier `.env` (déjà ignoré par `.gitignore`).
+
+> Le noyau de vérification du badge (`app/cloudflare_access.py`) et le thème d'interface sont **partagés à l'identique** avec les autres sites (socle `Site-base`), pour une sécurité et un look cohérents sur toute la flotte.
 
 ## Évolutions futures
 
-Idées prévues (non encore implémentées) :
+Voir [docs/V2-ROADMAP.md](docs/V2-ROADMAP.md). En résumé (non encore implémenté) :
 
-- **Intégration Home Assistant** (notifications de BotPanel exposées en entités + action avec autocomplétion).
-- **Connexion Google + approbation de comptes** multi-utilisateurs (le login admin par mot de passe et le badge Cloudflare sont déjà disponibles, voir docs/CONNEXION.md).
+- **Intégration Home Assistant** : notifications exposées en entités + action avec autocomplétion — **sans jamais pousser de valeurs depuis HA** (toute la config reste sur BotPanel).
+- **Clé API** (`X-API-Key`) sur `/api/notify` et les webhooks machine, à faire en même temps que l'intégration HA.
 
-> Note : les routes machine (`/api/notify`, webhooks) resteront toujours accessibles sans authentification, pour ne pas casser les intégrations Home Assistant / Proxmox.
+> Note : les routes machine (`/api/notify`, webhooks) resteront toujours accessibles sans login humain, pour ne pas casser les intégrations Home Assistant / Proxmox.
 
 ## Livrables
 

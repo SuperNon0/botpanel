@@ -21,13 +21,10 @@ from typing import Optional
 from app.config import settings as app_settings
 from app.db.repositories import AuthRepository, SettingsRepository
 
+# La verif du badge est deleguee au module PARTAGE (identique au site-base).
+from app import cloudflare_access as _cfa
 # PyJWT est optionnel au demarrage : on n'exige la lib que si la verif est active.
-try:
-    import jwt as _jwt
-    from jwt import PyJWKClient as _PyJWKClient
-except Exception:  # pragma: no cover
-    _jwt = None
-    _PyJWKClient = None
+_jwt = _cfa.jwt
 
 COOKIE_NAME = "bp_session"
 SESSION_TTL = 30 * 24 * 3600  # 30 jours
@@ -124,7 +121,11 @@ async def current_user(request) -> Optional[str]:
 # (`Cf-Access-Jwt-Assertion`). On verifie sa signature (RS256) + l'audience (aud)
 # + l'emetteur (iss). Un simple en-tete `Cf-Access-Authenticated-User-Email` est
 # FALSIFIABLE en local : on ne s'y fie jamais quand la verif est active.
-_jwk_clients: dict = {}
+#
+# La verif elle-meme est deleguee au module PARTAGE `app.cloudflare_access`
+# (identique au site-base). Ici on ne gere que la CONFIG (UI prioritaire) et
+# l'execution hors event-loop (`asyncio.to_thread`, car la recuperation des cles
+# Cloudflare est bloquante).
 
 
 def normalize_team(team: str) -> str:
@@ -136,7 +137,12 @@ def normalize_team(team: str) -> str:
 
 
 async def cf_config() -> dict:
-    """Config Cloudflare effective : reglages UI (table settings) prioritaires, sinon .env."""
+    """Config Cloudflare effective : reglages UI (table settings) prioritaires, sinon .env.
+
+    - team / aud / verify : le badge Cloudflare.
+    - allow_local : autoriser l'entree LAN (mot de passe/secours). False =
+      acces UNIQUEMENT via Cloudflare (acces direct refuse, meme en POST).
+    """
     repo = SettingsRepository()
     team = await repo.get("cf_team", None)
     if team is None:
@@ -147,38 +153,20 @@ async def cf_config() -> dict:
     verify = await repo.get("cf_verify", None)
     if verify is None:
         verify = bool(app_settings.cf_verify_jwt)
-    return {"team": normalize_team(team or ""), "aud": (aud or "").strip(), "verify": bool(verify)}
+    allow_local = await repo.get("cf_allow_local", None)
+    if allow_local is None:
+        allow_local = bool(app_settings.allow_local_login)
+    return {
+        "team": normalize_team(team or ""),
+        "aud": (aud or "").strip(),
+        "verify": bool(verify),
+        "allow_local": bool(allow_local),
+    }
 
 
 def _cf_token(request) -> Optional[str]:
     return (request.headers.get("cf-access-jwt-assertion")
             or request.cookies.get("CF_Authorization"))
-
-
-def _get_jwk_client(team: str):
-    if not team or _PyJWKClient is None:
-        return None
-    client = _jwk_clients.get(team)
-    if client is None:
-        client = _PyJWKClient(f"https://{team}.cloudflareaccess.com/cdn-cgi/access/certs")
-        _jwk_clients[team] = client
-    return client
-
-
-def _verify_cf_token_sync(token: str, team: str, aud: str) -> Optional[str]:
-    """Verifie le JWT (BLOQUANT : recupere les cles Cloudflare). Via asyncio.to_thread."""
-    if _jwt is None:
-        return None
-    client = _get_jwk_client(team)
-    if client is None:
-        return None
-    signing_key = client.get_signing_key_from_jwt(token)
-    claims = _jwt.decode(
-        token, signing_key.key, algorithms=["RS256"],
-        audience=aud, issuer=f"https://{team}.cloudflareaccess.com",
-    )
-    email = (claims.get("email") or "").strip().lower()
-    return email or None
 
 
 async def cf_access_email(request) -> Optional[str]:
@@ -187,17 +175,21 @@ async def cf_access_email(request) -> Optional[str]:
     - verify=True (defaut) : valide le JWT (signature + aud + iss). Un en-tete
       forge sans JWT valide est IGNORE -> pas d'usurpation possible en local.
     - verify=False : se contente de l'en-tete (dev uniquement).
+
+    La verif (bloquante) est deleguee au module partage via `asyncio.to_thread`.
     """
     cfg = await cf_config()
-    header_email = request.headers.get("cf-access-authenticated-user-email")
     if not cfg["verify"]:
+        header_email = request.headers.get("cf-access-authenticated-user-email")
         return header_email.strip().lower() if header_email else None
-    token = _cf_token(request)
-    if not token or not cfg["team"] or not cfg["aud"] or _jwt is None:
+    if _jwt is None or not cfg["team"] or not cfg["aud"] or not _cf_token(request):
         return None
     try:
-        return await asyncio.to_thread(_verify_cf_token_sync, token, cfg["team"], cfg["aud"])
-    except Exception:  # noqa: BLE001 — token invalide/expire/aud faux…
+        return await asyncio.to_thread(
+            _cfa.cf_access_email, request,
+            team=cfg["team"], aud=cfg["aud"], verify=True,
+        )
+    except Exception:  # noqa: BLE001 — le module n'est pas cense lever, ceinture+bretelles
         return None
 
 
@@ -227,7 +219,10 @@ async def cf_diagnostic(request, team: Optional[str] = None, aud: Optional[str] 
         d["jwt_error"] = "PyJWT indisponible."
         return d
     try:
-        email = await asyncio.to_thread(_verify_cf_token_sync, token, cfg["team"], cfg["aud"])
+        # Version "verbose" : leve l'exception pour afficher la vraie cause.
+        email = await asyncio.to_thread(
+            _cfa.cf_access_email_verbose, request, team=cfg["team"], aud=cfg["aud"],
+        )
         d["jwt_status"] = "OK ✓"
         d["jwt_email"] = email
     except Exception as exc:  # noqa: BLE001
@@ -252,3 +247,36 @@ async def is_authenticated(request) -> Optional[dict]:
     if user:
         return {"method": "password", "email": None, "username": user}
     return None
+
+
+# ----------------------------------------------------------------------
+# Amorcage depuis l'environnement (PREMIERE INSTALL)
+# ----------------------------------------------------------------------
+async def seed_from_env() -> None:
+    """Initialise le store depuis les variables d'env SI le store est vide.
+
+    N'ecrase jamais une valeur deja presente (le store fait foi ensuite) :
+      - mot de passe admin : ADMIN_PASSWORD -> HASH (PBKDF2) si aucun hash defini.
+      - badge Cloudflare : CF_ACCESS_TEAM_DOMAIN / CF_ACCESS_AUD / CF_VERIFY_JWT /
+        ALLOW_LOCAL_LOGIN -> store, uniquement pour les cles encore absentes.
+    Idempotent : a relancer a chaque demarrage sans effet une fois amorce.
+    """
+    auth_repo = AuthRepository()
+    settings_repo = SettingsRepository()
+
+    # 1) Mot de passe admin (secours local) — seedé une seule fois, hashé.
+    if app_settings.admin_password:
+        data = await auth_repo.get()
+        if not data["password_hash"]:
+            await auth_repo.set_password(hash_password(app_settings.admin_password))
+            print("[auth] Mot de passe admin initialise depuis ADMIN_PASSWORD (store).")
+
+    # 2) Config Cloudflare — seed des seules cles absentes (non destructif).
+    if await settings_repo.get("cf_team", None) is None and app_settings.cf_access_team_domain:
+        await settings_repo.set("cf_team", normalize_team(app_settings.cf_access_team_domain))
+    if await settings_repo.get("cf_aud", None) is None and app_settings.cf_access_aud:
+        await settings_repo.set("cf_aud", app_settings.cf_access_aud.strip())
+    if await settings_repo.get("cf_verify", None) is None:
+        await settings_repo.set("cf_verify", bool(app_settings.cf_verify_jwt))
+    if await settings_repo.get("cf_allow_local", None) is None:
+        await settings_repo.set("cf_allow_local", bool(app_settings.allow_local_login))
