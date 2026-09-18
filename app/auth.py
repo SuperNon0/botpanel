@@ -247,3 +247,36 @@ async def is_authenticated(request) -> Optional[dict]:
     if user:
         return {"method": "password", "email": None, "username": user}
     return None
+
+
+# ----------------------------------------------------------------------
+# Amorcage depuis l'environnement (PREMIERE INSTALL)
+# ----------------------------------------------------------------------
+async def seed_from_env() -> None:
+    """Initialise le store depuis les variables d'env SI le store est vide.
+
+    N'ecrase jamais une valeur deja presente (le store fait foi ensuite) :
+      - mot de passe admin : ADMIN_PASSWORD -> HASH (PBKDF2) si aucun hash defini.
+      - badge Cloudflare : CF_ACCESS_TEAM_DOMAIN / CF_ACCESS_AUD / CF_VERIFY_JWT /
+        ALLOW_LOCAL_LOGIN -> store, uniquement pour les cles encore absentes.
+    Idempotent : a relancer a chaque demarrage sans effet une fois amorce.
+    """
+    auth_repo = AuthRepository()
+    settings_repo = SettingsRepository()
+
+    # 1) Mot de passe admin (secours local) — seedé une seule fois, hashé.
+    if app_settings.admin_password:
+        data = await auth_repo.get()
+        if not data["password_hash"]:
+            await auth_repo.set_password(hash_password(app_settings.admin_password))
+            print("[auth] Mot de passe admin initialise depuis ADMIN_PASSWORD (store).")
+
+    # 2) Config Cloudflare — seed des seules cles absentes (non destructif).
+    if await settings_repo.get("cf_team", None) is None and app_settings.cf_access_team_domain:
+        await settings_repo.set("cf_team", normalize_team(app_settings.cf_access_team_domain))
+    if await settings_repo.get("cf_aud", None) is None and app_settings.cf_access_aud:
+        await settings_repo.set("cf_aud", app_settings.cf_access_aud.strip())
+    if await settings_repo.get("cf_verify", None) is None:
+        await settings_repo.set("cf_verify", bool(app_settings.cf_verify_jwt))
+    if await settings_repo.get("cf_allow_local", None) is None:
+        await settings_repo.set("cf_allow_local", bool(app_settings.allow_local_login))

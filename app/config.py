@@ -59,6 +59,10 @@ class Settings(BaseSettings):
     # Autoriser l'entree locale (mot de passe LAN / secours). False = acces
     # UNIQUEMENT via Cloudflare : tout acces direct (sans badge) est refuse (403).
     allow_local_login: bool = True
+    # Mot de passe admin de PREMIERE INSTALL : si le store est vide au demarrage,
+    # il est hashe et enregistre une fois (ensuite, le store fait foi ; modifiable
+    # dans Parametres). Laisse vide si tu geres le mot de passe uniquement via l'UI.
+    admin_password: str = ""
 
     @property
     def ha_api_url(self) -> str:

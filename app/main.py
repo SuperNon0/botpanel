@@ -47,6 +47,11 @@ async def _main() -> None:
     _configure_logging()
     await init_db()
 
+    # Amorcage du store depuis l'environnement a la premiere install
+    # (mot de passe admin hashe + config Cloudflare). Non destructif / idempotent.
+    from app.auth import seed_from_env
+    await seed_from_env()
+
     loop = asyncio.get_running_loop()
     stop_event = asyncio.Event()
 
