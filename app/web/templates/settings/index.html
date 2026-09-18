@@ -146,9 +146,17 @@
     <label class="form-label">AUD (Application Audience tag)</label>
     <input class="form-input" id="cf-aud" placeholder="a1b2c3…">
   </div>
-  <label class="form-checkbox" style="margin-bottom:0.8rem;">
+  <label class="form-checkbox" style="margin-bottom:0.6rem;">
     <input type="checkbox" id="cf-verify" checked> Vérifier le badge (JWT) — recommandé
   </label>
+  <label class="form-checkbox" style="margin-bottom:0.8rem;">
+    <input type="checkbox" id="cf-allow-local" checked> Autoriser l'accès local (mot de passe LAN / secours)
+  </label>
+  <p class="hint" style="margin:-0.4rem 0 0.8rem;">
+    ⚠️ Décoché = accès <strong>uniquement via Cloudflare</strong> : tout accès direct (sans badge) est
+    refusé (403). Ne le décoche que si l'origine est bien injoignable hors Cloudflare, sinon tu risques
+    de te verrouiller dehors.
+  </p>
   <div style="display:flex; gap:0.7rem; flex-wrap:wrap;">
     <button type="button" class="btn btn-secondary" id="cf-test">Tester</button>
     <button type="button" class="btn btn-primary" id="cf-save">Enregistrer</button>
@@ -545,6 +553,7 @@ async function loadCf() {
     document.getElementById("cf-team").value = cfg.team || "";
     document.getElementById("cf-aud").value = cfg.aud || "";
     document.getElementById("cf-verify").checked = cfg.verify !== false;
+    document.getElementById("cf-allow-local").checked = cfg.allow_local !== false;
   } catch { /* ignore */ }
 }
 
@@ -555,6 +564,7 @@ function bindCf() {
         team: document.getElementById("cf-team").value,
         aud: document.getElementById("cf-aud").value,
         verify: document.getElementById("cf-verify").checked,
+        allow_local: document.getElementById("cf-allow-local").checked,
       });
       toast("Configuration Cloudflare enregistrée.");
       loadCf();

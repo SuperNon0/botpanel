@@ -8,6 +8,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
+from app.auth import cf_config
+
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent.parent / "web" / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
@@ -23,6 +25,15 @@ async def page_setup(request: Request):
 
 @router.get("/login", response_class=HTMLResponse)
 async def page_login(request: Request):
+    # Mode « Cloudflare uniquement » : pas de login local -> page « Acces refuse ».
+    cfg = await cf_config()
+    if not cfg["allow_local"]:
+        email = request.headers.get("cf-access-authenticated-user-email") or "—"
+        return templates.TemplateResponse(
+            "bloque.html",
+            {"request": request, "email": email, "active_page": "login"},
+            status_code=403,
+        )
     return templates.TemplateResponse(
         "login.html", {"request": request, "active_page": "login"}
     )

@@ -27,7 +27,7 @@ from app.api.routes import (
     system as system_routes,
     web,
 )
-from app.auth import auth_state, verify_session_token, COOKIE_NAME, cf_access_email
+from app.auth import auth_state, verify_session_token, COOKIE_NAME, cf_access_email, cf_config
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -61,37 +61,77 @@ async def _setup_guard(request, call_next):
     return await call_next(request)
 
 
-async def _auth_guard(request, call_next):
-    """Si un mot de passe admin est defini, exige une session valide.
+def _blocked_response(request):
+    """Acces direct refuse (mode Cloudflare uniquement) : 403.
 
-    Deux portes d'entree acceptees :
+    - Navigation web (GET HTML) -> page « Acces refuse » (bloque.html), statut 403.
+    - Tout le reste (API, POST…) -> JSON 403. La page machine reste, elle, ouverte
+      car filtree en amont par `_AUTH_PUBLIC_PREFIXES`.
+    """
+    accept = request.headers.get("accept", "")
+    if request.method == "GET" and "text/html" in accept:
+        # Import differe pour eviter un cycle a l'import du module.
+        from app.api.routes.web import templates
+        email = request.headers.get("cf-access-authenticated-user-email") or "—"
+        return templates.TemplateResponse(
+            "bloque.html",
+            {"request": request, "email": email, "active_page": "login"},
+            status_code=403,
+        )
+    return JSONResponse({"detail": "Acces refuse (Cloudflare uniquement)."}, status_code=403)
+
+
+async def _auth_guard(request, call_next):
+    """Controle d'acces a deux portes + mode « Cloudflare uniquement ».
+
+    Portes d'entree acceptees :
       1. un badge Cloudflare valide (JWT verifie), OU
-      2. une session mot de passe (LAN).
-    Les routes machine (/api/notify, webhooks) restent toujours ouvertes.
-    Les pages web sont redirigees vers /login ; les appels API renvoient 401.
+      2. une session mot de passe (LAN) — uniquement si l'entree locale est permise.
+
+    Selon la config :
+      - allow_local = True  : entree LAN autorisee (mot de passe si active, sinon ouvert).
+      - allow_local = False : entree UNIQUEMENT via Cloudflare ; tout acces direct
+        (sans badge valide) est refuse (403), meme en POST.
+
+    Les routes machine (/api/notify, webhooks) restent TOUJOURS ouvertes
+    (filtrees par `_AUTH_PUBLIC_PREFIXES`) : elles se protegent par cle API / LAN.
+    Les pages web protegees sont redirigees vers /login ; les appels API -> 401.
     """
     if settings.is_configured:
         path = request.url.path
         if not any(path.startswith(p) for p in _AUTH_PUBLIC_PREFIXES):
+            cfg = await cf_config()
             state = await auth_state()
-            if state["enabled"]:
-                authed = False
-                # 1) Badge Cloudflare verifie ?
+            local_disabled = not cfg["allow_local"]
+            # On ne filtre que s'il y a quelque chose a faire respecter :
+            #   - un mot de passe est actif, OU
+            #   - l'entree locale est desactivee (mode Cloudflare uniquement).
+            if state["enabled"] or local_disabled:
+                # Porte 1 : badge Cloudflare verifie ?
+                cf_ok = False
                 try:
                     if await cf_access_email(request):
-                        authed = True
+                        cf_ok = True
                 except Exception:  # noqa: BLE001
-                    authed = False
-                # 2) Sinon, session mot de passe (LAN)
-                if not authed:
-                    token = request.cookies.get(COOKIE_NAME)
-                    if token and state["secret"] and verify_session_token(token, state["secret"]):
-                        authed = True
-                if not authed:
-                    accept = request.headers.get("accept", "")
-                    if request.method == "GET" and "text/html" in accept:
-                        return RedirectResponse("/login")
-                    return JSONResponse({"detail": "Non authentifie"}, status_code=401)
+                    cf_ok = False
+
+                if not cf_ok:
+                    if local_disabled:
+                        # Cloudflare uniquement : acces direct refuse (403).
+                        return _blocked_response(request)
+                    # Porte 2 : session mot de passe (LAN), si un mot de passe est actif.
+                    authed = True
+                    if state["enabled"]:
+                        token = request.cookies.get(COOKIE_NAME)
+                        authed = bool(
+                            token and state["secret"]
+                            and verify_session_token(token, state["secret"])
+                        )
+                    if not authed:
+                        accept = request.headers.get("accept", "")
+                        if request.method == "GET" and "text/html" in accept:
+                            return RedirectResponse("/login")
+                        return JSONResponse({"detail": "Non authentifie"}, status_code=401)
     return await call_next(request)
 
 

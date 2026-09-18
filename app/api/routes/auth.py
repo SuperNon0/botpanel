@@ -46,6 +46,7 @@ class CfConfigPayload(BaseModel):
     team: str = ""
     aud: str = ""
     verify: bool = True
+    allow_local: bool = True
 
 
 class CfTestPayload(BaseModel):
@@ -101,7 +102,11 @@ async def save_cf_config(payload: CfConfigPayload, request: Request) -> dict:
     await repo.set("cf_team", normalize_team(payload.team))
     await repo.set("cf_aud", (payload.aud or "").strip())
     await repo.set("cf_verify", bool(payload.verify))
-    logger.info("Config Cloudflare enregistree (team=%s, verify=%s)", normalize_team(payload.team), payload.verify)
+    await repo.set("cf_allow_local", bool(payload.allow_local))
+    logger.info(
+        "Config Cloudflare enregistree (team=%s, verify=%s, allow_local=%s)",
+        normalize_team(payload.team), payload.verify, payload.allow_local,
+    )
     return {"status": "ok"}
 
 
@@ -113,6 +118,10 @@ async def cf_test(payload: CfTestPayload, request: Request) -> dict:
 
 @router.post("/login")
 async def login(payload: LoginPayload, request: Request, response: Response) -> dict:
+    # Mode « Cloudflare uniquement » : l'entree locale est refusee, meme en POST.
+    cfg = await cf_config()
+    if not cfg["allow_local"]:
+        raise HTTPException(403, "Acces direct desactive (Cloudflare uniquement).")
     state = await auth_state()
     if not state["enabled"]:
         raise HTTPException(400, "La protection par mot de passe n'est pas activee.")
