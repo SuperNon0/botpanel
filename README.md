@@ -30,6 +30,8 @@ Hébergé dans un conteneur LXC Proxmox.
 
 Le site est l'interface d'administration du bot, accessible sur `http://IP_LXC:8080`. Il regroupe plusieurs sections : Accueil, Notifications, Commandes, Monitoring, Historique, Paramètres et Aide.
 
+> **Interface animée** : micro-interactions et animations d'entrée légères (survol des cartes, retour au clic des boutons, focus clavier visible, toasts, `skeleton`/`spinner` de chargement) via `static/css/animations.css` + `static/js/anim.js`. Le tout est **additif** (ne change pas la mise en page) et **respecte `prefers-reduced-motion`** : si l'utilisateur a demandé à réduire les animations (OS/navigateur), elles sont automatiquement désactivées.
+
 ### Notifications (`/notifications`)
 
 Page principale. Elle liste toutes les notifications enregistrées, **groupées par leur groupe** (le champ « rangement sur le site », indépendant de Discord) si défini. Pour chaque notification on peut : tester l'envoi, éditer, cloner ou supprimer.
