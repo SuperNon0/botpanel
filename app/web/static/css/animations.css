@@ -89,6 +89,39 @@ textarea:focus-visible,
   .access-icon { animation: bp-pop .5s .1s ease both; }
 }
 
+/* --- Squelettes de chargement (skeleton) ----------------------------------- */
+.skel-list { display: flex; flex-direction: column; gap: 10px; }
+.skel-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px; border: 1px solid var(--border);
+  border-radius: 12px; background: var(--card);
+}
+.skel-main { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.skel-line { display: block; height: 12px; border-radius: 6px; }
+.skel-sub  { height: 9px; }
+.skel-pill { display: block; width: 74px; height: 26px; border-radius: 8px; flex: 0 0 auto; }
+
+/* --- États vides illustrés -------------------------------------------------- */
+.empty-state {
+  text-align: center;
+  padding: 2.6rem 1.2rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+}
+.empty-ico {
+  width: 58px; height: 58px; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: var(--bg); border: 1px solid var(--border);
+  color: var(--accent); margin-bottom: 0.2rem;
+}
+.empty-ico svg { width: 27px; height: 27px; }
+.empty-title { font-family: "DM Serif Display", serif; color: var(--text); font-size: 1.1rem; }
+.empty-sub { max-width: 360px; line-height: 1.65; }
+.empty-cta { margin-top: 0.7rem; }
+@media (prefers-reduced-motion: no-preference) {
+  .empty-ico { animation: bp-pop .45s ease both; }
+}
+
 /* =========================================================================
    Respect strict de « réduire les animations » : on coupe tout.
    ========================================================================= */

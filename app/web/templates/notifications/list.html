@@ -7,7 +7,7 @@
   <span class="card-row-meta" id="notif-count">0 notification</span>
 </div>
 
-<div id="groups-root"></div>
+<div id="groups-root" data-skeleton="3"></div>
 
 <a href="/notifications/new" class="fab" title="Nouvelle notification">+</a>
 {% endblock %}
@@ -71,9 +71,9 @@ async function loadNotifications() {
     count.textContent = `${notifs.length} notification${notifs.length > 1 ? "s" : ""}`;
 
     if (notifs.length === 0) {
-      root.innerHTML = `<div class="card"><div class="empty-state">
-        Aucune notification configuree.<br>Clique sur <strong>+</strong> pour en creer une.
-      </div></div>`;
+      root.innerHTML = `<div class="card">` + emptyBox(ICONS.bell, "Aucune notification",
+        "Crée ta première notification pour l'envoyer sur Discord (déclenchée par HA / Proxmox).",
+        '<a class="btn btn-primary btn-small" href="/notifications/new">+ Nouvelle notification</a>') + `</div>`;
       return;
     }
 

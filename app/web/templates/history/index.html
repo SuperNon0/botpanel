@@ -29,7 +29,7 @@
 </div>
 
 <div class="card" style="padding:0;">
-  <div id="log-list"></div>
+  <div id="log-list" data-skeleton="5"></div>
 </div>
 {% endblock %}
 
@@ -61,7 +61,8 @@ async function loadLogs() {
     const logs = await API.get(url);
     count.textContent = `${logs.length} evenement${logs.length > 1 ? "s" : ""}`;
     if (!logs.length) {
-      list.innerHTML = `<div class="empty-state">Aucun evenement.</div>`;
+      list.innerHTML = emptyBox(ICONS.clock, "Aucun événement",
+        "L'historique se remplira au fil des notifications envoyées et des actions.", "");
       return;
     }
     list.innerHTML = logs.map(l => {
