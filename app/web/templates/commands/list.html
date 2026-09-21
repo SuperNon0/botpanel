@@ -8,7 +8,7 @@
 </div>
 
 <div class="card" style="padding: 0;">
-  <div id="cmd-list"></div>
+  <div id="cmd-list" data-skeleton="4"></div>
 </div>
 
 <a href="/commands/new" class="fab" title="Nouvelle commande">+</a>
@@ -24,9 +24,9 @@ async function loadCommands() {
     quota.textContent = `${q.used} / ${q.max}`;
 
     if (cmds.length === 0) {
-      list.innerHTML = `<div class="empty-state">
-        Aucune commande.<br>Clique sur <strong>+</strong> pour en creer une.
-      </div>`;
+      list.innerHTML = emptyBox(ICONS.slash, "Aucune commande",
+        "Ajoute une commande slash Discord (appel d'un service HA, message, etc.).",
+        '<a class="btn btn-primary btn-small" href="/commands/new">+ Nouvelle commande</a>');
       return;
     }
 

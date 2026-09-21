@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from app.auth import cf_config
@@ -14,6 +14,68 @@ TEMPLATES_DIR = Path(__file__).resolve().parent.parent.parent / "web" / "templat
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 router = APIRouter()
+
+
+# ----------------------------------------------------------------------
+# PWA : manifest + service worker (servis a la racine pour un scope "/").
+# ----------------------------------------------------------------------
+_MANIFEST = {
+    "name": "BotPanel",
+    "short_name": "botpanel",
+    "description": "Bot Discord x Home Assistant — panneau d'administration",
+    "lang": "fr",
+    "start_url": "/dashboard",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#0e0f11",
+    "theme_color": "#0e0f11",
+    "icons": [
+        {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+        {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+        {"src": "/static/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+    ],
+}
+
+# Service worker : network-first, cache de repli hors-ligne. Ne met JAMAIS en
+# cache les appels /api/ (donnees live / webhooks machines).
+_SERVICE_WORKER = """\
+const CACHE = 'botpanel-v1';
+self.addEventListener('install', (e) => { self.skipWaiting(); });
+self.addEventListener('activate', (e) => {
+  e.waitUntil(caches.keys().then((ks) =>
+    Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))));
+  self.clients.claim();
+});
+self.addEventListener('fetch', (e) => {
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith('/api/')) return; // jamais de cache pour l'API
+  e.respondWith(
+    fetch(req).then((res) => {
+      const copy = res.clone();
+      caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+      return res;
+    }).catch(() => caches.match(req))
+  );
+});
+"""
+
+
+@router.get("/manifest.webmanifest", include_in_schema=False)
+async def pwa_manifest():
+    return JSONResponse(_MANIFEST, media_type="application/manifest+json")
+
+
+@router.get("/sw.js", include_in_schema=False)
+async def pwa_service_worker():
+    return Response(
+        _SERVICE_WORKER,
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"},
+    )
 
 
 @router.get("/setup", response_class=HTMLResponse)

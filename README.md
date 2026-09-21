@@ -30,6 +30,14 @@ Hébergé dans un conteneur LXC Proxmox.
 
 Le site est l'interface d'administration du bot, accessible sur `http://IP_LXC:8080`. Il regroupe plusieurs sections : Accueil, Notifications, Commandes, Monitoring, Historique, Paramètres et Aide.
 
+> **Interface animée** : micro-interactions et animations d'entrée légères (survol des cartes, retour au clic des boutons, focus clavier visible, toasts, `skeleton`/`spinner` de chargement) via `static/css/animations.css` + `static/js/anim.js`. Le tout est **additif** (ne change pas la mise en page) et **respecte `prefers-reduced-motion`** : si l'utilisateur a demandé à réduire les animations (OS/navigateur), elles sont automatiquement désactivées.
+>
+> **Squelettes de chargement** : les listes (notifications, commandes, monitoring, historique) affichent des blocs animés (`data-skeleton`) le temps que les données arrivent, au lieu d'une zone blanche.
+>
+> **États vides illustrés** : quand une liste est vide, un écran avec icône + message + bouton d'action s'affiche (au lieu d'un simple texte).
+>
+> **PWA installable** : BotPanel peut être **ajouté à l'écran d'accueil** (mobile/desktop) et s'ouvre en plein écran comme une app. Fourni par `manifest.webmanifest` + `sw.js` (service worker, servis à la racine) et les icônes `static/icons/`. Le service worker fait du **network-first** avec repli hors-ligne et **ne met jamais en cache les appels `/api/`** (données live / webhooks machines).
+
 ### Notifications (`/notifications`)
 
 Page principale. Elle liste toutes les notifications enregistrées, **groupées par leur groupe** (le champ « rangement sur le site », indépendant de Discord) si défini. Pour chaque notification on peut : tester l'envoi, éditer, cloner ou supprimer.

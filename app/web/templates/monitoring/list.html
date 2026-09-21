@@ -8,7 +8,7 @@
 </div>
 
 <div class="card" style="padding: 0;">
-  <div id="block-list"></div>
+  <div id="block-list" data-skeleton="3"></div>
 </div>
 
 <a href="/monitoring/new" class="fab" title="Nouveau bloc de monitoring">+</a>
@@ -31,9 +31,9 @@ async function loadBlocks() {
     count.textContent = `${blocks.length} bloc${blocks.length > 1 ? "s" : ""}`;
 
     if (blocks.length === 0) {
-      list.innerHTML = `<div class="empty-state">
-        Aucun bloc configure.<br>Clique sur <strong>+</strong> pour en creer un.
-      </div>`;
+      list.innerHTML = emptyBox(ICONS.pulse, "Aucun bloc de monitoring",
+        "Crée un bloc pour surveiller l'état de tes entités Home Assistant.",
+        '<a class="btn btn-primary btn-small" href="/monitoring/new">+ Nouveau bloc</a>');
       return;
     }
 

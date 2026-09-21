@@ -43,6 +43,8 @@ _SETUP_ALLOWED_PREFIXES = ("/setup", "/api/setup", "/static", "/health", "/api/s
 # - IMPORTANT : /api/notify (et webhooks) pour ne jamais bloquer Home Assistant / Proxmox
 _AUTH_PUBLIC_PREFIXES = (
     "/login", "/api/auth", "/static", "/health", "/favicon", "/api/notify",
+    # PWA : le manifest et le service worker doivent rester accessibles.
+    "/manifest.webmanifest", "/sw.js",
 )
 
 
