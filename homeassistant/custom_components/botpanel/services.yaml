@@ -1,0 +1,22 @@
+envoyer:
+  name: Envoyer une notification
+  description: >-
+    Déclenche l'envoi d'une notification BotPanel (par slug ou par id).
+    Le contenu est entièrement défini dans BotPanel ; Home Assistant ne fait
+    que déclencher. Astuce : tu peux aussi appuyer directement sur le bouton
+    « button.botpanel_… » de la notification (autocomplété par Home Assistant).
+  fields:
+    slug:
+      name: Slug
+      description: Le slug de la notification (identifiant texte).
+      example: notif_porte_entree
+      selector:
+        text:
+    id:
+      name: ID
+      description: L'identifiant numérique (alternative au slug).
+      example: 3
+      selector:
+        number:
+          mode: box
+          min: 1

@@ -36,7 +36,7 @@ async def notify(payload: NotifyPayload) -> dict[str, str]:
     Avec variables dynamiques (remplissent les {var:nom} du template) :
         { "id": "backup_done", "vars": { "vmid": "100", "duree": "2m34s" } }
     """
-    message = await send_notification(payload.id, payload.vars)
+    message = await send_notification(payload.id, payload.vars, source="api")
     if message is None:
         raise HTTPException(status_code=404, detail=f"Notification '{payload.id}' introuvable ou echec d'envoi")
     return {"status": "sent", "message_id": str(message.id)}

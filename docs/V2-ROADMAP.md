@@ -47,15 +47,21 @@
 ## Ordre de développement (phases livrables une par une)
 1. ✅ **FAIT — Aperçu live HA** : endpoint `POST /api/notifications/resolve-preview`
    + éditeur qui affiche les valeurs réelles. Sélecteur d'entités HA : déjà présent.
-2. **Clé API** : génération + carte Paramètres « API / Intégrations » +
-   middleware `X-API-Key`. **+ Carte diagnostic** « l'intégration marche ? ».
-3. **API intégration** : `GET /api/integration/ping`, `/notifications`, `/state`.
-4. **Composant Home Assistant** : config flow (URL + clé), coordinator (~30 s),
-   boutons, capteurs, service `botpanel.envoyer`, regroupés sous un appareil
-   « BotPanel ».
-5. **Source dans l'historique** : marquer l'origine des envois (manuel / HA).
-6. **Doc & tests** : guide d'installation HACS, exemple d'automatisation, tests
-   des endpoints (clé, listes, state) et validation de la structure du composant.
+2. ✅ **FAIT — Clé API** : génération + carte Paramètres « API / Intégration » +
+   middleware `X-API-Key` (garde). **+ Carte diagnostic** « l'intégration marche ? ».
+3. ✅ **FAIT — API intégration** : `GET /api/integration/ping`, `/notifications`,
+   `/state`, `POST /api/integration/trigger`.
+4. ✅ **FAIT — Composant Home Assistant** (`homeassistant/custom_components/botpanel/`) :
+   config flow (URL + clé), coordinator (~30 s), boutons, capteurs, binaire
+   « bot en ligne », service `botpanel.envoyer`, appareil « BotPanel ».
+5. ✅ **FAIT — Source dans l'historique** : colonne `source` + affichage
+   (Home Assistant / API / Manuel / Test).
+6. ✅ **FAIT — Doc & tests** : guide d'installation (`homeassistant/README.md`),
+   exemple d'automatisation, tests endpoints (clé, listes, state) + composant
+   compilé/validé.
+
+> **V2 terminée** — toutes les phases sont implémentées. Reste à tester en réel
+> avec une instance Home Assistant (copie du composant + ajout de l'intégration).
 
 ## Repères techniques (existant réutilisable)
 - Placeholders HA déjà supportés (résolus à l'envoi via `ha_client.get_state`) :

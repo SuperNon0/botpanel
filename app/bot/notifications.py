@@ -215,17 +215,20 @@ async def _resolve_channel(channel_id: str) -> discord.abc.Messageable | None:
     return channel  # type: ignore[return-value]
 
 
-async def send_notification(slug: str, variables: dict | None = None) -> discord.Message | None:
+async def send_notification(
+    slug: str, variables: dict | None = None, source: str | None = None
+) -> discord.Message | None:
     """Envoie la notification identifiee par `slug` dans son channel Discord.
 
     `variables` : valeurs dynamiques optionnelles (API) pour les {var:nom}.
+    `source`    : origine de l'envoi (ex. "home_assistant", "api", "manuel").
     """
     repo = NotificationRepository()
     notif = await repo.get_by_slug(slug)
     if notif is None:
         logger.warning("Notification inconnue : %s", slug)
         return None
-    return await send_notification_object(notif, variables)
+    return await send_notification_object(notif, variables, source=source)
 
 
 async def _get_or_create_thread(
@@ -306,7 +309,9 @@ async def _send_to_forum(
     return result.message, f"forum_new:{group_name}"
 
 
-async def send_notification_object(notif: Notification, variables: dict | None = None) -> discord.Message | None:
+async def send_notification_object(
+    notif: Notification, variables: dict | None = None, source: str | None = None
+) -> discord.Message | None:
     """Envoie une notification selon son thread_mode.
 
     - none   : envoi direct dans le channel
@@ -319,6 +324,9 @@ async def send_notification_object(notif: Notification, variables: dict | None =
     channel_id = notif.channel_id or str(settings.discord_default_channel_id)
     channel = await _resolve_channel(channel_id)
     log_repo = LogRepository()
+    # Origine de l'envoi (pour l'historique) : fournie par l'appelant, sinon
+    # "test" pour un apercu (id=0), "manuel" pour un envoi normal.
+    src = source or ("test" if not notif.id else "manuel")
 
     if channel is None:
         await log_repo.add(
@@ -328,6 +336,7 @@ async def send_notification_object(notif: Notification, variables: dict | None =
             channel_id=channel_id,
             success=False,
             detail=f"Channel {channel_id} introuvable",
+            source=src,
         )
         return None
 
@@ -363,6 +372,7 @@ async def send_notification_object(notif: Notification, variables: dict | None =
             channel_id=channel_id,
             success=False,
             detail=str(exc)[:300],
+            source=src,
         )
         return None
 
@@ -375,5 +385,6 @@ async def send_notification_object(notif: Notification, variables: dict | None =
         message_id=str(message.id),
         success=True,
         detail=log_detail,
+        source=src,
     )
     return message

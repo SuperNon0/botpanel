@@ -18,6 +18,7 @@ from app.api.routes import (
     discord as discord_routes,
     ha_hook,
     ha_proxy,
+    integration as integration_routes,
     logs,
     monitoring,
     notifications,
@@ -101,6 +102,14 @@ async def _auth_guard(request, call_next):
     """
     if settings.is_configured:
         path = request.url.path
+        # Endpoints machine de l'integration Home Assistant : proteges par la
+        # cle API (X-API-Key), jamais par le login humain.
+        if path.startswith("/api/integration"):
+            from app.integration import verify_api_key, touch_last_seen
+            if await verify_api_key(request):
+                await touch_last_seen()
+                return await call_next(request)
+            return JSONResponse({"detail": "Cle API invalide ou absente."}, status_code=401)
         if not any(path.startswith(p) for p in _AUTH_PUBLIC_PREFIXES):
             cfg = await cf_config()
             state = await auth_state()
@@ -164,6 +173,7 @@ def create_app() -> FastAPI:
     app.include_router(monitoring.router, prefix="/api/monitoring", tags=["monitoring"])
     app.include_router(ha_proxy.router, prefix="/api/ha", tags=["ha"])
     app.include_router(settings_routes.router, prefix="/api/settings", tags=["settings"])
+    app.include_router(integration_routes.router, prefix="/api/integration", tags=["integration"])
     app.include_router(discord_routes.router, prefix="/api/discord", tags=["discord"])
     app.include_router(logs.router, prefix="/api/logs", tags=["logs"])
     app.include_router(system_routes.router, prefix="/api/system", tags=["system"])

@@ -344,14 +344,24 @@ BotPanel intègre une **authentification à deux portes** (voir [docs/CONNEXION.
 
 > Le noyau de vérification du badge (`app/cloudflare_access.py`) et le thème d'interface sont **partagés à l'identique** avec les autres sites (socle `Site-base`), pour une sécurité et un look cohérents sur toute la flotte.
 
+## Intégration Home Assistant (composant natif)
+
+BotPanel fournit un **composant Home Assistant** (`homeassistant/custom_components/botpanel/`) qui expose, dans HA :
+- **un bouton par notification** (`button.botpanel_…`, appui = envoi Discord) ;
+- une **action** `botpanel.envoyer` (par slug/id) ;
+- des **capteurs** : bot Discord en ligne, envois du jour, envois total, notifications configurées, dernière alerte.
+
+> Sens unique : Home Assistant **déclenche** (par identifiant), il ne configure jamais rien — tout le contenu reste sur BotPanel.
+
+**Sécurité machine** : une **clé API** (`X-API-Key`) protège les endpoints `/api/integration/*`. Elle se génère dans **Paramètres → API / Intégration** (voyant « l'intégration marche ? » : HA joignable, dernière connexion du module). Les webhooks existants (`/api/notify`) restent ouverts **sans** clé (rétrocompatibilité HA/Proxmox). L'historique indique désormais l'**origine** de chaque envoi (Home Assistant / API / Manuel / Test).
+
+Installation détaillée : voir [`homeassistant/README.md`](homeassistant/README.md).
+
 ## Évolutions futures
 
-Voir [docs/V2-ROADMAP.md](docs/V2-ROADMAP.md). En résumé (non encore implémenté) :
+Voir [docs/V2-ROADMAP.md](docs/V2-ROADMAP.md).
 
-- **Intégration Home Assistant** : notifications exposées en entités + action avec autocomplétion — **sans jamais pousser de valeurs depuis HA** (toute la config reste sur BotPanel).
-- **Clé API** (`X-API-Key`) sur `/api/notify` et les webhooks machine, à faire en même temps que l'intégration HA.
-
-> Note : les routes machine (`/api/notify`, webhooks) resteront toujours accessibles sans login humain, pour ne pas casser les intégrations Home Assistant / Proxmox.
+> Note : les routes machine (`/api/notify`, webhooks) restent toujours accessibles sans login humain, pour ne pas casser les intégrations Home Assistant / Proxmox.
 
 ## Livrables
 

@@ -49,6 +49,36 @@ async def set_home_url(payload: dict) -> dict:
     return {"url": url}
 
 
+# ----------------------------------------------------------------------
+# Integration Home Assistant : cle API (cote humain / Parametres) + diagnostic
+# ----------------------------------------------------------------------
+@router.get("/integration")
+async def get_integration() -> dict:
+    """Etat de l'integration : cle API, HA joignable, derniere connexion HA."""
+    from app.integration import ensure_api_key, get_last_seen
+    from app.ha import ha_client
+    from app.api.routes.integration import VERSION
+
+    key = await ensure_api_key()  # cree la cle si elle n'existe pas encore
+    try:
+        ha_ok = await ha_client.ping()
+    except Exception:  # noqa: BLE001
+        ha_ok = False
+    return {
+        "api_key": key,
+        "ha_reachable": bool(ha_ok),
+        "last_seen": await get_last_seen(),  # ISO ou None
+        "version": VERSION,
+    }
+
+
+@router.post("/integration/regenerate")
+async def regenerate_integration_key() -> dict:
+    """Regenere la cle API (l'ancienne cesse de fonctionner)."""
+    from app.integration import regenerate_key
+    return {"api_key": await regenerate_key()}
+
+
 @router.get("/threads", response_model=list[NotificationThread])
 async def get_threads() -> list[NotificationThread]:
     return await thread_repo.list_all()
