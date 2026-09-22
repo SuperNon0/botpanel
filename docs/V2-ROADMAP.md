@@ -29,12 +29,12 @@
   la clé est exigée **uniquement** sur les nouveaux endpoints d'intégration.
 
 ## Fonctionnalités additionnelles validées
-- **Aperçu live avec vraies valeurs HA** dans l'éditeur : l'aperçu résout les
-  placeholders HA (`{state:}`, `{attr::}`, `{unit:}`, Jinja) avec les valeurs
-  réelles récupérées en direct (sans envoyer sur Discord).
-- **Sélecteur d'entités HA** dans l'éditeur : choisir une entité dans une liste
-  et insérer automatiquement le bon `{state:...}` (réutilise l'autocomplétion HA
-  déjà présente pour les commandes).
+- ✅ **FAIT — Aperçu live avec vraies valeurs HA** dans l'éditeur : l'aperçu
+  résout les placeholders HA (`{state:}`, `{attr::}`, `{unit:}`, Jinja) avec les
+  valeurs réelles (endpoint `POST /api/notifications/resolve-preview`), sans
+  envoyer sur Discord ; les `{var:...}` restent visibles. Documenté dans le README.
+- ✅ **DÉJÀ PRÉSENT — Sélecteur d'entités HA** dans l'éditeur : bouton « + entité »
+  qui insère `{state:...|--}` (existait déjà, s'associe à l'aperçu live).
 - **Source dans l'historique** : chaque envoi indique son origine (manuel /
   bouton / automatisation Home Assistant).
 - **Carte « l'intégration marche ? »** : encart de diagnostic (voyant + test)
@@ -45,9 +45,8 @@
 - Exemples de notifications prêts à cloner (peut-être plus tard).
 
 ## Ordre de développement (phases livrables une par une)
-1. **Aperçu live HA** : endpoint `POST /api/notifications/resolve-preview` +
-   éditeur qui affiche les valeurs réelles. **+ Sélecteur d'entités HA** dans
-   l'éditeur. *(BotPanel seul, quick win — on commence par là.)*
+1. ✅ **FAIT — Aperçu live HA** : endpoint `POST /api/notifications/resolve-preview`
+   + éditeur qui affiche les valeurs réelles. Sélecteur d'entités HA : déjà présent.
 2. **Clé API** : génération + carte Paramètres « API / Intégrations » +
    middleware `X-API-Key`. **+ Carte diagnostic** « l'intégration marche ? ».
 3. **API intégration** : `GET /api/integration/ping`, `/notifications`, `/state`.

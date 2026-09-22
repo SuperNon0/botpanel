@@ -63,7 +63,9 @@ def _resolve_vars(template: str, variables: dict | None) -> str:
     return VAR_RE.sub(replace, template)
 
 
-async def _resolve_template(template: str, variables: dict | None = None) -> str:
+async def _resolve_template(
+    template: str, variables: dict | None = None, resolve_vars: bool = True
+) -> str:
     """Remplace les placeholders dans une string.
 
     Trois syntaxes supportees :
@@ -84,7 +86,10 @@ async def _resolve_template(template: str, variables: dict | None = None) -> str
         return template
 
     # 0) Variables dynamiques fournies par l'API
-    template = _resolve_vars(template, variables)
+    # (resolve_vars=False pour l'apercu editeur : on garde les {var:...} visibles,
+    #  puisqu'ils ne sont remplis qu'au moment du declenchement.)
+    if resolve_vars:
+        template = _resolve_vars(template, variables)
 
     # 1) Resolution des placeholders BotPanel (rapide, fetch en local)
     if PLACEHOLDER_RE.search(template):

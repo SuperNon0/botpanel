@@ -143,7 +143,14 @@
   </div>
 
   <div class="card">
-    <h3>Apercu</h3>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap; margin-bottom:0.3rem;">
+      <h3 style="margin:0;">Aperçu</h3>
+      <div style="display:flex; align-items:center; gap:0.6rem;">
+        <span id="resolve-status" class="hint" style="margin:0;"></span>
+        <button type="button" class="btn btn-secondary btn-small" id="btn-refresh-preview"
+                title="Récupérer les vraies valeurs Home Assistant">🔄 Valeurs HA</button>
+      </div>
+    </div>
     <div class="embed-preview" id="preview">
       <div class="embed-title" id="p-title">Titre</div>
       <div class="embed-desc"  id="p-desc">Message</div>
@@ -413,10 +420,41 @@ const STYLE_BG = {
 let buttons = [];
 let fields = [];
 
+// Apercu live : cache des valeurs HA resolues + etat
+let resolvedCache = null;
+let liveResolved = true;
+let resolveTimer = null;
+
+// Source des textes de l'apercu : valeurs HA resolues si dispo, sinon texte brut.
+function previewSource() {
+  const rawFields = fields.map(fl => ({ inline: fl.inline, name: fl.name || "", value: fl.value_template || "" }));
+  const base = {
+    title: document.getElementById("f-title").value || "",
+    message: document.getElementById("f-message").value || "",
+    footer: document.getElementById("f-footer").value || "",
+    fields: rawFields,
+  };
+  if (!liveResolved || !resolvedCache) return base;
+  const rc = resolvedCache;
+  return {
+    title: rc.title || base.title,
+    message: rc.message || base.message,
+    footer: (rc.footer != null) ? rc.footer : base.footer,
+    fields: (rc.fields && rc.fields.length === rawFields.length)
+      ? rawFields.map((rf, i) => ({
+          inline: rf.inline,
+          name: rc.fields[i].name || rf.name,
+          value: rc.fields[i].value_template || rf.value,
+        }))
+      : rawFields,
+  };
+}
+
 function updatePreview() {
-  const t = document.getElementById("f-title").value || "Titre";
-  const m = document.getElementById("f-message").value || "Message";
-  const f = document.getElementById("f-footer").value || "";
+  const src = previewSource();
+  const t = src.title || "Titre";
+  const m = src.message || "Message";
+  const f = src.footer || "";
   const c = document.getElementById("f-color").value || "#e8c547";
   const ts = document.getElementById("f-ts").checked;
   const delBtn = document.getElementById("f-del-btn").checked;
@@ -430,10 +468,10 @@ function updatePreview() {
     : "";
   document.getElementById("preview").style.borderLeftColor = c;
 
-  const fHtml = fields.map(fl => `
+  const fHtml = src.fields.map(fl => `
     <div class="embed-field ${fl.inline !== false ? "inline" : ""}">
       <div class="embed-field-name">${renderDiscordMd(fl.name || "")}</div>
-      <div class="embed-field-val">${renderDiscordMd(fl.value_template || "")}</div>
+      <div class="embed-field-val">${renderDiscordMd(fl.value || "")}</div>
     </div>
   `).join("");
   document.getElementById("p-fields").innerHTML = fHtml;
@@ -467,6 +505,73 @@ function bindPreview() {
       el.addEventListener("change", updatePreview);
     });
   updatePreview();
+}
+
+// ============================================================
+// Apercu live : resout les vraies valeurs Home Assistant
+// ({state:...}, {attr:...}, {unit:...}, Jinja HA). Les {var:...} restent visibles.
+// ============================================================
+// NB : on construit la regex par concatenation pour ne PAS ecrire en clair les
+// deux motifs Jinja (double-accolade et accolade-pourcent), sinon Jinja — qui
+// rend cette page — tenterait de les interpreter. _OB = accolade ouvrante.
+const _OB = "{";
+const HA_PLACEHOLDER_RE = new RegExp("\\{(state|attr|unit):|" + _OB + _OB + "|" + _OB + "%");
+
+function formHasHaPlaceholders() {
+  const parts = [
+    document.getElementById("f-title").value,
+    document.getElementById("f-message").value,
+    document.getElementById("f-footer").value,
+    document.getElementById("f-icon").value,
+    document.getElementById("f-image").value,
+    ...fields.map(fl => (fl.name || "") + " " + (fl.value_template || "")),
+  ];
+  return parts.some(s => HA_PLACEHOLDER_RE.test(s || ""));
+}
+
+function setResolveStatus(kind) {
+  const el = document.getElementById("resolve-status");
+  if (!el) return;
+  el.textContent =
+    kind === "ok"      ? "🟢 valeurs Home Assistant en direct" :
+    kind === "loading" ? "⏳ récupération…" :
+    kind === "err"     ? "🔴 Home Assistant injoignable" :
+                         "⚪ aucune entité HA";
+}
+
+async function refreshResolved() {
+  if (!formHasHaPlaceholders()) {
+    resolvedCache = null; setResolveStatus("none"); updatePreview(); return;
+  }
+  setResolveStatus("loading");
+  try {
+    resolvedCache = await API.post("/notifications/resolve-preview", {
+      title: document.getElementById("f-title").value || "",
+      message: document.getElementById("f-message").value || "",
+      footer: document.getElementById("f-footer").value || "",
+      icon_url: document.getElementById("f-icon").value || "",
+      image_url: document.getElementById("f-image").value || "",
+      fields: fields.map(fl => ({ name: fl.name || "", value_template: fl.value_template || "" })),
+    });
+    setResolveStatus("ok");
+  } catch (e) {
+    resolvedCache = null; setResolveStatus("err");
+  }
+  updatePreview();
+}
+
+function scheduleResolve() {
+  if (!liveResolved) return;
+  clearTimeout(resolveTimer);
+  resolveTimer = setTimeout(refreshResolved, 700);
+}
+
+function bindResolve() {
+  // Toute frappe/modif dans le formulaire relance (avec delai) la resolution.
+  const form = document.getElementById("notif-form");
+  form.addEventListener("input", scheduleResolve);
+  form.addEventListener("change", scheduleResolve);
+  document.getElementById("btn-refresh-preview").addEventListener("click", refreshResolved);
 }
 
 // ============================================================
@@ -853,9 +958,11 @@ function getGroupName() {
 // ============================================================
 async function boot() {
   bindPreview();
+  bindResolve();
   updateThreadModeUI(document.getElementById("f-thread-mode").value);
   await Promise.all([bindChannelSelect(), bindColorPresets(), bindGroupDatalist(), loadForumChannels()]);
   await loadExisting();
+  refreshResolved();  // resout tout de suite si le brouillon contient des entites HA
 }
 boot();
 </script>

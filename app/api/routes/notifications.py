@@ -3,12 +3,56 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Response
+from pydantic import BaseModel
 
 from app.db.models import Notification, NotificationIn
 from app.db.repositories import NotificationRepository
 
 router = APIRouter()
 repo = NotificationRepository()
+
+
+# ----------------------------------------------------------------------
+# Apercu resolu : renvoie les textes avec les VRAIES valeurs Home Assistant
+# ({state:...}, {attr:...}, {unit:...}, Jinja HA), sans rien envoyer sur Discord.
+# Les {var:...} (remplis au declenchement) sont laisses visibles tels quels.
+# ----------------------------------------------------------------------
+class PreviewField(BaseModel):
+    name: str = ""
+    value_template: str = ""
+
+
+class ResolvePreviewIn(BaseModel):
+    title: str = ""
+    message: str = ""
+    footer: str = ""
+    icon_url: str = ""
+    image_url: str = ""
+    fields: list[PreviewField] = []
+
+
+@router.post("/resolve-preview")
+async def resolve_preview(payload: ResolvePreviewIn) -> dict:
+    """Resout les placeholders HA d'un brouillon de notification (apercu editeur)."""
+    from app.bot.notifications import _resolve_template
+
+    async def _r(s: str) -> str:
+        try:
+            return await _resolve_template(s or "", None, resolve_vars=False)
+        except Exception:  # noqa: BLE001 — l'apercu ne doit jamais planter
+            return s or ""
+
+    return {
+        "title": await _r(payload.title),
+        "message": await _r(payload.message),
+        "footer": await _r(payload.footer),
+        "icon_url": await _r(payload.icon_url),
+        "image_url": await _r(payload.image_url),
+        "fields": [
+            {"name": await _r(f.name), "value_template": await _r(f.value_template)}
+            for f in payload.fields
+        ],
+    }
 
 
 @router.get("", response_model=list[Notification])
