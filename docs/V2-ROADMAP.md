@@ -1,42 +1,71 @@
-# Feuille de route — V2 BotPanel
+# Feuille de route — V2 BotPanel · Intégration Home Assistant
 
-> Notes de cadrage pour la V2. Rien ici n'est implémenté : ce sont les
-> fonctionnalités à développer **quand la V2 sera lancée**.
+> Spécification validée avec l'utilisateur (discussion de cadrage). Sert de
+> référence pour le développement. Une fonctionnalité implémentée est retirée
+> d'ici et documentée dans le `README.md`.
 
-## 1. Intégration Home Assistant (cœur de la V2)
+## Décisions validées
 
-Objectif : exposer BotPanel dans Home Assistant **sans jamais pousser de valeurs
-depuis HA** — toute la configuration reste sur BotPanel (c'est le principe voulu).
+**Approche**
+- Intégration **custom** (composant Python Home Assistant, compatible HACS),
+  hébergée **dans le même dépôt** sous `homeassistant/custom_components/botpanel/`.
 
-- **Notifications comme entités HA** : chaque notification BotPanel apparaît côté
-  HA (état / disponibilité), pour pouvoir la déclencher depuis une automatisation.
-- **Action (service) avec autocomplétion** : une action HA « envoyer une
-  notification BotPanel » qui propose la liste des notifications existantes
-  (autocomplete), déclenchée par `id`/slug.
-- **Sens unique** : HA *déclenche* des notifications déjà configurées dans
-  BotPanel ; HA ne *modifie* ni n'*envoie* aucune configuration/valeur vers
-  BotPanel. (Décision explicite de l'utilisateur.)
+**Ce qui apparaît dans Home Assistant**
+- **Boutons** : un `button.botpanel_<slug>` par notification (appui = envoi).
+- **Action** `botpanel.envoyer` avec la liste des notifs (autocomplétion).
+- **Capteurs** (lecture seule) : bot Discord en ligne, envois du jour, envois
+  total, dernière alerte, nombre de notifications configurées.
 
-## 2. Sécurité machine — clé API sur les routes appelées par des machines
+**Règles**
+- Déclenchement **par ID seul** : HA déclenche, il ne configure jamais rien.
+  Tout le contenu est défini/résolu par BotPanel (les `{state:...}`, `{var:...}`,
+  Jinja HA restent résolus par BotPanel à l'envoi).
+- **Sens BotPanel → HA** limité à des capteurs en lecture seule.
 
-Aujourd'hui `/api/notify` (webhooks HA/Proxmox) est **ouverte**, protégée
-uniquement par le réseau (LAN / origine derrière Cloudflare). À durcir en V2 :
+**Sécurité**
+- **Clé API** (`X-API-Key`) générée dans BotPanel (Paramètres → carte « API /
+  Intégrations »).
+- `/api/notify` **reste ouvert sans clé** (rétrocompatibilité HA/Proxmox actuels) ;
+  la clé est exigée **uniquement** sur les nouveaux endpoints d'intégration.
 
-- **Clé API optionnelle** (en-tête type `X-API-Key`) sur `/api/notify` et les
-  futurs webhooks/endpoints machine de l'intégration HA.
-- **Jamais** de login humain sur ces routes : elles restent hors du garde
-  d'authentification (`_AUTH_PUBLIC_PREFIXES`), la clé API + le LAN suffisent.
-- À faire **en même temps** que l'intégration HA (on définit d'un coup comment HA
-  s'authentifie auprès de BotPanel).
+## Fonctionnalités additionnelles validées
+- **Aperçu live avec vraies valeurs HA** dans l'éditeur : l'aperçu résout les
+  placeholders HA (`{state:}`, `{attr::}`, `{unit:}`, Jinja) avec les valeurs
+  réelles récupérées en direct (sans envoyer sur Discord).
+- **Sélecteur d'entités HA** dans l'éditeur : choisir une entité dans une liste
+  et insérer automatiquement le bon `{state:...}` (réutilise l'autocomplétion HA
+  déjà présente pour les commandes).
+- **Source dans l'historique** : chaque envoi indique son origine (manuel /
+  bouton / automatisation Home Assistant).
+- **Carte « l'intégration marche ? »** : encart de diagnostic (voyant + test)
+  confirmant que HA et BotPanel communiquent.
 
-## 3. Idée plus large (à rediscuter) — SSO Cloudflare centralisé pour la flotte
+## Mis de côté (pas maintenant)
+- Passer des variables au déclenchement depuis HA (on reste « par ID pur »).
+- Exemples de notifications prêts à cloner (peut-être plus tard).
 
-- Un seul point d'entrée Cloudflare Access pour tous les sites (BotPanel,
-  FuelLog, Site-base…), chacun restant un programme séparé qui lit le **même
-  badge** signé. Le noyau `cloudflare_access.py` est déjà partagé/identique entre
-  les sites, ce qui prépare le terrain.
+## Ordre de développement (phases livrables une par une)
+1. **Aperçu live HA** : endpoint `POST /api/notifications/resolve-preview` +
+   éditeur qui affiche les valeurs réelles. **+ Sélecteur d'entités HA** dans
+   l'éditeur. *(BotPanel seul, quick win — on commence par là.)*
+2. **Clé API** : génération + carte Paramètres « API / Intégrations » +
+   middleware `X-API-Key`. **+ Carte diagnostic** « l'intégration marche ? ».
+3. **API intégration** : `GET /api/integration/ping`, `/notifications`, `/state`.
+4. **Composant Home Assistant** : config flow (URL + clé), coordinator (~30 s),
+   boutons, capteurs, service `botpanel.envoyer`, regroupés sous un appareil
+   « BotPanel ».
+5. **Source dans l'historique** : marquer l'origine des envois (manuel / HA).
+6. **Doc & tests** : guide d'installation HACS, exemple d'automatisation, tests
+   des endpoints (clé, listes, state) et validation de la structure du composant.
 
----
+## Repères techniques (existant réutilisable)
+- Placeholders HA déjà supportés (résolus à l'envoi via `ha_client.get_state`) :
+  `{state:sensor.x}`, `{attr:sensor.x:friendly_name}`, `{unit:sensor.x}`, et le
+  Jinja HA `{{ states('sensor.x') }}` — voir `app/bot/notifications.py`
+  (`_resolve_template`).
+- Autocomplétion d'entités HA déjà en place (`attachAutocomplete`, `app/api/ha`).
+- Déclenchement par ID existant : `POST /api/notify {id}` (à conserver ouvert).
 
-*Créé pendant la mise en place de l'auth Cloudflare + thème partagé. À reprendre
-au démarrage de la V2.*
+## Idées plus larges (à rediscuter, hors V2)
+- SSO Cloudflare centralisé pour toute la flotte (le noyau `cloudflare_access.py`
+  est déjà partagé, ce qui prépare le terrain).
