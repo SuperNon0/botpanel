@@ -100,16 +100,18 @@ async def _auth_guard(request, call_next):
     (filtrees par `_AUTH_PUBLIC_PREFIXES`) : elles se protegent par cle API / LAN.
     Les pages web protegees sont redirigees vers /login ; les appels API -> 401.
     """
+    path = request.url.path
+    # Endpoints machine de l'integration Home Assistant : proteges par la cle API
+    # (X-API-Key), jamais par le login humain. Verifie TOUJOURS (meme en mode
+    # configuration) pour ne jamais laisser ces routes ouvertes.
+    if path.startswith("/api/integration"):
+        from app.integration import verify_api_key, touch_last_seen
+        if await verify_api_key(request):
+            await touch_last_seen()
+            return await call_next(request)
+        return JSONResponse({"detail": "Cle API invalide ou absente."}, status_code=401)
+
     if settings.is_configured:
-        path = request.url.path
-        # Endpoints machine de l'integration Home Assistant : proteges par la
-        # cle API (X-API-Key), jamais par le login humain.
-        if path.startswith("/api/integration"):
-            from app.integration import verify_api_key, touch_last_seen
-            if await verify_api_key(request):
-                await touch_last_seen()
-                return await call_next(request)
-            return JSONResponse({"detail": "Cle API invalide ou absente."}, status_code=401)
         if not any(path.startswith(p) for p in _AUTH_PUBLIC_PREFIXES):
             cfg = await cf_config()
             state = await auth_state()

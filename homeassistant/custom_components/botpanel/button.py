@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
@@ -14,10 +14,23 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    notifications = (coordinator.data or {}).get("notifications", [])
-    async_add_entities(
-        BotpanelNotifButton(coordinator, entry.entry_id, n) for n in notifications
-    )
+    known: set[str] = set()
+
+    @callback
+    def _sync_buttons() -> None:
+        """Ajoute les boutons des nouvelles notifications au fil des rafraîchissements."""
+        new_entities = []
+        for notif in (coordinator.data or {}).get("notifications", []):
+            uid = f"{entry.entry_id}_notif_{notif['id']}"
+            if uid not in known:
+                known.add(uid)
+                new_entities.append(BotpanelNotifButton(coordinator, entry.entry_id, notif))
+        if new_entities:
+            async_add_entities(new_entities)
+
+    _sync_buttons()
+    # Nouvelles notifications créées dans BotPanel -> boutons ajoutés automatiquement.
+    entry.async_on_unload(coordinator.async_add_listener(_sync_buttons))
 
 
 class BotpanelNotifButton(BotpanelEntity, ButtonEntity):

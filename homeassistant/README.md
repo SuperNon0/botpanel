@@ -59,9 +59,10 @@ automation:
 ```
 
 ## Notes
-- Les boutons sont créés d'après la liste des notifications au démarrage de
-  l'intégration. Si tu ajoutes/supprimes des notifications dans BotPanel,
-  **recharge l'intégration** (menu ⋮ → Recharger) pour rafraîchir les boutons.
+- Les boutons des **nouvelles** notifications apparaissent automatiquement (au
+  prochain rafraîchissement, ~30 s). En cas de **suppression ou de renommage de
+  slug** dans BotPanel, **recharge l'intégration** (menu ⋮ → Recharger) pour
+  retirer les anciens boutons.
 - Rien n'est envoyé depuis HA vers la configuration de BotPanel : HA ne fait que
   lire l'état et déclencher des notifications existantes.
 - Sécurité : toutes les requêtes utilisent l'en-tête `X-API-Key`. Si tu régénères

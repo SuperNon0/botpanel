@@ -58,10 +58,12 @@ async def regenerate_key() -> str:
 
 
 def _request_key(request) -> str:
-    """Extrait la cle presentee : en-tete X-API-Key, sinon ?api_key=."""
-    return (request.headers.get(_HEADER)
-            or request.query_params.get("api_key")
-            or "").strip()
+    """Extrait la cle presentee dans l'en-tete X-API-Key.
+
+    Volontairement PAS de repli sur ?api_key= : une cle en query string finirait
+    dans les logs de reverse-proxy / Cloudflare (fuite du secret).
+    """
+    return (request.headers.get(_HEADER) or "").strip()
 
 
 async def verify_api_key(request) -> bool:
@@ -74,9 +76,21 @@ async def verify_api_key(request) -> bool:
 
 
 async def touch_last_seen() -> None:
-    """Memorise l'instant du dernier appel machine valide (pour le diagnostic)."""
+    """Memorise l'instant du dernier appel machine valide (pour le diagnostic).
+
+    Throttle : on n'ecrit que si la derniere valeur date de plus de 20 s, pour
+    eviter d'ecrire en base a chaque requete du coordinateur HA (~toutes les 30 s).
+    """
     repo = SettingsRepository()
-    await repo.set(_LAST_SEEN_SETTING, datetime.now(timezone.utc).isoformat())
+    now = datetime.now(timezone.utc)
+    prev = await repo.get(_LAST_SEEN_SETTING, None)
+    if prev:
+        try:
+            if (now - datetime.fromisoformat(prev)).total_seconds() < 20:
+                return
+        except (ValueError, TypeError):
+            pass
+    await repo.set(_LAST_SEEN_SETTING, now.isoformat())
 
 
 async def get_last_seen() -> str | None:

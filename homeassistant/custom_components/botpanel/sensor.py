@@ -3,7 +3,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -11,11 +15,13 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN
 from .entity import BotpanelEntity
 
-# (clé dans state, nom, icône)
+# (clé dans state, nom, icône, state_class)
+#  - sent_today / sent_total : compteurs -> TOTAL_INCREASING (gère les resets)
+#  - notif_count : jauge instantanée -> MEASUREMENT
 _STATS = [
-    ("sent_today", "Envois du jour", "mdi:counter"),
-    ("sent_total", "Envois total", "mdi:sigma"),
-    ("notif_count", "Notifications configurées", "mdi:bell"),
+    ("sent_today", "Envois du jour", "mdi:counter", SensorStateClass.TOTAL_INCREASING),
+    ("sent_total", "Envois total", "mdi:sigma", SensorStateClass.TOTAL_INCREASING),
+    ("notif_count", "Notifications configurées", "mdi:bell", SensorStateClass.MEASUREMENT),
 ]
 
 
@@ -24,8 +30,8 @@ async def async_setup_entry(
 ) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
     entities: list[SensorEntity] = [
-        BotpanelStatSensor(coordinator, entry.entry_id, key, name, icon)
-        for key, name, icon in _STATS
+        BotpanelStatSensor(coordinator, entry.entry_id, key, name, icon, state_class)
+        for key, name, icon, state_class in _STATS
     ]
     entities.append(BotpanelLastAlertSensor(coordinator, entry.entry_id))
     async_add_entities(entities)
@@ -34,13 +40,12 @@ async def async_setup_entry(
 class BotpanelStatSensor(BotpanelEntity, SensorEntity):
     """Capteur numérique simple lu dans /state."""
 
-    _attr_state_class = "measurement"
-
-    def __init__(self, coordinator, entry_id: str, key: str, name: str, icon: str) -> None:
+    def __init__(self, coordinator, entry_id: str, key: str, name: str, icon: str, state_class) -> None:
         super().__init__(coordinator, entry_id)
         self._key = key
         self._attr_name = name
         self._attr_icon = icon
+        self._attr_state_class = state_class
         self._attr_unique_id = f"{entry_id}_{key}"
 
     @property

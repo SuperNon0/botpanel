@@ -35,6 +35,7 @@ class ResolvePreviewIn(BaseModel):
 async def resolve_preview(payload: ResolvePreviewIn) -> dict:
     """Resout les placeholders HA d'un brouillon de notification (apercu editeur)."""
     from app.bot.notifications import _resolve_template
+    from app.ha import ha_client
 
     async def _r(s: str) -> str:
         try:
@@ -42,7 +43,15 @@ async def resolve_preview(payload: ResolvePreviewIn) -> dict:
         except Exception:  # noqa: BLE001 — l'apercu ne doit jamais planter
             return s or ""
 
+    # Home Assistant joignable ? (permet a l'editeur d'afficher un voyant fiable
+    # plutot qu'un "en direct" trompeur quand HA est en fait injoignable.)
+    try:
+        ha_ok = bool(await ha_client.ping())
+    except Exception:  # noqa: BLE001
+        ha_ok = False
+
     return {
+        "ha_ok": ha_ok,
         "title": await _r(payload.title),
         "message": await _r(payload.message),
         "footer": await _r(payload.footer),
@@ -104,7 +113,7 @@ async def test_notification(notif_id: int) -> dict[str, str]:
     notif = await repo.get_by_id(notif_id)
     if notif is None:
         raise HTTPException(404, "Notification introuvable")
-    msg = await send_notification(notif.slug)
+    msg = await send_notification(notif.slug, source="test")
     if msg is None:
         raise HTTPException(500, "Echec d'envoi (voir logs)")
     return {"status": "sent", "message_id": str(msg.id)}
@@ -140,7 +149,7 @@ async def preview_notification(
             btn["id"] = saved_button_ids[idx]
     ephemeral = Notification(id=notif_id, **payload_dict)
 
-    msg = await send_notification_object(ephemeral)
+    msg = await send_notification_object(ephemeral, source="test")
     if msg is None:
         raise HTTPException(500, "Echec d'envoi (voir logs)")
     return {"status": "sent", "message_id": str(msg.id)}

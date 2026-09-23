@@ -553,7 +553,8 @@ async function refreshResolved() {
       image_url: document.getElementById("f-image").value || "",
       fields: fields.map(fl => ({ name: fl.name || "", value_template: fl.value_template || "" })),
     });
-    setResolveStatus("ok");
+    // ha_ok=false -> les valeurs affichees sont des replis, pas du "en direct".
+    setResolveStatus(resolvedCache && resolvedCache.ha_ok === false ? "err" : "ok");
   } catch (e) {
     resolvedCache = null; setResolveStatus("err");
   }
