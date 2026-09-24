@@ -1,0 +1,183 @@
+/* =========================================================================
+   BotPanel — aide contextuelle : pastille « ? » + pop-up riche.
+   Utilise les tokens du thème (accent doré, cartes sombres…).
+   ========================================================================= */
+
+/* --- Pastille « ? » ------------------------------------------------------- */
+.help-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  margin-left: 0.4rem;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface, #16181c);
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  vertical-align: middle;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.help-dot:hover {
+  color: #0e0f11;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* --- Overlay + modale ----------------------------------------------------- */
+.help-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  padding: max(24px, env(safe-area-inset-top)) 16px 24px;
+  background: rgba(0, 0, 0, 0.6);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  overflow-y: auto;
+}
+.help-overlay.open { display: flex; }
+body.help-lock { overflow: hidden; }
+
+.help-modal {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  margin-top: 4vh;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 26px 24px 24px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .help-overlay.open .help-modal { animation: help-pop 0.22s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+  @keyframes help-pop { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+}
+
+.help-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.help-close:hover { color: var(--text); background: rgba(255, 255, 255, 0.05); }
+
+.help-title {
+  font-family: "DM Serif Display", serif;
+  font-weight: 400;
+  color: var(--accent);
+  font-size: 1.35rem;
+  margin: 0 2rem 0.9rem 0;
+}
+
+/* --- Corps de l'aide ------------------------------------------------------ */
+.help-body { font-size: 0.86rem; line-height: 1.65; color: var(--text); }
+.help-body p { margin: 0 0 0.8rem; }
+.help-body strong { color: var(--text); }
+.help-body code {
+  font-family: "DM Mono", monospace;
+  font-size: 0.82em;
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.help-body ul { margin: 0 0 0.8rem; padding-left: 1.1rem; }
+.help-body li { margin-bottom: 0.35rem; }
+
+/* Encadrés colorés (callouts) */
+.hbox {
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 0 0 0.9rem;
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 0.82rem;
+}
+.hbox-info { border-left-color: var(--pending, #a78bfa); }
+.hbox-ok { border-left-color: #4ade80; }
+.hbox-warn { border-left-color: #e87c47; }
+.hbox-tip { border-left-color: var(--accent); }
+.hbox b { color: var(--text); }
+
+/* Bloc de code avec bouton Copier */
+.code-block { position: relative; margin: 0 0 0.9rem; }
+.code-block pre {
+  font-family: "DM Mono", monospace;
+  font-size: 0.78rem;
+  color: var(--accent);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 12px;
+  margin: 0;
+  overflow-x: auto;
+  white-space: pre;
+}
+.code-block .copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface, #16181c);
+  color: var(--muted);
+  font-family: "DM Mono", monospace;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 9px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.code-block .copy-btn:hover { color: var(--text); border-color: var(--muted); }
+.code-block .copy-btn.copied { color: #4ade80; border-color: #4ade80; }
+
+.help-label {
+  font-size: 0.63rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  margin: 0 0 0.3rem;
+}
+
+/* --- Panneau « Mode Proxmox » dans l'éditeur ------------------------------ */
+.proxmox-panel {
+  margin-top: 0.7rem;
+  padding: 0.8rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  background: rgba(232, 197, 71, 0.04);
+}
+.proxmox-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.6rem; }
+.proxmox-vars { display: flex; flex-wrap: wrap; gap: 6px; }
+.pvar-btn {
+  font-family: "DM Mono", monospace;
+  font-size: 0.72rem;
+  color: var(--accent);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 5px 9px;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.pvar-btn:hover { border-color: var(--accent); background: rgba(232, 197, 71, 0.1); }
+.md-btn#msg-proxmox.active { color: var(--accent); border-color: var(--accent); }

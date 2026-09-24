@@ -240,6 +240,7 @@ activée), pour ne jamais bloquer tes intégrations.
 | `GET` | `/api/integration/notifications` | Liste compacte des notifications (boutons/action) |
 | `GET` | `/api/integration/state` | Capteurs : bot en ligne, envois jour/total, nb notifs, dernière alerte |
 | `POST` | `/api/integration/trigger` | Déclenche une notification par `id`/`slug` (origine = home_assistant) |
+| `POST` | `/api/integration/proxmox/{slug}` | Webhook Proxmox/PBS → déclenche la notif `slug` (parse le message en `{var:...}`) |
 
 #### PWA
 
@@ -419,6 +420,23 @@ En plus du simple `rest_command` ci-dessus, BotPanel fournit un **vrai composant
 Un appareil **BotPanel** regroupe alors tous les boutons et capteurs. Exemple d'automatisation et détails : [`homeassistant/README.md`](homeassistant/README.md).
 
 **Sécurité machine** : une **clé API** (`X-API-Key`, en-tête uniquement) protège les endpoints `/api/integration/*` ; elle se régénère dans les Paramètres (voyant « l'intégration marche ? » : HA joignable, dernière connexion du module, version). Les webhooks existants (`/api/notify`) restent ouverts **sans** clé (rétrocompatibilité HA/Proxmox).
+
+## Intégration Proxmox VE / Proxmox Backup Server
+
+Proxmox VE et PBS envoient leurs notifications (backups, sync, vérif…) **directement** à BotPanel via leur système natif de **webhook** — aucun script, tout se configure dans l'interface Proxmox (*Datacenter → Notifications*).
+
+- **Endpoint** : `POST /api/integration/proxmox/<slug>` (protégé par la **clé API** `X-API-Key`). Le `<slug>` choisit la notification BotPanel à déclencher.
+- **Corps du webhook** (format 3 lignes, robuste — pas de JSON à échapper) :
+  ```
+  {{ severity }}
+  {{ title }}
+  {{ message }}
+  ```
+- BotPanel **parse** le message et expose des variables à placer où tu veux dans la notif : `{var:statut}`, `{var:vmid}`, `{var:nom}`, `{var:duree}`, `{var:taille}`, `{var:datastore}`, `{var:message}`… La **couleur passe en rouge automatiquement** sur erreur.
+- Dans l'éditeur de notification, le bouton **« 🖥️ Proxmox »** affiche la palette de variables **et** un **« ? »** avec la config exacte à coller (URL + en-tête + corps, boutons *Copier*). Le bouton **Tester** remplit des valeurs d'exemple.
+- Côté Proxmox : ajouter une cible **Webhook** + un **Matcher** (ex. type `vzdump` pour les backups, `sync` pour l'envoi vers OVH). Historique BotPanel tagué **« Proxmox »**.
+
+> **Aide contextuelle** : des petits **« ? »** apparaissent à côté des réglages (ex. le *slug*) et ouvrent une pop-up d'explication — la connaissance vient à toi, là où tu en as besoin.
 
 ## Évolutions futures
 

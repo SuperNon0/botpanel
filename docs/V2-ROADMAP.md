@@ -63,6 +63,22 @@
 > **V2 terminée** — toutes les phases sont implémentées. Reste à tester en réel
 > avec une instance Home Assistant (copie du composant + ajout de l'intégration).
 
+## V2.1 — Proxmox & aide contextuelle
+- ✅ **FAIT — Intégration Proxmox VE / PBS** : endpoint `POST /api/integration/proxmox/<slug>`
+  (webhook natif, protégé par la clé API), parseur du message → variables `{var:...}`
+  (statut, vmid, nom, durée, taille, datastore…), couleur rouge auto sur erreur,
+  historique tagué « proxmox ». Éditeur : bouton **« 🖥️ Proxmox »** (palette de
+  variables + aide « ? » avec la config à coller) ; le bouton **Tester** injecte des
+  valeurs d'exemple. Doc README.
+- ✅ **FAIT (socle)** — **Aide contextuelle** : moteur « ? » + pop-up riche
+  (`static/js/help.js` + `help-content.js` + `help.css`), premières aides (slug,
+  Proxmox).
+- ⏳ **EN COURS — Migration de la page Aide** : déplacer tout le contenu d'`/aide`
+  dans des « ? » à leur place (partout), retirer « Aide » du menu, ajouter un « ? »
+  sur la clé API Home Assistant dans les Paramètres.
+- 🔜 À affiner : le **parseur Proxmox** avec un vrai exemple de notification de
+  backup (extraction exacte de durée/taille/nom).
+
 ## Repères techniques (existant réutilisable)
 - Placeholders HA déjà supportés (résolus à l'envoi via `ha_client.get_state`) :
   `{state:sensor.x}`, `{attr:sensor.x:friendly_name}`, `{unit:sensor.x}`, et le
