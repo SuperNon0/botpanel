@@ -64,6 +64,11 @@ class Settings(BaseSettings):
     # dans Parametres). Laisse vide si tu geres le mot de passe uniquement via l'UI.
     admin_password: str = ""
 
+    # --- Integration Home Assistant (cle API machine) ---
+    # Cle de PREMIERE INSTALL pour /api/integration/* ; si vide, une cle est
+    # generee a la demande depuis Parametres -> API / Integrations.
+    integration_api_key: str = ""
+
     @property
     def ha_api_url(self) -> str:
         """URL de base de l'API REST de Home Assistant."""

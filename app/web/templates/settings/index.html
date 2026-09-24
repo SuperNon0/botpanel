@@ -164,6 +164,32 @@
     correspond pas à l'app Access. Erreur « …cloudflareaccess.com… » → mets le <strong>nom seul</strong> dans Équipe.
   </p>
 </div>
+
+<div class="card" id="integration-card">
+  <h3>API / Intégration Home Assistant</h3>
+  <p class="hint">
+    Clé secrète utilisée par le <strong>module BotPanel dans Home Assistant</strong> pour se connecter
+    (boutons, action, capteurs). À coller une fois dans Home Assistant. Les webhooks existants
+    (<code>/api/notify</code>) continuent de fonctionner <strong>sans</strong> cette clé.
+  </p>
+
+  <div class="form-group">
+    <label class="form-label">Clé API</label>
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+      <input class="form-input" id="int-key" readonly style="flex:1; min-width:220px; font-size:0.8rem;">
+      <button type="button" class="btn btn-secondary btn-small" id="int-copy">Copier</button>
+      <button type="button" class="btn btn-danger btn-small" id="int-regen">Régénérer</button>
+    </div>
+    <div class="form-hint">⚠️ Régénérer invalide l'ancienne clé : il faudra la remettre à jour dans Home Assistant.</div>
+  </div>
+
+  <h4 style="margin:1.2rem 0 0.5rem;">L'intégration marche&nbsp;?</h4>
+  <div id="int-diag" class="cf-result"><div class="hint">Chargement…</div></div>
+  <p class="hint" style="margin-top:0.6rem;">
+    Le <strong>guide d'installation</strong> du module Home Assistant est fourni dans le dépôt
+    (<code>homeassistant/custom_components/botpanel/</code>).
+  </p>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -595,6 +621,53 @@ loadAuth();
 bindAuth();
 loadCf();
 bindCf();
+
+// ============================================================
+// API / Integration Home Assistant
+// ============================================================
+function agoFr(iso) {
+  if (!iso) return "jamais";
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return "il y a " + Math.round(s) + " s";
+  if (s < 3600) return "il y a " + Math.round(s / 60) + " min";
+  if (s < 86400) return "il y a " + Math.round(s / 3600) + " h";
+  return "il y a " + Math.round(s / 86400) + " j";
+}
+function renderIntegDiag(d) {
+  const seenRecent = d.last_seen && (Date.now() - new Date(d.last_seen).getTime()) < 5 * 60 * 1000;
+  let h = "";
+  h += cfRow("Home Assistant joignable", cfBadge(d.ha_reachable ? "cf-ok" : "cf-ko", d.ha_reachable ? "oui" : "non"));
+  h += cfRow("Module HA connecté à BotPanel",
+    cfBadge(seenRecent ? "cf-ok" : "cf-neutral", d.last_seen ? agoFr(d.last_seen) : "jamais"));
+  h += cfRow("Version", `<span class="cf-val">${esc(d.version || "—")}</span>`);
+  document.getElementById("int-diag").innerHTML = h;
+}
+async function loadIntegration() {
+  try {
+    const d = await API.get("/settings/integration");
+    document.getElementById("int-key").value = d.api_key || "";
+    renderIntegDiag(d);
+  } catch (e) {
+    document.getElementById("int-diag").innerHTML = `<div class="hint">Erreur : ${esc(e.message)}</div>`;
+  }
+}
+function bindIntegration() {
+  document.getElementById("int-copy").addEventListener("click", async () => {
+    const v = document.getElementById("int-key").value;
+    try { await navigator.clipboard.writeText(v); toast("Clé copiée."); }
+    catch { const el = document.getElementById("int-key"); el.select(); document.execCommand("copy"); toast("Clé copiée."); }
+  });
+  document.getElementById("int-regen").addEventListener("click", async () => {
+    if (!confirm("Régénérer la clé ? L'ancienne cessera de fonctionner (à remettre à jour dans Home Assistant).")) return;
+    try {
+      const d = await API.post("/settings/integration/regenerate", {});
+      document.getElementById("int-key").value = d.api_key || "";
+      toast("Nouvelle clé générée.");
+    } catch (e) { toast(e.message, "error"); }
+  });
+}
+loadIntegration();
+bindIntegration();
 </script>
 <style>
   .cf-result { display:flex; flex-direction:column; gap:10px; }

@@ -23,6 +23,7 @@ class LogRepository:
         user_name: Optional[str] = None,
         button_label: Optional[str] = None,
         detail: Optional[str] = None,
+        source: Optional[str] = None,
         success: bool = True,
     ) -> int:
         async with get_connection() as db:
@@ -30,12 +31,12 @@ class LogRepository:
                 """
                 INSERT INTO notification_logs (
                     notification_id, notification_slug, channel_id, message_id,
-                    kind, user_id, user_name, button_label, detail, success
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    kind, user_id, user_name, button_label, detail, source, success
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     notification_id, notification_slug, channel_id, message_id,
-                    kind, user_id, user_name, button_label, detail, int(success),
+                    kind, user_id, user_name, button_label, detail, source, int(success),
                 ),
             )
             await db.commit()
@@ -83,6 +84,7 @@ class LogRepository:
                 user_name=row["user_name"],
                 button_label=row["button_label"],
                 detail=row["detail"],
+                source=row["source"] if "source" in row.keys() else None,
                 success=bool(row["success"]),
                 created_at=row["created_at"],
             )
@@ -108,6 +110,31 @@ class LogRepository:
                 "sent_err": row[1] or 0,
                 "clicks": row[2] or 0,
             }
+
+    async def count_sends_total(self) -> int:
+        """Nombre total d'envois reussis (kind='send', success=1)."""
+        async with get_connection() as db:
+            cursor = await db.execute(
+                "SELECT COUNT(*) FROM notification_logs WHERE kind='send' AND success=1"
+            )
+            row = await cursor.fetchone()
+            return row[0] or 0
+
+    async def last_send(self) -> Optional[dict]:
+        """Dernier envoi reussi : {slug, created_at, source} ou None."""
+        async with get_connection() as db:
+            cursor = await db.execute(
+                """
+                SELECT notification_slug, created_at, source
+                FROM notification_logs
+                WHERE kind='send' AND success=1
+                ORDER BY id DESC LIMIT 1
+                """
+            )
+            row = await cursor.fetchone()
+            if row is None:
+                return None
+            return {"slug": row[0], "created_at": row[1], "source": row[2]}
 
     async def count_week(self) -> int:
         """Compte tous les evenements des 7 derniers jours."""

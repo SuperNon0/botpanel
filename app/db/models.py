@@ -171,5 +171,6 @@ class NotificationLog(BaseModel):
     user_name: Optional[str] = None
     button_label: Optional[str] = None
     detail: Optional[str] = None
+    source: Optional[str] = None
     success: bool = True
     created_at: str

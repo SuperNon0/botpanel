@@ -3,12 +3,65 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Response
+from pydantic import BaseModel
 
 from app.db.models import Notification, NotificationIn
 from app.db.repositories import NotificationRepository
 
 router = APIRouter()
 repo = NotificationRepository()
+
+
+# ----------------------------------------------------------------------
+# Apercu resolu : renvoie les textes avec les VRAIES valeurs Home Assistant
+# ({state:...}, {attr:...}, {unit:...}, Jinja HA), sans rien envoyer sur Discord.
+# Les {var:...} (remplis au declenchement) sont laisses visibles tels quels.
+# ----------------------------------------------------------------------
+class PreviewField(BaseModel):
+    name: str = ""
+    value_template: str = ""
+
+
+class ResolvePreviewIn(BaseModel):
+    title: str = ""
+    message: str = ""
+    footer: str = ""
+    icon_url: str = ""
+    image_url: str = ""
+    fields: list[PreviewField] = []
+
+
+@router.post("/resolve-preview")
+async def resolve_preview(payload: ResolvePreviewIn) -> dict:
+    """Resout les placeholders HA d'un brouillon de notification (apercu editeur)."""
+    from app.bot.notifications import _resolve_template
+    from app.ha import ha_client
+
+    async def _r(s: str) -> str:
+        try:
+            return await _resolve_template(s or "", None, resolve_vars=False)
+        except Exception:  # noqa: BLE001 — l'apercu ne doit jamais planter
+            return s or ""
+
+    # Home Assistant joignable ? (permet a l'editeur d'afficher un voyant fiable
+    # plutot qu'un "en direct" trompeur quand HA est en fait injoignable.)
+    try:
+        ha_ok = bool(await ha_client.ping())
+    except Exception:  # noqa: BLE001
+        ha_ok = False
+
+    return {
+        "ha_ok": ha_ok,
+        "title": await _r(payload.title),
+        "message": await _r(payload.message),
+        "footer": await _r(payload.footer),
+        "icon_url": await _r(payload.icon_url),
+        "image_url": await _r(payload.image_url),
+        "fields": [
+            {"name": await _r(f.name), "value_template": await _r(f.value_template)}
+            for f in payload.fields
+        ],
+    }
 
 
 @router.get("", response_model=list[Notification])
@@ -60,7 +113,7 @@ async def test_notification(notif_id: int) -> dict[str, str]:
     notif = await repo.get_by_id(notif_id)
     if notif is None:
         raise HTTPException(404, "Notification introuvable")
-    msg = await send_notification(notif.slug)
+    msg = await send_notification(notif.slug, source="test")
     if msg is None:
         raise HTTPException(500, "Echec d'envoi (voir logs)")
     return {"status": "sent", "message_id": str(msg.id)}
@@ -96,7 +149,7 @@ async def preview_notification(
             btn["id"] = saved_button_ids[idx]
     ephemeral = Notification(id=notif_id, **payload_dict)
 
-    msg = await send_notification_object(ephemeral)
+    msg = await send_notification_object(ephemeral, source="test")
     if msg is None:
         raise HTTPException(500, "Echec d'envoi (voir logs)")
     return {"status": "sent", "message_id": str(msg.id)}

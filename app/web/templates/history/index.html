@@ -75,6 +75,15 @@ async function loadLogs() {
         : "";
       const btn = l.button_label ? `&middot; bouton <code>${esc(l.button_label)}</code>` : "";
       const slug = l.notification_slug ? `&middot; <code>${esc(l.notification_slug)}</code>` : "";
+      const SRC_TAG = {
+        home_assistant: { label: "Home Assistant", cls: "tag-purple" },
+        api:            { label: "API",            cls: "tag-muted"  },
+        manuel:         { label: "Manuel",         cls: "tag-muted"  },
+        test:           { label: "Test",           cls: "tag-muted"  },
+      };
+      const src = (l.kind === "send" && l.source && SRC_TAG[l.source])
+        ? `&middot; <span class="tag ${SRC_TAG[l.source].cls}">${SRC_TAG[l.source].label}</span>`
+        : "";
       const detail = l.detail ? `<div class="card-row-meta" style="margin-top:0.2rem;">${esc(l.detail)}</div>` : "";
       return `
         <div class="card-row">
@@ -83,6 +92,7 @@ async function loadLogs() {
               <span class="tag ${tag.cls}">${tag.label}</span>
               ${status}
               ${slug}
+              ${src}
               ${btn}
               ${who}
             </div>

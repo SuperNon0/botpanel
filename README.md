@@ -23,7 +23,11 @@ Hébergé dans un conteneur LXC Proxmox.
 - **Images** : miniature (petite) et **grande image** (affiche), toutes deux compatibles avec les variables — idéal pour une affiche de film/série envoyée dynamiquement (Sonarr, Radarr…)
 - **Autocomplétion live** des entités HA, services HA et channels Discord dans tous les formulaires
 - **Page Paramètres** : presets de couleurs et de channels, liste des forums détectés, gestion des threads/posts actifs, mise à jour et redémarrage depuis l'UI
-- **Page Historique** : logs de tous les envois et clics de boutons, avec filtre et purge
+- **Page Historique** : logs de tous les envois et clics de boutons, avec **origine de l'envoi** (Home Assistant / API / Manuel / Test), filtre et purge
+- **Intégration Home Assistant native** : composant HA officiel (boutons par notification, action `botpanel.envoyer`, capteurs d'état), sécurisé par une clé API
+- **Aperçu live avec vraies valeurs HA** : l'éditeur de notification résout `{state:...}`/`{attr:...}`/Jinja avec les valeurs réelles récupérées en direct
+- **Authentification à deux portes** : mot de passe local (LAN) + badge Cloudflare Access vérifié (JWT), avec mode « Cloudflare uniquement »
+- **PWA installable** + interface animée (respecte « réduire les animations »), squelettes de chargement, états vides illustrés
 - **Design FuelLog** (dark mode exclusif, DM Mono + DM Serif Display)
 
 ## Le site web
@@ -50,6 +54,8 @@ Le formulaire d'édition permet de configurer :
 
 Un **aperçu live** du rendu Discord est affiché pendant l'édition. Un bouton "Tester" envoie la notification dans Discord sans sauvegarder.
 
+> **Aperçu avec vraies valeurs Home Assistant** : l'aperçu résout en direct les placeholders HA (`{state:...}`, `{attr:...}`, `{unit:...}`, Jinja HA) avec les **valeurs réelles** récupérées depuis Home Assistant (endpoint `POST /api/notifications/resolve-preview`, sans rien envoyer sur Discord). Un voyant indique l'état (🟢 valeurs en direct / 🔴 HA injoignable) et un bouton **« 🔄 Valeurs HA »** rafraîchit. Les `{var:...}` (remplis au déclenchement) restent affichés tels quels. Le bouton **« + entité »** de la barre d'outils insère l'entité choisie sous forme `{state:...|--}`.
+
 ### Commandes (`/commands`)
 
 Gestion des commandes slash personnalisées. Chaque commande a :
@@ -73,16 +79,19 @@ Le bot crée le message épinglé au premier cycle et ne fait que l'éditer ensu
 
 ### Paramètres (`/settings`)
 
-Cinq blocs :
-- **Mise à jour** : affiche la branche et le commit git courants ; un bouton lance un `git pull` suivi d'un redémarrage automatique du service (la page se recharge toute seule quand le bot revient)
+- **Mise à jour** : affiche la branche et le commit git courants ; un bouton lance un `git pull` + réinstallation des dépendances + redémarrage automatique du service (la page se recharge quand le bot revient)
 - **Couleurs préconfigurées** : palette de couleurs nommées disponibles dans le sélecteur rapide du formulaire notification
 - **Channels Discord préconfigurés** : liste de channels avec leurs IDs, affichés dans la liste déroulante du formulaire ; un tableau des channels détectés par le bot permet de les ajouter en un clic
 - **Channels forum détectés** : liste des channels forum accessibles par le bot, utilisables comme destination en mode *Forum*
 - **Threads / Posts actifs** : liste tous les fils et posts créés automatiquement ; bouton "Réinitialiser" par entrée pour forcer la recréation au prochain envoi
+- **Sauvegarde & migration** : export/import JSON de toute la configuration
+- **Compte & sécurité** : activer/changer/désactiver le mot de passe admin (LAN)
+- **Cloudflare / Accès** : équipe + AUD + bouton **Tester**, et l'option « accès uniquement Cloudflare »
+- **API / Intégration** : clé API (copier / régénérer) pour le composant Home Assistant + diagnostic « l'intégration marche ? »
 
 ### Historique (`/historique`)
 
-Journal de toutes les activités du bot : envois de notifications, clics sur les boutons (Supprimer, Snooze, action HA). Chaque entrée indique la notification concernée, l'utilisateur (pour les clics), le channel, l'horodatage et si l'opération a réussi. Filtrable et purgeable.
+Journal de toutes les activités du bot : envois de notifications, clics sur les boutons (Supprimer, Snooze, action HA). Chaque entrée indique la notification concernée, l'**origine de l'envoi** (🏠 Home Assistant / API / Manuel / Test), l'utilisateur (pour les clics), le channel, l'horodatage et si l'opération a réussi. Filtrable et purgeable.
 
 ## Commandes slash Discord
 
@@ -122,6 +131,9 @@ Créées et gérées depuis `/commands` sur le site. Elles sont synchronisées s
 app/
 ├── main.py              # Lance bot + API dans la même event loop asyncio
 ├── config.py            # Pydantic Settings (lit .env)
+├── auth.py              # Mots de passe (PBKDF2) + sessions + config Cloudflare
+├── cloudflare_access.py # Vérif du badge Cloudflare (JWT) — partagé avec Site-base
+├── integration.py       # Clé API machine (X-API-Key) pour l'intégration HA
 ├── db/
 │   ├── database.py      # SQLite async (aiosqlite)
 │   ├── models.py        # Schémas Pydantic
@@ -139,7 +151,10 @@ app/
 │   └── routes/          # Un fichier par groupe de routes
 └── web/
     ├── templates/        # Templates Jinja2
-    └── static/           # CSS + JS
+    └── static/           # CSS + JS + icônes PWA
+
+homeassistant/
+└── custom_components/botpanel/   # Composant Home Assistant (boutons, capteurs, action)
 ```
 
 ## Intégrer un projet (API notifications)
@@ -175,6 +190,7 @@ activée), pour ne jamais bloquer tes intégrations.
 | `POST` | `/api/notifications/{id}/test` | Envoie la notification en test |
 | `POST` | `/api/notifications/{id}/duplicate` | Duplique (slug `<original>_copy`) |
 | `POST` | `/api/notifications/preview` | Prévisualise sans sauvegarder |
+| `POST` | `/api/notifications/resolve-preview` | Résout les placeholders HA d'un brouillon (valeurs réelles, sans envoi) |
 | `GET` | `/api/commands` | Liste les commandes slash |
 | `POST` | `/api/commands` | Crée une commande slash |
 | `PUT` | `/api/commands/{id}` | Modifie une commande slash |
@@ -201,13 +217,42 @@ activée), pour ne jamais bloquer tes intégrations.
 | `GET` | `/api/system/info` | Infos système (commit et branche git courants) |
 | `POST` | `/api/system/update` | `git fetch && git pull --ff-only` |
 | `POST` | `/api/system/restart` | `systemctl restart botpanel` (détaché) |
+| `GET` | `/api/settings/integration` | État de l'intégration (clé API, HA joignable, dernière connexion) |
+| `POST` | `/api/settings/integration/regenerate` | Régénère la clé API |
 | `GET` | `/health` | Vérification de santé — `{"status": "ok"}` |
 | `GET` | `/api/docs` | Documentation Swagger UI |
+
+#### Authentification (`/api/auth/*`)
+
+| Méthode | Route | Usage |
+|---------|-------|-------|
+| `GET` | `/api/auth/me` | État de connexion (méthode Cloudflare / mot de passe) |
+| `POST` | `/api/auth/login` · `/logout` | Connexion / déconnexion (mot de passe LAN) |
+| `POST` | `/api/auth/password` · `/disable` | Définir/changer · désactiver le mot de passe |
+| `GET`/`POST` | `/api/auth/cf-config` | Lire / enregistrer la config Cloudflare (équipe, AUD, verify, allow_local) |
+| `POST` | `/api/auth/cf-test` | Diagnostic du badge Cloudflare |
+
+#### Intégration machine (`/api/integration/*`, clé `X-API-Key` requise)
+
+| Méthode | Route | Usage |
+|---------|-------|-------|
+| `GET` | `/api/integration/ping` | Identité + version (validation config HA) |
+| `GET` | `/api/integration/notifications` | Liste compacte des notifications (boutons/action) |
+| `GET` | `/api/integration/state` | Capteurs : bot en ligne, envois jour/total, nb notifs, dernière alerte |
+| `POST` | `/api/integration/trigger` | Déclenche une notification par `id`/`slug` (origine = home_assistant) |
+
+#### PWA
+
+| Méthode | Route | Usage |
+|---------|-------|-------|
+| `GET` | `/manifest.webmanifest` | Manifest PWA (installable) |
+| `GET` | `/sw.js` | Service worker (repli hors-ligne, ne cache jamais `/api/`) |
 
 ### Pages web
 
 | Route | Page |
 |-------|------|
+| `/dashboard` | Accueil : statut du bot/HA + statistiques |
 | `/notifications` | Liste des notifications (groupées par groupe) |
 | `/notifications/new` | Créer une notification |
 | `/notifications/{id}` | Éditer une notification |
@@ -217,8 +262,10 @@ activée), pour ne jamais bloquer tes intégrations.
 | `/monitoring` | Liste des blocs de monitoring |
 | `/monitoring/new` | Créer un bloc |
 | `/monitoring/{id}` | Éditer un bloc |
-| `/settings` | Paramètres (presets, threads actifs, mise à jour, redémarrage) |
-| `/historique` | Historique des envois et clics de boutons |
+| `/settings` | Paramètres (presets, sécurité, Cloudflare, intégration, mise à jour…) |
+| `/historique` | Historique des envois (avec origine) et clics de boutons |
+| `/aide` | Page d'aide (modes d'envoi, placeholders, tutoriel Discord) |
+| `/login` · `/login/forgot` | Connexion locale · réinitialisation du mot de passe |
 
 ## Installation (LXC Proxmox)
 
@@ -257,6 +304,8 @@ Remplir :
 - `HA_BASE_URL` — `http://IP_HA:8123`
 - `HA_TOKEN` — token longue durée HA
 
+Variables **optionnelles** (sinon gérées depuis les Paramètres) : `ADMIN_PASSWORD`, `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`, `CF_VERIFY_JWT`, `ALLOW_LOCAL_LOGIN`, `INTEGRATION_API_KEY` — voir [`.env.example`](.env.example).
+
 ### 4. Démarrer
 
 ```bash
@@ -272,6 +321,10 @@ Le site peut être exposé via Cloudflare Zero Trust (authentification SSO).
 Configurer un tunnel pointant vers `http://IP_LXC:8080` et activer la politique d'accès.
 
 ## Configuration Home Assistant
+
+Deux façons de connecter Home Assistant :
+- **Méthode simple (ci-dessous)** : un `rest_command` qui appelle `/api/notify`. Rapide, sans installation dans HA.
+- **Composant natif (recommandé)** : boutons + action + capteurs dans HA — voir [Intégration Home Assistant](#intégration-home-assistant-composant-natif).
 
 Ajouter dans `configuration.yaml` :
 
@@ -305,6 +358,8 @@ action:
 | HTTP client | httpx 0.27 |
 | Config | pydantic-settings 2.5 |
 | Templates | Jinja2 3.1 |
+| Auth Cloudflare | PyJWT 2.9 + cryptography 43 (vérif JWT du badge) |
+| Intégration HA | Composant Home Assistant (config flow + DataUpdateCoordinator) |
 | Conteneur | LXC Proxmox + systemd |
 
 ## Points d'attention
@@ -342,21 +397,42 @@ BotPanel intègre une **authentification à deux portes** (voir [docs/CONNEXION.
 
 > Le noyau de vérification du badge (`app/cloudflare_access.py`) et le thème d'interface sont **partagés à l'identique** avec les autres sites (socle `Site-base`), pour une sécurité et un look cohérents sur toute la flotte.
 
+## Intégration Home Assistant (composant natif)
+
+En plus du simple `rest_command` ci-dessus, BotPanel fournit un **vrai composant Home Assistant** (`homeassistant/custom_components/botpanel/`) qui fait apparaître, dans HA :
+- **un bouton par notification** (`button.botpanel_…`, appui = envoi Discord) — les nouvelles notifs apparaissent automatiquement ;
+- une **action** `botpanel.envoyer` (par slug ou id), utilisable dans les automatisations ;
+- des **capteurs** : `binary_sensor` bot Discord en ligne, `sensor` envois du jour / envois total / notifications configurées / dernière alerte.
+
+> **Sens unique** : Home Assistant **déclenche** (par identifiant), il ne configure jamais rien — tout le contenu reste défini sur BotPanel.
+
+### Installation (3 étapes)
+
+1. **Récupérer la clé API** : BotPanel → **Paramètres → API / Intégration** → copier la **clé API** (générée automatiquement).
+2. **Copier le composant** dans Home Assistant, puis redémarrer HA :
+   ```bash
+   cp -r homeassistant/custom_components/botpanel /config/custom_components/
+   # Home Assistant → Paramètres → Système → Redémarrer
+   ```
+3. **Ajouter l'intégration** : Home Assistant → **Paramètres → Appareils et services → bouton « + Ajouter une intégration »** → chercher **BotPanel** → saisir l'**URL de BotPanel** (`http://IP_LXC:8080`) et la **clé API**.
+
+Un appareil **BotPanel** regroupe alors tous les boutons et capteurs. Exemple d'automatisation et détails : [`homeassistant/README.md`](homeassistant/README.md).
+
+**Sécurité machine** : une **clé API** (`X-API-Key`, en-tête uniquement) protège les endpoints `/api/integration/*` ; elle se régénère dans les Paramètres (voyant « l'intégration marche ? » : HA joignable, dernière connexion du module, version). Les webhooks existants (`/api/notify`) restent ouverts **sans** clé (rétrocompatibilité HA/Proxmox).
+
 ## Évolutions futures
 
-Voir [docs/V2-ROADMAP.md](docs/V2-ROADMAP.md). En résumé (non encore implémenté) :
+Voir [docs/V2-ROADMAP.md](docs/V2-ROADMAP.md).
 
-- **Intégration Home Assistant** : notifications exposées en entités + action avec autocomplétion — **sans jamais pousser de valeurs depuis HA** (toute la config reste sur BotPanel).
-- **Clé API** (`X-API-Key`) sur `/api/notify` et les webhooks machine, à faire en même temps que l'intégration HA.
-
-> Note : les routes machine (`/api/notify`, webhooks) resteront toujours accessibles sans login humain, pour ne pas casser les intégrations Home Assistant / Proxmox.
+> Note : les routes machine (`/api/notify`, webhooks) restent toujours accessibles sans login humain, pour ne pas casser les intégrations Home Assistant / Proxmox.
 
 ## Livrables
 
 - Code source versionné
-- Script de déploiement LXC (`deploy/install_lxc.sh`)
+- Script de déploiement LXC (`deploy/install_lxc.sh`) + mise à jour (`deploy/update.sh`) + reset mot de passe (`deploy/reset_admin.sh`)
 - Unit systemd (`deploy/botpanel.service`)
 - Snippet HA prêt à coller (`deploy/homeassistant_rest_command.yaml`)
+- **Composant Home Assistant** (`homeassistant/custom_components/botpanel/`) + guide
 - `.env.example` documenté
 
 ---

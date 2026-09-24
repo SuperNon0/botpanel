@@ -1,0 +1,12 @@
+{
+  "domain": "botpanel",
+  "name": "BotPanel",
+  "version": "1.0.0",
+  "documentation": "https://github.com/SuperNon0/botpanel",
+  "issue_tracker": "https://github.com/SuperNon0/botpanel/issues",
+  "codeowners": ["@SuperNon0"],
+  "config_flow": true,
+  "iot_class": "local_polling",
+  "integration_type": "hub",
+  "requirements": []
+}

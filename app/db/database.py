@@ -178,6 +178,7 @@ CREATE TABLE IF NOT EXISTS notification_logs (
     user_name       TEXT,
     button_label    TEXT,
     detail          TEXT,                             -- libre (service appele, erreur, ...)
+    source          TEXT,                             -- origine d'un envoi : manuel / test / home_assistant / api
     success         INTEGER NOT NULL DEFAULT 1,       -- 0 si erreur
     created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -202,6 +203,7 @@ _MIGRATIONS_ALTER: list[str] = [
     "ALTER TABLE notifications ADD COLUMN mention TEXT",
     "ALTER TABLE notifications ADD COLUMN list_group TEXT",
     "ALTER TABLE notifications ADD COLUMN image_url TEXT",
+    "ALTER TABLE notification_logs ADD COLUMN source TEXT",
 ]
 
 

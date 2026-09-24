@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "BotPanel",
+        "description": "Connecte Home Assistant à ton BotPanel. La clé API se trouve dans BotPanel → Paramètres → API / Intégration.",
+        "data": {
+          "base_url": "URL de BotPanel (ex. http://192.168.1.50:8080)",
+          "api_key": "Clé API"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Connexion impossible : vérifie l'URL de BotPanel.",
+      "invalid_auth": "Clé API invalide."
+    },
+    "abort": {
+      "already_configured": "BotPanel est déjà configuré."
+    }
+  }
+}
