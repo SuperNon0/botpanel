@@ -11,9 +11,10 @@
   `brands/README.md` pour la démarche.
 
 ## À affiner
-- **Parseur Proxmox** (`app/api/routes/integration.py`, `parse_proxmox`) : calé
-  sur un **vrai backup vzdump PVE** (nom via `CT Name:`, datastore via
-  `--storage`, durée/taille via `Total …`). Reste à étendre/valider pour les
+- **Parseur Proxmox** (`app/api/routes/integration.py`) : calé sur un **vrai
+  backup vzdump PVE** (nom via `CT Name:`, datastore via `--storage`,
+  durée/taille via le tableau *Details* / `Total …`), avec un **récap multi-VM**
+  (`{var:resume}` = une ligne par VM, 1 seule notif). Reste à étendre/valider pour les
   **PBS Sync Jobs** et la **vérification** (formats un peu différents).
   `{var:message}`, `{var:statut}`, `{var:titre}` restent toujours garantis.
 

@@ -185,6 +185,53 @@ def parse_proxmox(raw: str, content_type: str = "") -> dict:
     return data
 
 
+# Une ligne du tableau « Details » d'un backup vzdump :
+#   VMID  Name  Status  Time  Size            Filename
+#   108   Cine  ok      33s   1.021 GiB       ct/108/2026-...
+_VM_ROW_RE = re.compile(
+    r"^\s*(\d{2,})\s+(\S+)\s+(\w+)\s+(\S+)\s+"
+    r"([0-9][0-9.,]*\s*[KMGTP]i?B|0\s*B|-)\s+\S+",
+    re.MULTILINE,
+)
+
+
+def proxmox_vm_rows(message: str) -> list[dict]:
+    """Extrait une entree par VM depuis le tableau « Details » (multi-VM).
+
+    Renvoie [] si aucun tableau (ex. PBS sync) -> l'appelant retombe sur l'envoi
+    unique classique.
+    """
+    rows: list[dict] = []
+    for m in _VM_ROW_RE.finditer(message or ""):
+        vmid, nom, status, duree, taille = m.groups()
+        st = status.lower()
+        rows.append(
+            {
+                "vmid": vmid,
+                "nom": nom,
+                "duree": duree.strip(),
+                "taille": taille.strip(),
+                "_ok": st in ("ok", "done", "success", "successful"),
+            }
+        )
+    return rows
+
+
+def proxmox_resume(rows: list[dict]) -> str:
+    """Construit un tableau recap compact : une ligne courte par VM.
+
+    Ex. « ✅ 108 · Cine · 33s · 1.021 GiB ». Vide s'il n'y a pas de tableau
+    (ex. PBS sync). Reste tres court meme avec beaucoup de VMs.
+    """
+    lines = []
+    for r in rows:
+        emoji = "✅" if r["_ok"] else "❌"
+        parts = [r["vmid"], r.get("nom", ""), r.get("duree", ""), r.get("taille", "")]
+        parts = [p for p in parts if p]
+        lines.append(f"{emoji} " + " · ".join(parts))
+    return "\n".join(lines)
+
+
 @router.post("/proxmox/{slug}")
 async def proxmox_webhook(slug: str, request: Request) -> dict:
     """Recoit un webhook Proxmox/PBS et declenche la notification `slug`.
@@ -202,14 +249,22 @@ async def proxmox_webhook(slug: str, request: Request) -> dict:
     if notif is None:
         raise HTTPException(404, f"Notification '{slug}' introuvable")
 
+    # Tableau recap compact : une ligne courte par VM (multi-VM).
+    rows = proxmox_vm_rows(data["message"])
+    resume = proxmox_resume(rows)
+    any_vm_error = any(not r["_ok"] for r in rows)
+    is_error = data["_is_error"] or any_vm_error
+    is_warn = data["_is_warn"] and not is_error
+
     # Override couleur selon la gravite (sans toucher la config sauvegardee).
     target = notif
-    if data["_is_error"]:
+    if is_error:
         target = notif.model_copy(update={"color": _COLOR_ERROR})
-    elif data["_is_warn"]:
+    elif is_warn:
         target = notif.model_copy(update={"color": _COLOR_WARNING})
 
     variables = {k: v for k, v in data.items() if not k.startswith("_")}
+    variables["resume"] = resume  # {var:resume} = tableau recap de toutes les VMs
     msg = await send_notification_object(target, variables=variables, source="proxmox")
     if msg is None:
         raise HTTPException(500, "Echec d'envoi (voir logs)")

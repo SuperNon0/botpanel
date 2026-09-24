@@ -481,14 +481,15 @@ document.getElementById("msg-insert-entity").addEventListener("click", () => {
 // Mode Proxmox : palette de variables + config à coller + test avec exemple
 // ============================================================
 const PVE_VARS = [
-  ["statut","statut"], ["vmid","vmid"], ["nom","nom"], ["duree","durée"],
-  ["taille","taille"], ["datastore","datastore"], ["date","date"],
+  ["statut","statut"], ["resume","résumé VMs"], ["vmid","vmid"], ["nom","nom"],
+  ["duree","durée"], ["taille","taille"], ["datastore","datastore"], ["date","date"],
   ["severite","gravité"], ["titre","titre"], ["message","message"],
 ];
 const PVE_SAMPLE = {
   statut:"✅ OK", vmid:"101", nom:"web-server", duree:"2m 15s", taille:"1,24 Go",
   datastore:"pbs-ovh", date:"24/09/2026 03:00", severite:"info",
   titre:"Sauvegarde terminée",
+  resume:"✅ 108 · Cine · 33s · 1.021 Go\n❌ 109 · FuelLog · 47s · 1.328 Go",
   message:"INFO: Backup job finished successfully\nVM 101 (web-server): ok, 1.24 GiB, 2m 15s",
 };
 let proxmoxMode = false;
