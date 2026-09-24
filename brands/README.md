@@ -11,17 +11,18 @@ soumises. Elles ont été générées depuis `app/web/static/logo.svg`.
 ```
 brands/custom_integrations/botpanel/
 ├── icon.png        256×256   (icône carrée, fond transparent)
-├── [email protected]     512×512
-├── logo.png        256×256
 └── [email protected]     512×512
 ```
+
+> `logo.png` (logo horizontal/texte) est **optionnel** et n'est pas fourni : la
+> marque BotPanel est l'icône carrée, donc `icon.png` + `@2x` suffisent.
 
 ## Comment faire apparaître le logo dans Home Assistant
 
 1. Va sur https://github.com/home-assistant/brands et **fork** le dépôt.
 2. Copie le dossier `custom_integrations/botpanel/` de **ce dossier** (`brands/`)
    dans le dépôt `brands` forké, au même chemin :
-   `custom_integrations/botpanel/{icon.png,[email protected],logo.png,[email protected]}`.
+   `custom_integrations/botpanel/{icon.png,[email protected]}`.
 3. Ouvre une **pull request** vers `home-assistant/brands`.
 4. Une fois la PR **mergée**, le logo apparaît automatiquement dans Home Assistant
    (page Appareils et services, assistant de configuration) et dans HACS —
@@ -44,7 +45,7 @@ SRC = "app/web/static/logo.svg"; OUT = "brands/custom_integrations/botpanel"
 def render(px):
     png = cairosvg.svg2png(url=SRC, output_width=px, output_height=px)
     return Image.open(io.BytesIO(png)).convert("RGBA")
-for name, px in [("icon.png",256),("[email protected]",512),("logo.png",256),("[email protected]",512)]:
+for name, px in [("icon.png",256),("[email protected]",512)]:
     render(px).save(f"{OUT}/{name}", format="PNG")
 PY
 ```
