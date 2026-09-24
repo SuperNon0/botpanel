@@ -325,55 +325,83 @@ const DOMAIN_META = {
   input_number:  ["Nombres", "🔢"],
   sun:           ["Soleil", "☀️"],
   button:        ["Boutons", "🔴"],
+  input_button:  ["Boutons", "🔴"],
   number:        ["Nombres", "🔢"],
   update:        ["Mises à jour", "⬆️"],
+  select:        ["Listes", "📋"],
+  input_select:  ["Listes", "📋"],
+  input_text:    ["Textes", "📝"],
+  input_datetime:["Dates/heures", "📅"],
+  timer:         ["Minuteries", "⏲️"],
 };
-function domainLabel(d) { return (DOMAIN_META[d] || [d, "📦"])[0]; }
-function domainIcon(d)  { return (DOMAIN_META[d] || [d, "📦"])[1]; }
+const SMALL_MAX = 5;          // domaines avec < SMALL_MAX entites -> regroupes dans « Divers »
+const DIVERS = "__divers__";  // cle synthetique du groupe fourre-tout
+function domainLabel(d) { return d === DIVERS ? "Divers" : (DOMAIN_META[d] || [d, "📦"])[0]; }
+function domainIcon(d)  { return d === DIVERS ? "🗃️" : (DOMAIN_META[d] || [d, "📦"])[1]; }
 function entDomainOf(e) { return e.domain || (e.entity_id || "").split(".")[0]; }
 
-function renderDomainBar() {
-  const counts = {};
+// Compte les entites par domaine reel.
+function domainCounts() {
+  const c = {};
   for (const e of (_haEntities || [])) {
     const d = entDomainOf(e);
-    counts[d] = (counts[d] || 0) + 1;
+    c[d] = (c[d] || 0) + 1;
   }
-  const domains = Object.keys(counts).sort((a, b) =>
-    counts[b] - counts[a] || a.localeCompare(b));
+  return c;
+}
+// Bucket d'affichage : un petit domaine (< SMALL_MAX) tombe dans « Divers ».
+function bucketOf(e, counts) {
+  const d = entDomainOf(e);
+  return (counts[d] || 0) < SMALL_MAX ? DIVERS : d;
+}
+
+function renderDomainBar() {
+  const counts = domainCounts();
+  const bucket = {};
+  for (const e of (_haEntities || [])) {
+    const b = bucketOf(e, counts);
+    bucket[b] = (bucket[b] || 0) + 1;
+  }
+  const keys = Object.keys(bucket).filter(k => k !== DIVERS)
+    .sort((a, b) => bucket[b] - bucket[a] || a.localeCompare(b));
   const total = (_haEntities || []).length;
   const chip = (val, label, icon, n, active) =>
     `<button type="button" class="ent-chip${active ? " active" : ""}" data-domain="${val === null ? "" : esc(val)}">`
     + `${icon} ${esc(label)}<span class="ent-chip-count">${n}</span></button>`;
   let html = chip(null, "Tous", "🗂️", total, _entDomain === null);
-  html += domains.map(d =>
-    chip(d, domainLabel(d), domainIcon(d), counts[d], _entDomain === d)).join("");
+  html += keys.map(d =>
+    chip(d, domainLabel(d), domainIcon(d), bucket[d], _entDomain === d)).join("");
+  if (bucket[DIVERS])  // le fourre-tout en dernier
+    html += chip(DIVERS, "Divers", domainIcon(DIVERS), bucket[DIVERS], _entDomain === DIVERS);
   entDomainBar.innerHTML = html;
 }
 
 function renderEntList(filter) {
   const q = (filter || "").toLowerCase();
+  const counts = domainCounts();
   const matches = (_haEntities || []).filter(e =>
-    (_entDomain === null || entDomainOf(e) === _entDomain) &&
+    (_entDomain === null || bucketOf(e, counts) === _entDomain) &&
     (!q || e.entity_id.toLowerCase().includes(q) ||
       (e.friendly_name || "").toLowerCase().includes(q)));
 
-  // Regroupe par domaine.
+  // Regroupe par bucket (les petits domaines sont fondus dans « Divers »).
   const groups = {};
   for (const e of matches) {
-    const d = entDomainOf(e);
-    (groups[d] = groups[d] || []).push(e);
+    const b = bucketOf(e, counts);
+    (groups[b] = groups[b] || []).push(e);
   }
-  const order = Object.keys(groups).sort((a, b) =>
-    groups[b].length - groups[a].length || a.localeCompare(b));
+  const order = Object.keys(groups).filter(k => k !== DIVERS)
+    .sort((a, b) => groups[b].length - groups[a].length || a.localeCompare(b));
+  if (groups[DIVERS]) order.push(DIVERS);  // « Divers » toujours a la fin
 
   let shown = 0, html = "";
   for (const d of order) {
-    if (shown >= 120) break;
+    if (shown >= 400) break;
     const items = groups[d];
     html += `<div class="ent-group-head">${domainIcon(d)} ${esc(domainLabel(d))}`
       + `<span class="ent-group-count"> · ${items.length}</span></div>`;
     for (const e of items) {
-      if (shown >= 120) break;
+      if (shown >= 400) break;
       shown++;
       const val = e.state ? esc(e.state) + (e.unit ? " " + esc(e.unit) : "") : "";
       html += `<div class="ent-item" data-eid="${esc(e.entity_id)}">
