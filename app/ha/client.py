@@ -159,8 +159,17 @@ class HomeAssistantClient:
                 continue
             if domain_filter and not entity_id.startswith(f"{domain_filter}."):
                 continue
-            friendly = state.get("attributes", {}).get("friendly_name") or entity_id
-            result.append({"entity_id": entity_id, "friendly_name": friendly})
+            attrs = state.get("attributes", {})
+            friendly = attrs.get("friendly_name") or entity_id
+            result.append(
+                {
+                    "entity_id": entity_id,
+                    "friendly_name": friendly,
+                    "domain": entity_id.split(".", 1)[0],
+                    "state": str(state.get("state", "")),
+                    "unit": str(attrs.get("unit_of_measurement") or ""),
+                }
+            )
         result.sort(key=lambda e: e["friendly_name"].lower())
         return result
 

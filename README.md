@@ -113,7 +113,8 @@ L'autocomplétion est intelligente : les domaines courants (`light`, `switch`, `
 
 ### `/clear` — suppression de messages
 
-Supprime les N derniers messages du channel courant (1 à 1000).  
+Supprime les N derniers messages du salon courant (1 à 1000). Fonctionne aussi
+dans les **posts de forum** et les **fils de discussion** (threads).  
 Nécessite la permission `Manage Messages` côté utilisateur **et** côté bot.
 
 ### Commandes personnalisées

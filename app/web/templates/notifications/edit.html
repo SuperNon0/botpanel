@@ -239,6 +239,7 @@
       <button type="button" class="btn btn-secondary btn-small" id="ent-modal-close">Fermer</button>
     </div>
     <input type="text" class="form-input" id="ent-modal-search" placeholder="Filtrer par nom ou entity_id...">
+    <div class="ent-domain-bar" id="ent-domain-bar"></div>
     <div class="ent-modal-list" id="ent-modal-list"></div>
     <div class="form-hint" id="ent-modal-hint" style="margin-top:0.5rem;"></div>
   </div>
@@ -298,26 +299,105 @@ const entList = document.getElementById("ent-modal-list");
 const entSearch = document.getElementById("ent-modal-search");
 const entHint = document.getElementById("ent-modal-hint");
 let entOnPick = null;
+let _entDomain = null;  // domaine filtre actif (null = tous)
+const entDomainBar = document.getElementById("ent-domain-bar");
+
+// Domaines connus : libelle FR + icone (les autres sont affiches tels quels).
+const DOMAIN_META = {
+  light:         ["Lumières", "💡"],
+  switch:        ["Interrupteurs", "🔌"],
+  sensor:        ["Capteurs", "📊"],
+  binary_sensor: ["Capteurs bin.", "⚪"],
+  climate:       ["Chauffage/clim", "🌡️"],
+  cover:         ["Volets", "🪟"],
+  lock:          ["Serrures", "🔒"],
+  person:        ["Personnes", "🧍"],
+  device_tracker:["Présence", "📍"],
+  media_player:  ["Média", "🎵"],
+  fan:           ["Ventilation", "🌀"],
+  vacuum:        ["Aspirateurs", "🧹"],
+  camera:        ["Caméras", "📷"],
+  weather:       ["Météo", "⛅"],
+  automation:    ["Automatisations", "⚙️"],
+  scene:         ["Scènes", "🎬"],
+  script:        ["Scripts", "📜"],
+  input_boolean: ["Booléens", "🔘"],
+  input_number:  ["Nombres", "🔢"],
+  sun:           ["Soleil", "☀️"],
+  button:        ["Boutons", "🔴"],
+  number:        ["Nombres", "🔢"],
+  update:        ["Mises à jour", "⬆️"],
+};
+function domainLabel(d) { return (DOMAIN_META[d] || [d, "📦"])[0]; }
+function domainIcon(d)  { return (DOMAIN_META[d] || [d, "📦"])[1]; }
+function entDomainOf(e) { return e.domain || (e.entity_id || "").split(".")[0]; }
+
+function renderDomainBar() {
+  const counts = {};
+  for (const e of (_haEntities || [])) {
+    const d = entDomainOf(e);
+    counts[d] = (counts[d] || 0) + 1;
+  }
+  const domains = Object.keys(counts).sort((a, b) =>
+    counts[b] - counts[a] || a.localeCompare(b));
+  const total = (_haEntities || []).length;
+  const chip = (val, label, icon, n, active) =>
+    `<button type="button" class="ent-chip${active ? " active" : ""}" data-domain="${val === null ? "" : esc(val)}">`
+    + `${icon} ${esc(label)}<span class="ent-chip-count">${n}</span></button>`;
+  let html = chip(null, "Tous", "🗂️", total, _entDomain === null);
+  html += domains.map(d =>
+    chip(d, domainLabel(d), domainIcon(d), counts[d], _entDomain === d)).join("");
+  entDomainBar.innerHTML = html;
+}
 
 function renderEntList(filter) {
   const q = (filter || "").toLowerCase();
-  const matches = (_haEntities || [])
-    .filter(e => !q || e.entity_id.toLowerCase().includes(q) || (e.friendly_name || "").toLowerCase().includes(q))
-    .slice(0, 80);
-  entList.innerHTML = matches.map(e => `
-    <div class="ent-item" data-eid="${esc(e.entity_id)}">
-      <div><strong>${esc(e.friendly_name || e.entity_id)}</strong></div>
-      <div class="card-row-meta"><code>${esc(e.entity_id)}</code></div>
-    </div>
-  `).join("") || `<div class="empty-state">Aucune entite</div>`;
+  const matches = (_haEntities || []).filter(e =>
+    (_entDomain === null || entDomainOf(e) === _entDomain) &&
+    (!q || e.entity_id.toLowerCase().includes(q) ||
+      (e.friendly_name || "").toLowerCase().includes(q)));
+
+  // Regroupe par domaine.
+  const groups = {};
+  for (const e of matches) {
+    const d = entDomainOf(e);
+    (groups[d] = groups[d] || []).push(e);
+  }
+  const order = Object.keys(groups).sort((a, b) =>
+    groups[b].length - groups[a].length || a.localeCompare(b));
+
+  let shown = 0, html = "";
+  for (const d of order) {
+    if (shown >= 120) break;
+    const items = groups[d];
+    html += `<div class="ent-group-head">${domainIcon(d)} ${esc(domainLabel(d))}`
+      + `<span class="ent-group-count"> · ${items.length}</span></div>`;
+    for (const e of items) {
+      if (shown >= 120) break;
+      shown++;
+      const val = e.state ? esc(e.state) + (e.unit ? " " + esc(e.unit) : "") : "";
+      html += `<div class="ent-item" data-eid="${esc(e.entity_id)}">
+        <div class="ent-item-row">
+          <div class="ent-item-main">
+            <strong>${esc(e.friendly_name || e.entity_id)}</strong>
+            <code>${esc(e.entity_id)}</code>
+          </div>
+          ${val ? `<div class="ent-state" title="${val}">${val}</div>` : ""}
+        </div>
+      </div>`;
+    }
+  }
+  entList.innerHTML = html || `<div class="empty-state">Aucune entité</div>`;
 }
 
 async function openEntityPicker(onPick, hint) {
   entOnPick = onPick;
   entHint.textContent = hint || "Clique sur une entite pour l'inserer.";
   entSearch.value = "";
+  _entDomain = null;
   entModal.classList.add("open");
   await loadEntities();
+  renderDomainBar();
   renderEntList("");
   setTimeout(() => entSearch.focus(), 50);
 }
@@ -328,6 +408,13 @@ function closeEntityPicker() {
 }
 
 entSearch.addEventListener("input", () => renderEntList(entSearch.value));
+entDomainBar.addEventListener("click", (e) => {
+  const chip = e.target.closest(".ent-chip");
+  if (!chip) return;
+  _entDomain = chip.dataset.domain || null;
+  renderDomainBar();
+  renderEntList(entSearch.value);
+});
 document.getElementById("ent-modal-close").addEventListener("click", closeEntityPicker);
 entModal.addEventListener("click", (e) => { if (e.target === entModal) closeEntityPicker(); });
 entList.addEventListener("click", (e) => {
