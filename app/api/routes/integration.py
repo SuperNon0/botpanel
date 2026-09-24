@@ -169,9 +169,14 @@ def parse_proxmox(raw: str, content_type: str = "") -> dict:
         r"([0-9][0-9\.,]*\s?[KMGT]i?B)",
     )
     datastore = _first(
-        r"--storage\s+(\S+)",                     # commande vzdump (« --storage pbs-local »)
+        r"\bDatastore:\s*([^\n]+)",                # notif PBS (« Datastore: local-store »)
+        r"--storage\s+(\S+)",                      # commande vzdump (« --storage pbs-local »)
         r"\b(?:datastore|storage)[\s:=]+([^\s,;'\"]+)",
     )
+    # Champs specifiques aux jobs PBS (sync / verif) — vides pour un backup PVE.
+    job_id = _first(r"\bJob ID:\s*([^\n]+)")
+    remote = _first(r"\bRemote:\s*([^\n]+)")
+    remote_store = _first(r"\bRemote Store:\s*([^\n]+)")
 
     data = {
         "severite": severite,
@@ -183,6 +188,9 @@ def parse_proxmox(raw: str, content_type: str = "") -> dict:
         "duree": duree,
         "taille": taille,
         "datastore": datastore,
+        "job_id": job_id,
+        "remote": remote,
+        "remote_store": remote_store,
     }
     data["_is_error"] = is_error
     data["_is_warn"] = is_warn
