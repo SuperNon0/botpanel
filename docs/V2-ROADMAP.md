@@ -3,6 +3,13 @@
 > Les fonctionnalités **implémentées** sont retirées d'ici et documentées dans le
 > `README.md`. Ce fichier ne garde que ce qui reste à faire ou à décider.
 
+## À faire (manuel, hors code)
+- **Logo de l'intégration HA** : soumettre `brands/custom_integrations/botpanel/`
+  (icon.png + @2x, déjà prêts) au dépôt officiel
+  [home-assistant/brands](https://github.com/home-assistant/brands) via une PR.
+  Tant que ce n'est pas mergé là-bas, HA/HACS affichent l'icône par défaut. Voir
+  `brands/README.md` pour la démarche.
+
 ## À affiner
 - **Parseur Proxmox** (`app/api/routes/integration.py`, `parse_proxmox`) : caler
   l'extraction fine des champs (durée, taille, nom de VM) sur un **vrai message
