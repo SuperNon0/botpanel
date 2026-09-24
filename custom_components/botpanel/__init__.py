@@ -11,6 +11,7 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import BotpanelApi
@@ -19,10 +20,22 @@ from .coordinator import BotpanelCoordinator
 
 SERVICE_SCHEMA = vol.Schema(
     {
+        vol.Optional("notification"): cv.entity_id,
         vol.Optional("slug"): cv.string,
         vol.Optional("id"): vol.Coerce(int),
     }
 )
+
+
+def _notif_id_from_entity(hass: HomeAssistant, entity_id: str) -> int | None:
+    """Retrouve l'id de la notif à partir d'un bouton BotPanel choisi dans la liste."""
+    ent = er.async_get(hass).async_get(entity_id)
+    if ent and ent.unique_id and "_notif_" in ent.unique_id:
+        try:
+            return int(ent.unique_id.rsplit("_notif_", 1)[1])
+        except ValueError:
+            return None
+    return None
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -37,8 +50,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     async def _handle_envoyer(call: ServiceCall) -> None:
-        """Action botpanel.envoyer : déclenche une notif par slug ou id."""
-        await api.trigger(notif_id=call.data.get("id"), slug=call.data.get("slug"))
+        """Action botpanel.envoyer : déclenche une notif (liste déroulante, slug ou id)."""
+        notif_id = call.data.get("id")
+        slug = call.data.get("slug")
+        entity_id = call.data.get("notification")
+        if entity_id and notif_id is None and not slug:
+            notif_id = _notif_id_from_entity(hass, entity_id)
+        await api.trigger(notif_id=notif_id, slug=slug)
 
     hass.services.async_register(DOMAIN, SERVICE_ENVOYER, _handle_envoyer, schema=SERVICE_SCHEMA)
     return True

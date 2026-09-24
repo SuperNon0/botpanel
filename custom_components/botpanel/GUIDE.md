@@ -50,15 +50,20 @@ automation:
         entity_id: binary_sensor.porte_garage
         to: "on"
     action:
-      # Option A — appuyer sur le bouton de la notif (autocomplété par HA)
-      - action: button.press
-        target:
-          entity_id: button.botpanel_alerte_porte_garage
-      # Option B — l'action dédiée (par slug)
-      # - action: botpanel.envoyer
-      #   data:
-      #     slug: notif_porte_garage
+      # Option A — l'action dédiée : liste déroulante de toutes les notifications
+      - action: botpanel.envoyer
+        data:
+          notification: button.botpanel_alerte_porte_garage
+      # Option B — appuyer directement sur le bouton de la notif
+      # - action: button.press
+      #   target:
+      #     entity_id: button.botpanel_alerte_porte_garage
 ```
+
+> Dans l'éditeur d'automatisation, l'action **BotPanel : Envoyer une notification**
+> affiche un champ **Notification** avec une **liste déroulante** de toutes tes
+> notifications (elle se remplit toute seule). Les champs *slug* et *id* restent
+> disponibles en options avancées.
 
 ## Notes
 - Les boutons des **nouvelles** notifications apparaissent automatiquement (au

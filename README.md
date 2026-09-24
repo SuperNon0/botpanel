@@ -406,7 +406,7 @@ BotPanel intègre une **authentification à deux portes** (voir [docs/CONNEXION.
 
 En plus du simple `rest_command` ci-dessus, BotPanel fournit un **vrai composant Home Assistant** (`custom_components/botpanel/`, compatible **HACS**) qui fait apparaître, dans HA :
 - **un bouton par notification** (`button.botpanel_…`, appui = envoi Discord) — les nouvelles notifs apparaissent automatiquement ;
-- une **action** `botpanel.envoyer` (par slug ou id), utilisable dans les automatisations ;
+- une **action** `botpanel.envoyer` avec **liste déroulante de toutes les notifications** (slug/id en options avancées), utilisable dans les automatisations ;
 - des **capteurs** : `binary_sensor` bot Discord en ligne, `sensor` envois du jour / envois total / notifications configurées / dernière alerte.
 
 > **Sens unique** : Home Assistant **déclenche** (par identifiant), il ne configure jamais rien — tout le contenu reste défini sur BotPanel.
@@ -435,16 +435,18 @@ Exemple d'automatisation complet et dépannage : [`custom_components/botpanel/GU
 
 **Utilisation dans une automatisation** — deux façons :
 ```yaml
-# A) appuyer sur le bouton de la notif (autocomplété par Home Assistant)
+# A) l'action dédiée : choix de la notif dans une liste déroulante
+- action: botpanel.envoyer
+  data:
+    notification: button.botpanel_alerte_porte_garage
+
+# B) appuyer directement sur le bouton de la notif
 - action: button.press
   target:
     entity_id: button.botpanel_alerte_porte_garage
-
-# B) l'action dédiée, par slug
-- action: botpanel.envoyer
-  data:
-    slug: notif_porte_garage
 ```
+
+> Dans l'éditeur d'automatisation, l'action **BotPanel : Envoyer une notification** affiche un champ **Notification** avec la **liste déroulante** de toutes tes notifications (remplie automatiquement).
 
 **Sécurité machine** : une **clé API** (`X-API-Key`, en-tête uniquement) protège les endpoints `/api/integration/*` ; elle se régénère dans les Paramètres (voyant « l'intégration marche ? » : HA joignable, dernière connexion du module, version). Les webhooks existants (`/api/notify`) restent ouverts **sans** clé (rétrocompatibilité HA/Proxmox).
 
