@@ -220,6 +220,15 @@
       <code>{attr:sensor.temp:friendly_name}</code> &middot;
       <code>{unit:sensor.temp}</code>
     </p>
+
+    <div id="proxmox-panel-fields" class="proxmox-panel" style="display:none;">
+      <div class="proxmox-head">
+        <span class="help-label">Variables Proxmox — clique dans un champ (nom ou valeur) puis sur une variable</span>
+        <button type="button" class="help-dot" data-help="proxmox" title="Comment ça marche">?</button>
+      </div>
+      <div class="proxmox-vars" id="proxmox-vars-fields"></div>
+    </div>
+
     <div class="buttons-builder" id="field-builder"></div>
     <button type="button" class="btn btn-secondary" id="field-add" style="margin-top: 0.8rem;">+ Ajouter un champ</button>
   </div>
@@ -497,10 +506,15 @@ function insertVar(name) {
   el.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-function renderProxmoxVars() {
-  const wrap = document.getElementById("proxmox-vars");
+function renderProxmoxVarsInto(id) {
+  const wrap = document.getElementById(id);
+  if (!wrap) return;
   wrap.innerHTML = PVE_VARS.map(([n,l]) => `<button type="button" class="pvar-btn" data-v="${n}">{${esc(l)}}</button>`).join("");
   wrap.querySelectorAll(".pvar-btn").forEach(b => b.addEventListener("click", () => insertVar(b.dataset.v)));
+}
+function renderProxmoxVars() {
+  renderProxmoxVarsInto("proxmox-vars");         // palette sous le message
+  renderProxmoxVarsInto("proxmox-vars-fields");  // palette dans la section Champs
 }
 
 function buildProxmoxHelp() {
@@ -534,6 +548,8 @@ function buildProxmoxHelp() {
 function setProxmoxMode(on) {
   proxmoxMode = on;
   document.getElementById("proxmox-panel").style.display = on ? "" : "none";
+  const pf = document.getElementById("proxmox-panel-fields");
+  if (pf) pf.style.display = on ? "" : "none";
   document.getElementById("msg-proxmox").classList.toggle("active", on);
   if (on) { renderProxmoxVars(); buildProxmoxHelp(); }
 }
