@@ -156,20 +156,38 @@ def _format_fr_datetime(now: dt.datetime) -> str:
     return f"{now.day} {_FR_MONTHS[now.month - 1]} {now.year} a {now:%H:%M}"
 
 
+# Limites imposees par l'API Discord sur un embed (au-dela -> 400/500).
+_LIM_TITLE, _LIM_DESC, _LIM_FNAME, _LIM_FVALUE, _LIM_FOOTER = 256, 4096, 256, 1024, 2048
+_LIM_TOTAL, _LIM_FIELDS = 6000, 25
+
+
+def _clip(text: str, limit: int) -> str:
+    """Tronque un texte a `limit` caracteres (ajoute … si coupe)."""
+    text = text or ""
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 1)].rstrip() + "…"
+
+
 async def build_embed(notif: Notification, variables: dict | None = None) -> discord.Embed:
     """Construit l'embed Discord d'une notification (resolution des placeholders incluse).
 
     `variables` : dictionnaire optionnel fourni via l'API pour remplir les {var:nom}
-    dans le titre, le message et les champs.
+    dans le titre, le message et les champs. Toutes les parties sont bornees aux
+    limites Discord (un message tres long — ex. backup multi-VM Proxmox — ne fait
+    plus echouer l'envoi).
     """
-    title = await _resolve_template(notif.title, variables)
-    description = await _resolve_template(notif.message, variables)
+    title = _clip(await _resolve_template(notif.title, variables), _LIM_TITLE)
+    description = _clip(await _resolve_template(notif.message, variables), _LIM_DESC)
 
     embed = discord.Embed(
         title=title,
         description=description,
         color=notif.color,
     )
+    # Budget total de l'embed (6000). On decompte au fur et a mesure et on
+    # s'arrete d'ajouter des champs si on approche la limite.
+    used = len(title) + len(description)
     # L'URL de l'image (miniature) supporte aussi les {var:...} et placeholders,
     # ex. une affiche de film/serie envoyee via l'API.
     icon_url = await _resolve_template(notif.icon_url, variables) if notif.icon_url else ""
@@ -188,13 +206,21 @@ async def build_embed(notif: Notification, variables: dict | None = None) -> dis
     if notif.show_timestamp:
         footer_parts.append(_format_fr_datetime(dt.datetime.now()))
     if footer_parts:
-        embed.set_footer(text=" \u00b7 ".join(footer_parts))
+        footer_text = _clip(" \u00b7 ".join(footer_parts), _LIM_FOOTER)
+        embed.set_footer(text=footer_text)
+        used += len(footer_text)
 
-    # Fields custom (resolution des placeholders dans le nom ET la valeur)
+    # Fields custom (resolution des placeholders dans le nom ET la valeur).
+    # On respecte le max de 25 champs et le budget total de 6000 caracteres.
     for fld in sorted(notif.fields, key=lambda f: (f.position, f.id or 0)):
-        name = await _resolve_template(fld.name, variables)
-        value = await _resolve_template(fld.value_template, variables)
-        embed.add_field(name=name or "\u200b", value=value or "\u200b", inline=fld.inline)
+        if len(embed.fields) >= _LIM_FIELDS:
+            break
+        name = _clip(await _resolve_template(fld.name, variables), _LIM_FNAME) or "\u200b"
+        value = _clip(await _resolve_template(fld.value_template, variables), _LIM_FVALUE) or "\u200b"
+        if used + len(name) + len(value) > _LIM_TOTAL:
+            break
+        used += len(name) + len(value)
+        embed.add_field(name=name, value=value, inline=fld.inline)
 
     return embed
 

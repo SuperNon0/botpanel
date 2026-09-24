@@ -467,6 +467,7 @@ Proxmox VE et PBS envoient leurs notifications (backups, sync, vérif…) **dire
 - BotPanel **parse** le message et expose des variables à placer où tu veux dans la notif : `{var:statut}`, `{var:vmid}`, `{var:nom}`, `{var:duree}`, `{var:taille}`, `{var:datastore}`, `{var:message}`… La **couleur passe en rouge automatiquement** sur erreur.
 - Dans l'éditeur de notification, le bouton **« 🖥️ Proxmox »** affiche la palette de variables (sous le **message** *et* dans la section **Champs**) **et** un **« ? »** avec la config exacte à coller (URL + en-tête + corps, boutons *Copier*). On clique dans un champ puis sur une variable pour l'insérer. Le bouton **Tester** remplit des valeurs d'exemple.
 - Côté Proxmox : ajouter une cible **Webhook** + un **Matcher** (ex. type `vzdump` pour les backups, `sync` pour l'envoi vers OVH). Historique BotPanel tagué **« Proxmox »**.
+- Robustesse : les embeds sont **bornés aux limites Discord** (description 4096, champ 1024, total 6000, 25 champs max) — un backup **multi-VM** au log très long ne fait plus échouer l'envoi (le texte est tronqué avec …).
 
 ### Configurer Proxmox (interface native, aucun script)
 1. **Datacenter → Notifications → Notification Targets → Add → Webhook** :
