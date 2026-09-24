@@ -85,12 +85,6 @@ async def _resolve_template(
     if not template or "{" not in template:
         return template
 
-    # 0) Variables dynamiques fournies par l'API
-    # (resolve_vars=False pour l'apercu editeur : on garde les {var:...} visibles,
-    #  puisqu'ils ne sont remplis qu'au moment du declenchement.)
-    if resolve_vars:
-        template = _resolve_vars(template, variables)
-
     # 1) Resolution des placeholders BotPanel (rapide, fetch en local)
     if PLACEHOLDER_RE.search(template):
         entities: dict[str, dict | None] = {}
@@ -133,6 +127,13 @@ async def _resolve_template(
             template = await ha_client.render_template(template)
         except Exception as exc:  # noqa: BLE001
             logger.warning("Rendu Jinja HA echoue : %s", exc)
+
+    # 3) Variables dynamiques fournies par l'API — remplacees EN DERNIER pour que
+    # leur contenu (potentiellement du texte externe, ex. un log de backup Proxmox)
+    # ne soit PAS re-interprete comme un placeholder/Jinja.
+    # (resolve_vars=False pour l'apercu editeur : on garde les {var:...} visibles.)
+    if resolve_vars:
+        template = _resolve_vars(template, variables)
 
     return template
 

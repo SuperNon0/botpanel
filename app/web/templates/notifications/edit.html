@@ -425,7 +425,7 @@ function setProxmoxMode(on) {
 
 document.getElementById("msg-proxmox").addEventListener("click", () => setProxmoxMode(!proxmoxMode));
 document.querySelector("[name=slug]").addEventListener("input", () => { if (proxmoxMode) buildProxmoxHelp(); });
-(async () => { try { const d = await API.get("/settings/integration"); proxmoxApiKey = d.api_key || ""; if (proxmoxMode) buildProxmoxHelp(); } catch (e) {} })();
+(async () => { try { const d = await API.get("/settings/integration"); proxmoxApiKey = d.api_key || ""; buildProxmoxHelp(); } catch (e) {} })();
 
 function detectProxmox() {
   const hay = [document.getElementById("f-title").value, document.getElementById("f-message").value,

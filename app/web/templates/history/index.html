@@ -77,7 +77,7 @@ async function loadLogs() {
       const slug = l.notification_slug ? `&middot; <code>${esc(l.notification_slug)}</code>` : "";
       const SRC_TAG = {
         home_assistant: { label: "Home Assistant", cls: "tag-purple" },
-        proxmox:        { label: "Proxmox",         cls: "tag-edit"   },
+        proxmox:        { label: "Proxmox",         cls: "tag-orange" },
         api:            { label: "API",            cls: "tag-muted"  },
         manuel:         { label: "Manuel",         cls: "tag-muted"  },
         test:           { label: "Test",           cls: "tag-muted"  },

@@ -109,15 +109,21 @@ def parse_proxmox(raw: str, content_type: str = "") -> dict:
     raw = (raw or "").strip()
     severite = titre = message = ""
 
-    if raw.startswith("{") or "json" in (content_type or "").lower():
+    # On decide du format par le CONTENU, pas par le Content-Type : Proxmox
+    # pre-remplit souvent "application/json" meme quand le corps est le texte
+    # 3 lignes recommande. On ne tente le JSON que si le corps ressemble a du JSON.
+    looks_json = raw.startswith("{") or raw.startswith("[")
+    parsed = False
+    if looks_json:
         try:
             j = json.loads(raw)
             severite = str(j.get("severity") or j.get("severite") or "").strip()
             titre = str(j.get("title") or j.get("titre") or "").strip()
             message = str(j.get("message") or j.get("text") or "").strip()
+            parsed = True
         except Exception:  # noqa: BLE001
-            message = raw
-    else:
+            parsed = False
+    if not parsed:
         lines = raw.split("\n")
         severite = lines[0].strip() if lines else ""
         titre = lines[1].strip() if len(lines) > 1 else ""
