@@ -434,6 +434,8 @@ Le dépôt est **compatible HACS** (fichier `hacs.json` + composant dans `custom
 
 Exemple d'automatisation complet et dépannage : [`custom_components/botpanel/GUIDE.md`](custom_components/botpanel/GUIDE.md).
 
+> **Logo de l'intégration** : Home Assistant l'affiche à partir du dépôt officiel [home-assistant/brands](https://github.com/home-assistant/brands) (pas depuis le composant). Les images aux bonnes tailles et la démarche de soumission sont prêtes dans [`brands/`](brands/).
+
 **Utilisation dans une automatisation** — deux façons :
 ```yaml
 # A) l'action dédiée : choix de la notif dans une liste déroulante

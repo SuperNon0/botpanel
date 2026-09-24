@@ -68,6 +68,12 @@ automation:
 > notifications (elle se remplit toute seule). Les champs *slug* et *id* restent
 > disponibles en options avancées.
 
+## Logo de l'intégration
+Home Assistant récupère le logo depuis le dépôt officiel
+[home-assistant/brands](https://github.com/home-assistant/brands), pas depuis ce
+dossier. Les images prêtes à soumettre (aux bonnes tailles) et la démarche sont
+dans [`brands/`](../../brands/) à la racine du dépôt.
+
 ## Notes
 - Les boutons des **nouvelles** notifications apparaissent automatiquement (au
   prochain rafraîchissement, ~30 s). En cas de **suppression ou de renommage de
