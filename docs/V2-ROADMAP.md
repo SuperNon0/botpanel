@@ -3,11 +3,20 @@
 > Les fonctionnalités **implémentées** sont retirées d'ici et documentées dans le
 > `README.md`. Ce fichier ne garde que ce qui reste à faire ou à décider.
 
+## À faire (manuel, hors code)
+- **Logo de l'intégration HA** : soumettre `brands/custom_integrations/botpanel/`
+  (icon.png + @2x, déjà prêts) au dépôt officiel
+  [home-assistant/brands](https://github.com/home-assistant/brands) via une PR.
+  Tant que ce n'est pas mergé là-bas, HA/HACS affichent l'icône par défaut. Voir
+  `brands/README.md` pour la démarche.
+
 ## À affiner
-- **Parseur Proxmox** (`app/api/routes/integration.py`, `parse_proxmox`) : caler
-  l'extraction fine des champs (durée, taille, nom de VM) sur un **vrai message
-  de backup** Proxmox/PBS. Aujourd'hui best-effort ; `{var:message}`, `{var:statut}`
-  et `{var:titre}` sont toujours garantis.
+- **Parseur Proxmox** (`app/api/routes/integration.py`) : calé sur un **vrai
+  backup vzdump PVE** (nom via `CT Name:`, datastore via `--storage`,
+  durée/taille via le tableau *Details* / `Total …`), avec un **récap multi-VM**
+  (`{var:resume}` = une ligne par VM, 1 seule notif). Reste à étendre/valider pour les
+  **PBS Sync Jobs** et la **vérification** (formats un peu différents).
+  `{var:message}`, `{var:statut}`, `{var:titre}` restent toujours garantis.
 
 ## Idées plus larges (à rediscuter)
 - **SSO Cloudflare centralisé** pour toute la flotte (le noyau
