@@ -484,8 +484,9 @@ const PVE_VARS = [
   ["statut","statut"], ["resume","résumé VMs"], ["vmid","vmid"], ["nom","nom"],
   ["duree","durée"], ["taille","taille"], ["datastore","datastore"], ["date","date"],
   ["severite","gravité"], ["titre","titre"], ["message","message"],
-  // Spécifiques PBS (sync / vérif) — vides pour un backup PVE :
+  // Spécifiques PBS (sync / vérif / GC) — vides pour un backup PVE :
   ["job_id","job (PBS)"], ["remote","remote (PBS)"], ["remote_store","destination (PBS)"],
+  ["removed","place libérée (GC)"],
 ];
 const PVE_SAMPLE = {
   statut:"✅ OK", vmid:"101", nom:"web-server", duree:"2m 15s", taille:"1,24 Go",
@@ -493,7 +494,7 @@ const PVE_SAMPLE = {
   titre:"Sync job 'ovh-sync' successful",
   resume:"✅ 108 · Cine · 33s · 1.021 Go\n❌ 109 · FuelLog · 47s · 1.328 Go",
   message:"INFO: Backup job finished successfully\nVM 101 (web-server): ok, 1.24 GiB, 2m 15s",
-  job_id:"ovh-sync", remote:"self", remote_store:"ovh-offsite",
+  job_id:"ovh-sync", remote:"self", remote_store:"ovh-offsite", removed:"2.3 GiB",
 };
 let proxmoxMode = false;
 let proxmoxApiKey = "";

@@ -177,6 +177,12 @@ def parse_proxmox(raw: str, content_type: str = "") -> dict:
     job_id = _first(r"\bJob ID:\s*([^\n]+)")
     remote = _first(r"\bRemote:\s*([^\n]+)")
     remote_store = _first(r"\bRemote Store:\s*([^\n]+)")
+    # GC : place liberee (« Removed Data ») — best-effort, a confirmer sur une vraie notif.
+    removed = _first(
+        r"Removed data:\s*([0-9][0-9.,]*\s*[KMGTP]i?B)",
+        r"removed\s+(?:garbage|bytes|data)[:\s]+([0-9][0-9.,]*\s*[KMGTP]i?B)",
+        r"Pending removals:\s*([0-9][0-9.,]*\s*[KMGTP]i?B)",
+    )
 
     data = {
         "severite": severite,
@@ -191,6 +197,7 @@ def parse_proxmox(raw: str, content_type: str = "") -> dict:
         "job_id": job_id,
         "remote": remote,
         "remote_store": remote_store,
+        "removed": removed,
     }
     data["_is_error"] = is_error
     data["_is_warn"] = is_warn
