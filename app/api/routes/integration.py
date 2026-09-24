@@ -157,7 +157,11 @@ def parse_proxmox(raw: str, content_type: str = "") -> dict:
         r"\b(?:hostname|guest[\s-]*name)[\s:=]+([^\n,;]+)",
     )
     duree = _first(
-        r"(?:Total running time|running time|duration|dur[ée]e|total time)[ \t:=]+([0-9][0-9hms:\.,]*)",
+        # Accepte les formats humains multi-unites (« 1m 6s », « 2h 3m 4s ») ET
+        # les valeurs simples (« 33s », « 00:01:06 »). L'ancien motif s'arretait
+        # au 1er espace et coupait « 1m 6s » en « 1m ».
+        r"(?:Total running time|running time|duration|dur[ée]e|total time)[ \t:=]+"
+        r"((?:\d+(?:[.,]\d+)?\s*[hmsjd]\s*)+|[0-9][0-9:\.,]*)",
         r"Finished Backup of VM[^\n(]*\(([0-9:]+)\)",   # « (00:00:33) »
     )
     taille = _first(
