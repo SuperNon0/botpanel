@@ -11,10 +11,11 @@
   `brands/README.md` pour la démarche.
 
 ## À affiner
-- **Parseur Proxmox** (`app/api/routes/integration.py`, `parse_proxmox`) : caler
-  l'extraction fine des champs (durée, taille, nom de VM) sur un **vrai message
-  de backup** Proxmox/PBS. Aujourd'hui best-effort ; `{var:message}`, `{var:statut}`
-  et `{var:titre}` sont toujours garantis.
+- **Parseur Proxmox** (`app/api/routes/integration.py`, `parse_proxmox`) : calé
+  sur un **vrai backup vzdump PVE** (nom via `CT Name:`, datastore via
+  `--storage`, durée/taille via `Total …`). Reste à étendre/valider pour les
+  **PBS Sync Jobs** et la **vérification** (formats un peu différents).
+  `{var:message}`, `{var:statut}`, `{var:titre}` restent toujours garantis.
 
 ## Idées plus larges (à rediscuter)
 - **SSO Cloudflare centralisé** pour toute la flotte (le noyau

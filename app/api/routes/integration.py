@@ -129,25 +129,56 @@ def parse_proxmox(raw: str, content_type: str = "") -> dict:
         titre = lines[1].strip() if len(lines) > 1 else ""
         message = "\n".join(lines[2:]).strip() if len(lines) > 2 else ""
 
+    # Gravite : d'abord le champ severity, complete par des mots-cles du titre
+    # (Proxmox met "backup successful" / "backup failed" dans le titre).
     sev = severite.lower()
-    is_error = sev in ("error", "err", "critical", "alert")
-    is_warn = sev in ("warning", "warn")
+    tl = titre.lower()
+    is_error = sev in ("error", "err", "critical", "alert") or "fail" in tl
+    is_warn = (not is_error) and (sev in ("warning", "warn") or "warn" in tl)
     statut = "❌ Erreur" if is_error else ("⚠️ Avertissement" if is_warn else "✅ OK")
 
-    def _find(pattern: str) -> str:
-        m = re.search(pattern, message, re.IGNORECASE)
-        return m.group(1).strip() if m else ""
+    def _first(*patterns: str) -> str:
+        """Renvoie la 1re capture non vide en essayant les motifs dans l'ordre."""
+        for pat in patterns:
+            m = re.search(pat, message, re.IGNORECASE)
+            if m and m.group(1).strip():
+                return m.group(1).strip()
+        return ""
+
+    # Motifs calés sur un vrai backup vzdump PVE (+ repli generique).
+    vmid = _first(
+        r"Backup of VM\s+([0-9]{2,})",
+        r"backup-id[ =]+([0-9]{2,})",
+        r"\bVM\s+([0-9]{2,})\b",
+        r"\b(?:vmid|ct|guest)[\s:=#]*([0-9]{2,})",
+    )
+    nom = _first(
+        r"(?:CT|VM)\s+Name:\s*([^\n]+)",          # ligne de log fiable (« CT Name: Cine »)
+        r"\b(?:hostname|guest[\s-]*name)[\s:=]+([^\n,;]+)",
+    )
+    duree = _first(
+        r"(?:Total running time|running time|duration|dur[ée]e|total time)[ \t:=]+([0-9][0-9hms:\.,]*)",
+        r"Finished Backup of VM[^\n(]*\(([0-9:]+)\)",   # « (00:00:33) »
+    )
+    taille = _first(
+        r"Total size[ \t:=]+([0-9][0-9\.,]*\s?[KMGT]i?B)",
+        r"([0-9][0-9\.,]*\s?[KMGT]i?B)",
+    )
+    datastore = _first(
+        r"--storage\s+(\S+)",                     # commande vzdump (« --storage pbs-local »)
+        r"\b(?:datastore|storage)[\s:=]+([^\s,;'\"]+)",
+    )
 
     data = {
         "severite": severite,
         "titre": titre,
         "message": message,
         "statut": statut,
-        "vmid": _find(r"\b(?:vmid|vm|ct|guest)[\s:=#]*([0-9]{2,})"),
-        "nom": _find(r"(?:name|nom|hostname)[\s:=]+([^\n,;]+)"),
-        "duree": _find(r"(?:duration|dur[ée]e|running time|total time|time)[ \t:=]+([0-9][0-9hms:\., ]*)"),
-        "taille": _find(r"([0-9][0-9\.,]*\s?[KMGT]i?B)"),
-        "datastore": _find(r"(?:datastore|store)[\s:=]+([^\n,;]+)"),
+        "vmid": vmid,
+        "nom": nom,
+        "duree": duree,
+        "taille": taille,
+        "datastore": datastore,
     }
     data["_is_error"] = is_error
     data["_is_warn"] = is_warn
