@@ -11,6 +11,7 @@
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <link rel="stylesheet" href="/static/css/style.css?v=9">
   <link rel="stylesheet" href="/static/css/animations.css?v=1">
+  <link rel="stylesheet" href="/static/css/help.css?v=1">
   <!-- PWA (installable sur écran d'accueil) -->
   <meta name="theme-color" content="#0e0f11">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -50,7 +51,6 @@
   <a href="/monitoring"     class="{% if active_page == 'monitoring'    %}active{% endif %}">Monitoring</a>
   <a href="/historique"     class="{% if active_page == 'historique'    %}active{% endif %}">Historique</a>
   <a href="/settings"       class="{% if active_page == 'settings'      %}active{% endif %}">Parametres</a>
-  <a href="/aide"           class="{% if active_page == 'aide'          %}active{% endif %}">Aide</a>
 </nav>
 
 <main>
@@ -63,6 +63,8 @@
 <script src="/static/js/ui.js"></script>
 <script src="/static/js/emoji.js"></script>
 <script src="/static/js/anim.js"></script>
+<script src="/static/js/help-content.js"></script>
+<script src="/static/js/help.js"></script>
 <script>
   // PWA : enregistre le service worker (installable + repli hors-ligne).
   if ("serviceWorker" in navigator) {

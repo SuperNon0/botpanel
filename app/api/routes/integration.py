@@ -10,9 +10,11 @@ dans le garde (`app/api/server.py`). Elles ne dependent JAMAIS du login humain.
 """
 from __future__ import annotations
 
+import json
 import logging
+import re
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from app.db.repositories import LogRepository, NotificationRepository
@@ -21,6 +23,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 VERSION = "1.0.0"
+
+_COLOR_ERROR = 0xE85C47    # rouge — override auto sur erreur
+_COLOR_WARNING = 0xE87C47  # orange — override auto sur avertissement
 
 
 class TriggerIn(BaseModel):
@@ -84,6 +89,97 @@ async def trigger(payload: TriggerIn) -> dict:
         raise HTTPException(422, "Fournis un id ou un slug de notification.")
 
     msg = await send_notification(slug, source="home_assistant")
+    if msg is None:
+        raise HTTPException(500, "Echec d'envoi (voir logs)")
+    return {"status": "sent", "slug": slug, "message_id": str(msg.id)}
+
+
+# ----------------------------------------------------------------------
+# Webhook Proxmox / PBS -> notification BotPanel
+# ----------------------------------------------------------------------
+def parse_proxmox(raw: str, content_type: str = "") -> dict:
+    """Extrait des variables exploitables d'un webhook Proxmox / PBS.
+
+    Deux formats acceptes :
+      - JSON : {"severity","title","message"} (ou severite/titre)
+      - Texte (recommande, robuste) : 3 lignes = severite / titre / message.
+    Renvoie toujours au minimum {severite, titre, message, statut}. Les autres
+    champs (vmid, nom, duree, taille, datastore) sont extraits « best-effort ».
+    """
+    raw = (raw or "").strip()
+    severite = titre = message = ""
+
+    # On decide du format par le CONTENU, pas par le Content-Type : Proxmox
+    # pre-remplit souvent "application/json" meme quand le corps est le texte
+    # 3 lignes recommande. On ne tente le JSON que si le corps ressemble a du JSON.
+    looks_json = raw.startswith("{") or raw.startswith("[")
+    parsed = False
+    if looks_json:
+        try:
+            j = json.loads(raw)
+            severite = str(j.get("severity") or j.get("severite") or "").strip()
+            titre = str(j.get("title") or j.get("titre") or "").strip()
+            message = str(j.get("message") or j.get("text") or "").strip()
+            parsed = True
+        except Exception:  # noqa: BLE001
+            parsed = False
+    if not parsed:
+        lines = raw.split("\n")
+        severite = lines[0].strip() if lines else ""
+        titre = lines[1].strip() if len(lines) > 1 else ""
+        message = "\n".join(lines[2:]).strip() if len(lines) > 2 else ""
+
+    sev = severite.lower()
+    is_error = sev in ("error", "err", "critical", "alert")
+    is_warn = sev in ("warning", "warn")
+    statut = "❌ Erreur" if is_error else ("⚠️ Avertissement" if is_warn else "✅ OK")
+
+    def _find(pattern: str) -> str:
+        m = re.search(pattern, message, re.IGNORECASE)
+        return m.group(1).strip() if m else ""
+
+    data = {
+        "severite": severite,
+        "titre": titre,
+        "message": message,
+        "statut": statut,
+        "vmid": _find(r"\b(?:vmid|vm|ct|guest)[\s:=#]*([0-9]{2,})"),
+        "nom": _find(r"(?:name|nom|hostname)[\s:=]+([^\n,;]+)"),
+        "duree": _find(r"(?:duration|dur[ée]e|running time|total time|time)[ \t:=]+([0-9][0-9hms:\., ]*)"),
+        "taille": _find(r"([0-9][0-9\.,]*\s?[KMGT]i?B)"),
+        "datastore": _find(r"(?:datastore|store)[\s:=]+([^\n,;]+)"),
+    }
+    data["_is_error"] = is_error
+    data["_is_warn"] = is_warn
+    return data
+
+
+@router.post("/proxmox/{slug}")
+async def proxmox_webhook(slug: str, request: Request) -> dict:
+    """Recoit un webhook Proxmox/PBS et declenche la notification `slug`.
+
+    Le corps (texte ou JSON) est parse en variables {var:...} injectees dans le
+    template de la notification. La couleur passe en rouge/orange auto selon la
+    gravite. Origine dans l'historique : « proxmox ».
+    """
+    from app.bot.notifications import send_notification_object
+
+    raw = (await request.body()).decode("utf-8", "replace")
+    data = parse_proxmox(raw, request.headers.get("content-type", ""))
+
+    notif = await NotificationRepository().get_by_slug(slug)
+    if notif is None:
+        raise HTTPException(404, f"Notification '{slug}' introuvable")
+
+    # Override couleur selon la gravite (sans toucher la config sauvegardee).
+    target = notif
+    if data["_is_error"]:
+        target = notif.model_copy(update={"color": _COLOR_ERROR})
+    elif data["_is_warn"]:
+        target = notif.model_copy(update={"color": _COLOR_WARNING})
+
+    variables = {k: v for k, v in data.items() if not k.startswith("_")}
+    msg = await send_notification_object(target, variables=variables, source="proxmox")
     if msg is None:
         raise HTTPException(500, "Echec d'envoi (voir logs)")
     return {"status": "sent", "slug": slug, "message_id": str(msg.id)}

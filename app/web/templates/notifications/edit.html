@@ -18,7 +18,7 @@
     <p class="hint">Le <code>slug</code> est l'identifiant appele depuis Home Assistant.</p>
 
     <div class="form-group">
-      <label class="form-label">Slug unique</label>
+      <label class="form-label">Slug unique<button type="button" class="help-dot" data-help="slug">?</button></label>
       <input class="form-input" name="slug" required pattern="[a-z0-9_]+" placeholder="notif_porte_entree">
       <div class="form-hint">minuscules, chiffres, underscore — identifiant appele depuis Home Assistant</div>
     </div>
@@ -35,7 +35,7 @@
     </div>
 
     <div class="form-group">
-      <label class="form-label">Mode d'envoi</label>
+      <label class="form-label">Mode d'envoi<button type="button" class="help-dot" data-help="send_mode">?</button></label>
       <select class="form-select" id="f-thread-mode">
         <option value="none">Direct — envoi dans le channel</option>
         <option value="thread">Thread — regrouper dans un fil du channel texte</option>
@@ -78,7 +78,7 @@
 
     <!-- Groupe site : rangement sur la liste du site, INDEPENDANT de Discord -->
     <div class="form-group" style="border-top:1px solid rgba(255,255,255,0.08); margin-top:1rem; padding-top:1rem;">
-      <label class="form-label">Groupe (rangement sur le site)</label>
+      <label class="form-label">Groupe (rangement sur le site)<button type="button" class="help-dot" data-help="list_group">?</button></label>
       <input class="form-input" id="f-list-group" list="group-list"
              maxlength="64" placeholder="AdGuard / Backup / Palworld ...">
       <datalist id="group-list"></datalist>
@@ -94,7 +94,7 @@
     </div>
 
     <div class="form-group">
-      <label class="form-label">Message</label>
+      <label class="form-label">Message<button type="button" class="help-dot" data-help="placeholders">?</button></label>
       <div class="md-toolbar">
         <button type="button" class="md-btn" data-wrap="**" title="Gras"><strong>B</strong></button>
         <button type="button" class="md-btn" data-wrap="*" title="Italique"><em>I</em></button>
@@ -102,9 +102,18 @@
         <button type="button" class="md-btn" data-wrap="~~" title="Barre"><s>S</s></button>
         <button type="button" class="md-btn" data-wrap="`" title="Code">&lt;/&gt;</button>
         <button type="button" class="md-btn" id="msg-insert-emoji" title="Inserer un emoji">😀</button>
-        <button type="button" class="md-btn" id="msg-insert-entity" title="Inserer une entite HA">+ entite</button>
+        <button type="button" class="md-btn" id="msg-insert-entity" title="Inserer une entite HA">+ entité</button>
+        <button type="button" class="md-btn" id="msg-proxmox" title="Mode Proxmox">🖥️ Proxmox</button>
       </div>
       <textarea class="form-textarea" name="message" required maxlength="4000" id="f-message"></textarea>
+
+      <div id="proxmox-panel" class="proxmox-panel" style="display:none;">
+        <div class="proxmox-head">
+          <span class="help-label">Variables Proxmox — clique pour insérer où est ton curseur</span>
+          <button type="button" class="help-dot" data-help="proxmox" title="Comment ça marche">?</button>
+        </div>
+        <div class="proxmox-vars" id="proxmox-vars"></div>
+      </div>
     </div>
 
     <div class="form-row">
@@ -343,6 +352,91 @@ document.getElementById("msg-insert-entity").addEventListener("click", () => {
     ta.dispatchEvent(new Event("input", { bubbles: true }));
   }, "L'entite sera inseree comme {state:...|--}.");
 });
+
+// ============================================================
+// Mode Proxmox : palette de variables + config à coller + test avec exemple
+// ============================================================
+const PVE_VARS = [
+  ["statut","statut"], ["vmid","vmid"], ["nom","nom"], ["duree","durée"],
+  ["taille","taille"], ["datastore","datastore"], ["date","date"],
+  ["severite","gravité"], ["titre","titre"], ["message","message"],
+];
+const PVE_SAMPLE = {
+  statut:"✅ OK", vmid:"101", nom:"web-server", duree:"2m 15s", taille:"1,24 Go",
+  datastore:"pbs-ovh", date:"24/09/2026 03:00", severite:"info",
+  titre:"Sauvegarde terminée",
+  message:"INFO: Backup job finished successfully\nVM 101 (web-server): ok, 1.24 GiB, 2m 15s",
+};
+let proxmoxMode = false;
+let proxmoxApiKey = "";
+let lastEditable = document.getElementById("f-message");
+
+form.addEventListener("focusin", (e) => {
+  const t = e.target;
+  if (t && (t.tagName === "TEXTAREA" || (t.tagName === "INPUT" && t.type === "text"))) lastEditable = t;
+});
+
+function insertVar(name) {
+  const el = lastEditable || document.getElementById("f-message");
+  insertAtCursor(el, `{var:${name}}`);
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function renderProxmoxVars() {
+  const wrap = document.getElementById("proxmox-vars");
+  wrap.innerHTML = PVE_VARS.map(([n,l]) => `<button type="button" class="pvar-btn" data-v="${n}">{${esc(l)}}</button>`).join("");
+  wrap.querySelectorAll(".pvar-btn").forEach(b => b.addEventListener("click", () => insertVar(b.dataset.v)));
+}
+
+function buildProxmoxHelp() {
+  const origin = window.location.origin;
+  const slug = (document.querySelector("[name=slug]").value || "").trim() || "<slug>";
+  const url = `${origin}/api/integration/proxmox/${slug}`;
+  const header = `X-API-Key: ${proxmoxApiKey || "<ta-clé-API>"}`;
+  // NB : on assemble par concaténation pour ne pas écrire la double-accolade
+  // ouvrante en clair (Jinja rend cette page et l'interpréterait).
+  const OB = "{";
+  const body = OB+OB+" severity }}\n" + OB+OB+" title }}\n" + OB+OB+" message }}";
+  const cb = (label, val) => `<p class="help-label">${label}</p><div class="code-block">` +
+    `<button type="button" class="copy-btn" data-copy="${esc(val)}">Copier</button><pre>${esc(val)}</pre></div>`;
+  window.BP_HELP["proxmox"] = {
+    title: "Mode Proxmox — comment ça marche",
+    html:
+      '<p>Proxmox VE / PBS envoie la notification <b>directement</b> à BotPanel (aucun script). Tout se configure dans <b>Datacenter → Notifications</b>.</p>' +
+      '<div class="hbox hbox-tip"><b>1.</b> Ajoute une cible <b>Webhook</b> avec l\'URL ci-dessous.<br>' +
+      '<b>2.</b> Ajoute l\'en-tête <code>X-API-Key</code> (ta clé BotPanel).<br>' +
+      '<b>3.</b> Mets le <b>corps</b> ci-dessous (format 3 lignes, ultra-robuste).<br>' +
+      '<b>4.</b> Ajoute un <b>Matcher</b> pour router tes backups / sync vers cette cible.</div>' +
+      cb("URL (webhook)", url) + cb("En-tête", header) + cb("Corps (Body)", body) +
+      '<p class="help-label">Variables à placer où tu veux</p>' +
+      '<p><code>{var:statut}</code> <code>{var:vmid}</code> <code>{var:nom}</code> <code>{var:duree}</code> ' +
+      '<code>{var:taille}</code> <code>{var:datastore}</code> <code>{var:message}</code></p>' +
+      '<div class="hbox hbox-ok">Couleur <b>rouge</b> automatique si le backup est en erreur, verte/ta couleur si OK.</div>' +
+      '<div class="hbox hbox-info">Le bouton <b>Tester</b> remplit des valeurs d\'exemple pour te montrer le rendu, sans attendre un vrai backup.</div>',
+  };
+}
+
+function setProxmoxMode(on) {
+  proxmoxMode = on;
+  document.getElementById("proxmox-panel").style.display = on ? "" : "none";
+  document.getElementById("msg-proxmox").classList.toggle("active", on);
+  if (on) { renderProxmoxVars(); buildProxmoxHelp(); }
+}
+
+document.getElementById("msg-proxmox").addEventListener("click", () => setProxmoxMode(!proxmoxMode));
+document.querySelector("[name=slug]").addEventListener("input", () => { if (proxmoxMode) buildProxmoxHelp(); });
+(async () => { try { const d = await API.get("/settings/integration"); proxmoxApiKey = d.api_key || ""; buildProxmoxHelp(); } catch (e) {} })();
+
+function detectProxmox() {
+  const hay = [document.getElementById("f-title").value, document.getElementById("f-message").value,
+    document.getElementById("f-footer").value, ...fields.map(f => (f.name||"")+" "+(f.value_template||""))].join(" ");
+  return /\{var:(statut|vmid|nom|duree|taille|datastore|severite)\}/.test(hay);
+}
+
+function fillProxmoxSample(text) {
+  return (text||"").replace(/\{var:([a-zA-Z0-9_]+)(?:\|([^}]*))?\}/g,
+    (_, n, def) => (PVE_SAMPLE[n] !== undefined ? PVE_SAMPLE[n] : (def !== undefined ? def : "")));
+}
 
 // ============================================================
 // Channels Discord (presets + bot)
@@ -812,6 +906,16 @@ form.addEventListener("submit", async (e) => {
 document.getElementById("btn-test-now").addEventListener("click", async () => {
   if (!form.checkValidity()) { form.reportValidity(); return; }
   const payload = buildPayload();
+  // En mode Proxmox : remplace les {var:...} par des valeurs d'exemple pour voir le rendu.
+  if (proxmoxMode) {
+    payload.title = fillProxmoxSample(payload.title);
+    payload.message = fillProxmoxSample(payload.message);
+    if (payload.footer) payload.footer = fillProxmoxSample(payload.footer);
+    (payload.fields || []).forEach(f => {
+      f.name = fillProxmoxSample(f.name);
+      f.value_template = fillProxmoxSample(f.value_template);
+    });
+  }
   const url = NOTIF_ID
     ? `/notifications/preview?as_id=${NOTIF_ID}`
     : "/notifications/preview";
@@ -819,7 +923,7 @@ document.getElementById("btn-test-now").addEventListener("click", async () => {
     await API.post(url, payload);
     toast(NOTIF_ID
       ? "Test envoye (boutons = version sauvegardee)"
-      : "Test envoye sur Discord");
+      : (proxmoxMode ? "Test Proxmox envoye (valeurs d'exemple)" : "Test envoye sur Discord"));
   } catch (err) {
     toast(err.message, "error");
   }
@@ -963,6 +1067,7 @@ async function boot() {
   updateThreadModeUI(document.getElementById("f-thread-mode").value);
   await Promise.all([bindChannelSelect(), bindColorPresets(), bindGroupDatalist(), loadForumChannels()]);
   await loadExisting();
+  if (detectProxmox()) setProxmoxMode(true);  // mode Proxmox auto si variables présentes
   refreshResolved();  // resout tout de suite si le brouillon contient des entites HA
 }
 boot();

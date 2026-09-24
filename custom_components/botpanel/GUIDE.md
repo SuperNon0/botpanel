@@ -12,16 +12,18 @@ BotPanel → **Paramètres → API / Intégration** → copie la **clé API**
 (elle est générée automatiquement au premier affichage).
 
 ## 2. Installer le composant dans Home Assistant
-Copie le dossier `custom_components/botpanel/` dans la configuration de Home
-Assistant, pour obtenir :
 
-```
-<config Home Assistant>/custom_components/botpanel/
-```
+### Via HACS (recommandé — juste un lien)
+HACS → menu ⋮ → **Dépôts personnalisés** → coller l'URL du dépôt
+(`https://github.com/SuperNon0/botpanel`), catégorie **Intégration** →
+**Ajouter** → installer **BotPanel** → **redémarrer Home Assistant**.
 
-Exemple (add-on « Samba » ou SSH) :
+> HACS installe depuis la branche par défaut (`main`) : l'intégration doit y être
+> présente, et le dépôt doit être **public** avec une **description**.
+
+### Ou manuellement (SSH / add-on Samba)
 ```bash
-cp -r homeassistant/custom_components/botpanel /config/custom_components/
+cp -r custom_components/botpanel /config/custom_components/
 ```
 Puis **redémarre Home Assistant** (Paramètres → Système → Redémarrer).
 

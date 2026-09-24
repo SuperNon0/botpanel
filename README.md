@@ -23,8 +23,10 @@ Hébergé dans un conteneur LXC Proxmox.
 - **Images** : miniature (petite) et **grande image** (affiche), toutes deux compatibles avec les variables — idéal pour une affiche de film/série envoyée dynamiquement (Sonarr, Radarr…)
 - **Autocomplétion live** des entités HA, services HA et channels Discord dans tous les formulaires
 - **Page Paramètres** : presets de couleurs et de channels, liste des forums détectés, gestion des threads/posts actifs, mise à jour et redémarrage depuis l'UI
-- **Page Historique** : logs de tous les envois et clics de boutons, avec **origine de l'envoi** (Home Assistant / API / Manuel / Test), filtre et purge
+- **Page Historique** : logs de tous les envois et clics de boutons, avec **origine de l'envoi** (Home Assistant / Proxmox / API / Manuel / Test), filtre et purge
 - **Intégration Home Assistant native** : composant HA officiel (boutons par notification, action `botpanel.envoyer`, capteurs d'état), sécurisé par une clé API
+- **Intégration Proxmox VE / PBS** : les backups/sync envoient leurs notifs directement à BotPanel (webhook natif), avec variables `{var:...}` et couleur auto selon le statut
+- **Aide contextuelle** : des petits « ? » partout ouvrent une pop-up d'explication (fini la page Aide séparée)
 - **Aperçu live avec vraies valeurs HA** : l'éditeur de notification résout `{state:...}`/`{attr:...}`/Jinja avec les valeurs réelles récupérées en direct
 - **Authentification à deux portes** : mot de passe local (LAN) + badge Cloudflare Access vérifié (JWT), avec mode « Cloudflare uniquement »
 - **PWA installable** + interface animée (respecte « réduire les animations »), squelettes de chargement, états vides illustrés
@@ -32,7 +34,9 @@ Hébergé dans un conteneur LXC Proxmox.
 
 ## Le site web
 
-Le site est l'interface d'administration du bot, accessible sur `http://IP_LXC:8080`. Il regroupe plusieurs sections : Accueil, Notifications, Commandes, Monitoring, Historique, Paramètres et Aide.
+Le site est l'interface d'administration du bot, accessible sur `http://IP_LXC:8080`. Il regroupe plusieurs sections : Accueil, Notifications, Commandes, Monitoring, Historique et Paramètres.
+
+> **Aide contextuelle** : partout où c'est utile, un petit **« ? »** ouvre une pop-up d'explication (slug, mode d'envoi, placeholders, clé API, Cloudflare, sauvegarde…), avec encadrés colorés et blocs de code copiables. Plus besoin d'une page Aide séparée (l'ancienne reste accessible sur `/aide` en secours).
 
 > **Interface animée** : micro-interactions et animations d'entrée légères (survol des cartes, retour au clic des boutons, focus clavier visible, toasts, `skeleton`/`spinner` de chargement) via `static/css/animations.css` + `static/js/anim.js`. Le tout est **additif** (ne change pas la mise en page) et **respecte `prefers-reduced-motion`** : si l'utilisateur a demandé à réduire les animations (OS/navigateur), elles sont automatiquement désactivées.
 >
@@ -153,8 +157,8 @@ app/
     ├── templates/        # Templates Jinja2
     └── static/           # CSS + JS + icônes PWA
 
-homeassistant/
-└── custom_components/botpanel/   # Composant Home Assistant (boutons, capteurs, action)
+custom_components/botpanel/   # Composant Home Assistant (HACS) : boutons, capteurs, action
+hacs.json                     # Métadonnées HACS
 ```
 
 ## Intégrer un projet (API notifications)
@@ -240,6 +244,7 @@ activée), pour ne jamais bloquer tes intégrations.
 | `GET` | `/api/integration/notifications` | Liste compacte des notifications (boutons/action) |
 | `GET` | `/api/integration/state` | Capteurs : bot en ligne, envois jour/total, nb notifs, dernière alerte |
 | `POST` | `/api/integration/trigger` | Déclenche une notification par `id`/`slug` (origine = home_assistant) |
+| `POST` | `/api/integration/proxmox/{slug}` | Webhook Proxmox/PBS → déclenche la notif `slug` (parse le message en `{var:...}`) |
 
 #### PWA
 
@@ -399,26 +404,74 @@ BotPanel intègre une **authentification à deux portes** (voir [docs/CONNEXION.
 
 ## Intégration Home Assistant (composant natif)
 
-En plus du simple `rest_command` ci-dessus, BotPanel fournit un **vrai composant Home Assistant** (`homeassistant/custom_components/botpanel/`) qui fait apparaître, dans HA :
+En plus du simple `rest_command` ci-dessus, BotPanel fournit un **vrai composant Home Assistant** (`custom_components/botpanel/`, compatible **HACS**) qui fait apparaître, dans HA :
 - **un bouton par notification** (`button.botpanel_…`, appui = envoi Discord) — les nouvelles notifs apparaissent automatiquement ;
 - une **action** `botpanel.envoyer` (par slug ou id), utilisable dans les automatisations ;
 - des **capteurs** : `binary_sensor` bot Discord en ligne, `sensor` envois du jour / envois total / notifications configurées / dernière alerte.
 
 > **Sens unique** : Home Assistant **déclenche** (par identifiant), il ne configure jamais rien — tout le contenu reste défini sur BotPanel.
 
-### Installation (3 étapes)
+Le dépôt est **compatible HACS** (fichier `hacs.json` + composant dans `custom_components/botpanel/` à la racine).
 
-1. **Récupérer la clé API** : BotPanel → **Paramètres → API / Intégration** → copier la **clé API** (générée automatiquement).
-2. **Copier le composant** dans Home Assistant, puis redémarrer HA :
-   ```bash
-   cp -r homeassistant/custom_components/botpanel /config/custom_components/
-   # Home Assistant → Paramètres → Système → Redémarrer
-   ```
-3. **Ajouter l'intégration** : Home Assistant → **Paramètres → Appareils et services → bouton « + Ajouter une intégration »** → chercher **BotPanel** → saisir l'**URL de BotPanel** (`http://IP_LXC:8080`) et la **clé API**.
+**Étape 1 — récupérer la clé API** : dans BotPanel → **Paramètres → carte « API / Intégration »** → copier la **clé API** (générée automatiquement ; un « ? » explique tout à côté).
 
-Un appareil **BotPanel** regroupe alors tous les boutons et capteurs. Exemple d'automatisation et détails : [`homeassistant/README.md`](homeassistant/README.md).
+**Étape 2 — installer le composant dans Home Assistant** — deux méthodes :
+
+- **Via HACS (recommandé, juste un lien)** : HACS → menu ⋮ → **Dépôts personnalisés** → coller l'URL du dépôt (`https://github.com/SuperNon0/botpanel`), catégorie **Intégration** → **Ajouter** → installer **BotPanel** → **redémarrer Home Assistant**.
+- **Manuellement** : copier le dossier puis redémarrer HA :
+  ```bash
+  cp -r custom_components/botpanel /config/custom_components/
+  ```
+
+**Étape 3 — ajouter l'intégration** : Home Assistant → **Paramètres → Appareils et services → « + Ajouter une intégration »** → chercher **BotPanel** → saisir :
+- **URL de BotPanel** : `http://IP_LXC:8080`
+- **Clé API** : celle copiée à l'étape 1
+
+**Étape 4 — vérifier** : un appareil **BotPanel** apparaît (un **bouton par notification** + les **capteurs**). Côté BotPanel, la carte « **l'intégration marche ?** » affiche « Module HA connecté ».
+
+> HACS installe depuis la **branche par défaut** (`main`) : l'intégration doit donc être présente sur `main`. Le dépôt doit aussi être **public** avec une **description**.
+
+Exemple d'automatisation complet et dépannage : [`custom_components/botpanel/GUIDE.md`](custom_components/botpanel/GUIDE.md).
+
+**Utilisation dans une automatisation** — deux façons :
+```yaml
+# A) appuyer sur le bouton de la notif (autocomplété par Home Assistant)
+- action: button.press
+  target:
+    entity_id: button.botpanel_alerte_porte_garage
+
+# B) l'action dédiée, par slug
+- action: botpanel.envoyer
+  data:
+    slug: notif_porte_garage
+```
 
 **Sécurité machine** : une **clé API** (`X-API-Key`, en-tête uniquement) protège les endpoints `/api/integration/*` ; elle se régénère dans les Paramètres (voyant « l'intégration marche ? » : HA joignable, dernière connexion du module, version). Les webhooks existants (`/api/notify`) restent ouverts **sans** clé (rétrocompatibilité HA/Proxmox).
+
+## Intégration Proxmox VE / Proxmox Backup Server
+
+Proxmox VE et PBS envoient leurs notifications (backups, sync, vérif…) **directement** à BotPanel via leur système natif de **webhook** — aucun script, tout se configure dans l'interface Proxmox (*Datacenter → Notifications*).
+
+- **Endpoint** : `POST /api/integration/proxmox/<slug>` (protégé par la **clé API** `X-API-Key`). Le `<slug>` choisit la notification BotPanel à déclencher.
+- **Corps du webhook** (format 3 lignes, robuste — pas de JSON à échapper) :
+  ```
+  {{ severity }}
+  {{ title }}
+  {{ message }}
+  ```
+- BotPanel **parse** le message et expose des variables à placer où tu veux dans la notif : `{var:statut}`, `{var:vmid}`, `{var:nom}`, `{var:duree}`, `{var:taille}`, `{var:datastore}`, `{var:message}`… La **couleur passe en rouge automatiquement** sur erreur.
+- Dans l'éditeur de notification, le bouton **« 🖥️ Proxmox »** affiche la palette de variables **et** un **« ? »** avec la config exacte à coller (URL + en-tête + corps, boutons *Copier*). Le bouton **Tester** remplit des valeurs d'exemple.
+- Côté Proxmox : ajouter une cible **Webhook** + un **Matcher** (ex. type `vzdump` pour les backups, `sync` pour l'envoi vers OVH). Historique BotPanel tagué **« Proxmox »**.
+
+### Configurer Proxmox (interface native, aucun script)
+1. **Datacenter → Notifications → Notification Targets → Add → Webhook** :
+   - **URL** : `http://IP_LXC:8080/api/integration/proxmox/<slug>` (le slug de ta notif BotPanel)
+   - **Header** : `X-API-Key: <ta clé BotPanel>`
+   - **Body** : le format 3 lignes ci-dessus
+2. **Add Matcher** pour router les événements voulus vers cette cible (ex. backups `vzdump`, sync `sync`).
+3. Sur tes **jobs de backup**, mettre le **« Notification Mode » = notification system**.
+
+> 💡 Le bouton **« 🖥️ Proxmox »** de l'éditeur affiche cette config **pré-remplie avec ton slug et ta clé** (boutons *Copier*).
 
 ## Évolutions futures
 
@@ -432,7 +485,7 @@ Voir [docs/V2-ROADMAP.md](docs/V2-ROADMAP.md).
 - Script de déploiement LXC (`deploy/install_lxc.sh`) + mise à jour (`deploy/update.sh`) + reset mot de passe (`deploy/reset_admin.sh`)
 - Unit systemd (`deploy/botpanel.service`)
 - Snippet HA prêt à coller (`deploy/homeassistant_rest_command.yaml`)
-- **Composant Home Assistant** (`homeassistant/custom_components/botpanel/`) + guide
+- **Composant Home Assistant** (`custom_components/botpanel/`, compatible HACS) + guide
 - `.env.example` documenté
 
 ---
