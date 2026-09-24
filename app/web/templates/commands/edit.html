@@ -57,8 +57,11 @@
 
     <div id="block-notif" style="display:none;">
       <div class="form-group">
-        <label class="form-label">Slug de la notification</label>
-        <input class="form-input" name="notification_slug" placeholder="notif_porte_entree">
+        <label class="form-label">Notification à envoyer</label>
+        <select class="form-select" name="notification_slug" id="f-notif-slug">
+          <option value="">— choisir une notification —</option>
+        </select>
+        <div class="form-hint">Liste de toutes les notifications enregistrées dans BotPanel.</div>
       </div>
     </div>
 
@@ -95,6 +98,43 @@ attachAutocomplete(document.getElementById("f-service"), "/ha/services",
 attachAutocomplete(document.getElementById("f-entity"), "/ha/entities",
   it => it.friendly_name, it => it.entity_id);
 
+// Remplit la liste deroulante avec toutes les notifications de BotPanel,
+// regroupees par groupe (rangement sur le site) si defini.
+async function loadNotifSlugs() {
+  const sel = document.getElementById("f-notif-slug");
+  let notifs = [];
+  try { notifs = await API.get("/notifications"); } catch { notifs = []; }
+  const groups = {};
+  for (const n of notifs) {
+    const g = (n.list_group || "").trim() || "Sans groupe";
+    (groups[g] = groups[g] || []).push(n);
+  }
+  const names = Object.keys(groups).sort((a, b) => a.localeCompare(b));
+  let html = '<option value="">— choisir une notification —</option>';
+  for (const g of names) {
+    html += `<optgroup label="${esc(g)}">`;
+    for (const n of groups[g].sort((a, b) => (a.title || a.slug).localeCompare(b.title || b.slug))) {
+      const label = n.title ? `${n.title} (${n.slug})` : n.slug;
+      html += `<option value="${esc(n.slug)}">${esc(label)}</option>`;
+    }
+    html += "</optgroup>";
+  }
+  sel.innerHTML = html;
+}
+
+// Garantit qu'une valeur enregistree reste selectionnable meme si la notif
+// a ete supprimee/renommee depuis (sinon le select l'effacerait silencieusement).
+function ensureSlugOption(slug) {
+  if (!slug) return;
+  const sel = document.getElementById("f-notif-slug");
+  if (![...sel.options].some(o => o.value === slug)) {
+    const opt = document.createElement("option");
+    opt.value = slug;
+    opt.textContent = `${slug} (introuvable)`;
+    sel.appendChild(opt);
+  }
+}
+
 async function loadExisting() {
   if (!CMD_ID) return;
   try {
@@ -102,6 +142,7 @@ async function loadExisting() {
     const c = cmds.find(x => x.id === CMD_ID);
     if (!c) throw new Error("Introuvable");
     document.getElementById("page-title").textContent = `Modifier /${c.name}`;
+    ensureSlugOption(c.notification_slug);
     for (const [key, val] of Object.entries(c)) {
       const el = form.elements[key];
       if (!el) continue;
@@ -136,6 +177,11 @@ form.addEventListener("submit", async (e) => {
   }
 });
 
-loadExisting();
+// D'abord peupler la liste des notifications, puis charger la commande existante
+// (pour que la valeur enregistree soit bien selectionnable dans le <select>).
+(async () => {
+  await loadNotifSlugs();
+  await loadExisting();
+})();
 </script>
 {% endblock %}

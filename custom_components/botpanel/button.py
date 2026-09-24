@@ -42,7 +42,11 @@ class BotpanelNotifButton(BotpanelEntity, ButtonEntity):
         super().__init__(coordinator, entry_id)
         self._notif_id = notif["id"]
         self._slug = notif["slug"]
-        self._attr_name = notif.get("title") or notif["slug"]
+        # Nom affiche (et donc dans la liste deroulante HA) : titre + slug entre
+        # parentheses, pour retrouver facilement la notif quand on declenchait par
+        # slug. Si le titre EST le slug, on evite la redondance.
+        title = notif.get("title") or notif["slug"]
+        self._attr_name = f"{title} ({self._slug})" if title != self._slug else self._slug
         self._attr_unique_id = f"{entry_id}_notif_{notif['id']}"
 
     async def async_press(self) -> None:

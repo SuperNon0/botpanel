@@ -35,7 +35,10 @@ Home Assistant → **Paramètres → Appareils et services → Ajouter une inté
 
 ## Ce que tu obtiens
 Un appareil **BotPanel** regroupant :
-- `button.botpanel_<nom>` : **un bouton par notification** (appui = envoi Discord)
+- `button.botpanel_<nom>` : **un bouton par notification** (appui = envoi Discord).
+  Le nom affiché (et dans la liste déroulante de l'action) montre le **titre + le
+  slug entre parenthèses**, ex. `Serrure d'entrée fermée (serrure_entree)`, pour
+  retrouver facilement une notif quand on la déclenchait par slug.
 - `binary_sensor.botpanel_bot_en_ligne`
 - `sensor.botpanel_envois_du_jour`, `…_envois_total`, `…_notifications_configurees`
 - `sensor.botpanel_derniere_alerte` (horodatage + slug/source en attributs)
