@@ -126,7 +126,7 @@ Créées et gérées depuis `/commands` sur le site. Elles sont synchronisées s
 | `service` | Appelle `domain.action` avec entity et data optionnels |
 | `script` | Exécute un script HA (`script.<nom>`) |
 | `scene` | Active une scène HA (`scene.turn_on`) |
-| `notification` | Envoie une notification BotPanel par son slug |
+| `notification` | Envoie une notification BotPanel — choisie dans une **liste déroulante** de toutes les notifications (regroupées par groupe), plus besoin de taper le slug |
 
 > Les noms `ha` et `clear` sont réservés et ne peuvent pas être utilisés pour des commandes personnalisées.
 
