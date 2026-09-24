@@ -157,8 +157,8 @@ app/
     ├── templates/        # Templates Jinja2
     └── static/           # CSS + JS + icônes PWA
 
-homeassistant/
-└── custom_components/botpanel/   # Composant Home Assistant (boutons, capteurs, action)
+custom_components/botpanel/   # Composant Home Assistant (HACS) : boutons, capteurs, action
+hacs.json                     # Métadonnées HACS
 ```
 
 ## Intégrer un projet (API notifications)
@@ -404,29 +404,34 @@ BotPanel intègre une **authentification à deux portes** (voir [docs/CONNEXION.
 
 ## Intégration Home Assistant (composant natif)
 
-En plus du simple `rest_command` ci-dessus, BotPanel fournit un **vrai composant Home Assistant** (`homeassistant/custom_components/botpanel/`) qui fait apparaître, dans HA :
+En plus du simple `rest_command` ci-dessus, BotPanel fournit un **vrai composant Home Assistant** (`custom_components/botpanel/`, compatible **HACS**) qui fait apparaître, dans HA :
 - **un bouton par notification** (`button.botpanel_…`, appui = envoi Discord) — les nouvelles notifs apparaissent automatiquement ;
 - une **action** `botpanel.envoyer` (par slug ou id), utilisable dans les automatisations ;
 - des **capteurs** : `binary_sensor` bot Discord en ligne, `sensor` envois du jour / envois total / notifications configurées / dernière alerte.
 
 > **Sens unique** : Home Assistant **déclenche** (par identifiant), il ne configure jamais rien — tout le contenu reste défini sur BotPanel.
 
-### Installation (pas à pas)
+Le dépôt est **compatible HACS** (fichier `hacs.json` + composant dans `custom_components/botpanel/` à la racine).
 
-1. **Récupérer la clé API** : dans BotPanel → **Paramètres → carte « API / Intégration »** → copier la **clé API** (générée automatiquement ; un « ? » explique tout à côté).
-2. **Copier le composant** dans la configuration de Home Assistant, puis redémarrer HA :
-   ```bash
-   # depuis le dépôt BotPanel, vers le dossier config de Home Assistant :
-   cp -r homeassistant/custom_components/botpanel /config/custom_components/
-   ```
-   Puis **Home Assistant → Paramètres → Système → Redémarrer**.
-   > *Alternative* **HACS** : ajouter ce dépôt comme *dépôt personnalisé* (catégorie « Intégration »), puis installer **BotPanel**.
-3. **Ajouter l'intégration** : Home Assistant → **Paramètres → Appareils et services → bouton « + Ajouter une intégration »** → chercher **BotPanel** → saisir :
-   - **URL de BotPanel** : `http://IP_LXC:8080`
-   - **Clé API** : celle copiée à l'étape 1
-4. **Vérifier** : un appareil **BotPanel** apparaît, regroupant **un bouton par notification** + les **capteurs** (bot en ligne, envois du jour/total, dernière alerte…). Côté BotPanel, la carte « **l'intégration marche ?** » affiche « Module HA connecté ».
+**Étape 1 — récupérer la clé API** : dans BotPanel → **Paramètres → carte « API / Intégration »** → copier la **clé API** (générée automatiquement ; un « ? » explique tout à côté).
 
-Exemple d'automatisation complet et dépannage : [`homeassistant/README.md`](homeassistant/README.md).
+**Étape 2 — installer le composant dans Home Assistant** — deux méthodes :
+
+- **Via HACS (recommandé, juste un lien)** : HACS → menu ⋮ → **Dépôts personnalisés** → coller l'URL du dépôt (`https://github.com/SuperNon0/botpanel`), catégorie **Intégration** → **Ajouter** → installer **BotPanel** → **redémarrer Home Assistant**.
+- **Manuellement** : copier le dossier puis redémarrer HA :
+  ```bash
+  cp -r custom_components/botpanel /config/custom_components/
+  ```
+
+**Étape 3 — ajouter l'intégration** : Home Assistant → **Paramètres → Appareils et services → « + Ajouter une intégration »** → chercher **BotPanel** → saisir :
+- **URL de BotPanel** : `http://IP_LXC:8080`
+- **Clé API** : celle copiée à l'étape 1
+
+**Étape 4 — vérifier** : un appareil **BotPanel** apparaît (un **bouton par notification** + les **capteurs**). Côté BotPanel, la carte « **l'intégration marche ?** » affiche « Module HA connecté ».
+
+> HACS installe depuis la **branche par défaut** (`main`) : l'intégration doit donc être présente sur `main`. Le dépôt doit aussi être **public** avec une **description**.
+
+Exemple d'automatisation complet et dépannage : [`custom_components/botpanel/GUIDE.md`](custom_components/botpanel/GUIDE.md).
 
 **Utilisation dans une automatisation** — deux façons :
 ```yaml
@@ -480,7 +485,7 @@ Voir [docs/V2-ROADMAP.md](docs/V2-ROADMAP.md).
 - Script de déploiement LXC (`deploy/install_lxc.sh`) + mise à jour (`deploy/update.sh`) + reset mot de passe (`deploy/reset_admin.sh`)
 - Unit systemd (`deploy/botpanel.service`)
 - Snippet HA prêt à coller (`deploy/homeassistant_rest_command.yaml`)
-- **Composant Home Assistant** (`homeassistant/custom_components/botpanel/`) + guide
+- **Composant Home Assistant** (`custom_components/botpanel/`, compatible HACS) + guide
 - `.env.example` documenté
 
 ---
