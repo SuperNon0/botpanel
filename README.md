@@ -58,7 +58,7 @@ Le formulaire d'édition permet de configurer :
 
 Un **aperçu live** du rendu Discord est affiché pendant l'édition. Un bouton "Tester" envoie la notification dans Discord sans sauvegarder.
 
-> **Aperçu avec vraies valeurs Home Assistant** : l'aperçu résout en direct les placeholders HA (`{state:...}`, `{attr:...}`, `{unit:...}`, Jinja HA) avec les **valeurs réelles** récupérées depuis Home Assistant (endpoint `POST /api/notifications/resolve-preview`, sans rien envoyer sur Discord). Un voyant indique l'état (🟢 valeurs en direct / 🔴 HA injoignable) et un bouton **« 🔄 Valeurs HA »** rafraîchit. Les `{var:...}` (remplis au déclenchement) restent affichés tels quels. Le bouton **« + entité »** de la barre d'outils insère l'entité choisie sous forme `{state:...|--}`.
+> **Aperçu avec vraies valeurs Home Assistant** : l'aperçu résout en direct les placeholders HA (`{state:...}`, `{attr:...}`, `{unit:...}`, Jinja HA) avec les **valeurs réelles** récupérées depuis Home Assistant (endpoint `POST /api/notifications/resolve-preview`, sans rien envoyer sur Discord). Un voyant indique l'état (🟢 valeurs en direct / 🔴 HA injoignable) et un bouton **« 🔄 Valeurs HA »** rafraîchit. Les `{var:...}` (remplis au déclenchement) restent affichés tels quels. Le bouton **« + entité »** de la barre d'outils ouvre un sélecteur d'entités **groupé par domaine** (💡 Lumières, 🔌 Interrupteurs, 📊 Capteurs, 🌡️ Chauffage/clim…) avec des **puces de filtre** par domaine, une **recherche** par nom/`entity_id`, et l'**état/valeur en direct** affiché à droite de chaque entité (ex. `21.4 °C`, `on`) ; l'entité choisie est insérée sous forme `{state:...|--}` à l'endroit du curseur.
 
 ### Commandes (`/commands`)
 
