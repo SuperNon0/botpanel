@@ -139,7 +139,7 @@ def parse_proxmox(raw: str, content_type: str = "") -> dict:
         "statut": statut,
         "vmid": _find(r"\b(?:vmid|vm|ct|guest)[\s:=#]*([0-9]{2,})"),
         "nom": _find(r"(?:name|nom|hostname)[\s:=]+([^\n,;]+)"),
-        "duree": _find(r"(?:duration|dur[ée]e|total time|time)[\s:=]+([0-9hms:\.\s]+)"),
+        "duree": _find(r"(?:duration|dur[ée]e|running time|total time|time)[ \t:=]+([0-9][0-9hms:\., ]*)"),
         "taille": _find(r"([0-9][0-9\.,]*\s?[KMGT]i?B)"),
         "datastore": _find(r"(?:datastore|store)[\s:=]+([^\n,;]+)"),
     }

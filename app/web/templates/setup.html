@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/help.css?v=1">
 </head>
 <body>
 
@@ -34,13 +35,13 @@
     <div class="card">
       <h3>Discord</h3>
       <div class="form-group">
-        <label class="form-label">Token du bot</label>
+        <label class="form-label">Token du bot<button type="button" class="help-dot" data-help="discord_token">?</button></label>
         <input class="form-input" name="discord_token" type="password" required
                placeholder="Token depuis le Discord Developer Portal" autocomplete="off">
         <div class="form-hint">Portail développeur Discord → ton application → Bot → Reset/Copy Token</div>
       </div>
       <div class="form-group">
-        <label class="form-label">ID du serveur (Guild ID)</label>
+        <label class="form-label">ID du serveur (Guild ID)<button type="button" class="help-dot" data-help="discord_ids">?</button></label>
         <input class="form-input" name="discord_guild_id" inputmode="numeric" required
                placeholder="123456789012345678">
         <div class="form-hint">Clic droit sur ton serveur Discord → Copier l'identifiant (mode développeur activé)</div>
@@ -62,7 +63,7 @@
     <div class="card">
       <h3>Home Assistant</h3>
       <div class="form-group">
-        <label class="form-label">URL de Home Assistant</label>
+        <label class="form-label">URL de Home Assistant<button type="button" class="help-dot" data-help="ha_token">?</button></label>
         <input class="form-input" name="ha_base_url" required
                placeholder="http://192.168.1.10:8123">
         <div class="form-hint">URL locale de ton instance HA (avec le port)</div>
@@ -111,6 +112,8 @@
 
 <div id="toast" class="toast">Ok</div>
 
+<script src="/static/js/help-content.js"></script>
+<script src="/static/js/help.js"></script>
 <script>
 const form = document.getElementById("setup-form");
 const saveBtn = document.getElementById("save-btn");

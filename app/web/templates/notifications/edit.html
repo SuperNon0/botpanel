@@ -35,7 +35,7 @@
     </div>
 
     <div class="form-group">
-      <label class="form-label">Mode d'envoi</label>
+      <label class="form-label">Mode d'envoi<button type="button" class="help-dot" data-help="send_mode">?</button></label>
       <select class="form-select" id="f-thread-mode">
         <option value="none">Direct — envoi dans le channel</option>
         <option value="thread">Thread — regrouper dans un fil du channel texte</option>
@@ -78,7 +78,7 @@
 
     <!-- Groupe site : rangement sur la liste du site, INDEPENDANT de Discord -->
     <div class="form-group" style="border-top:1px solid rgba(255,255,255,0.08); margin-top:1rem; padding-top:1rem;">
-      <label class="form-label">Groupe (rangement sur le site)</label>
+      <label class="form-label">Groupe (rangement sur le site)<button type="button" class="help-dot" data-help="list_group">?</button></label>
       <input class="form-input" id="f-list-group" list="group-list"
              maxlength="64" placeholder="AdGuard / Backup / Palworld ...">
       <datalist id="group-list"></datalist>
@@ -94,7 +94,7 @@
     </div>
 
     <div class="form-group">
-      <label class="form-label">Message</label>
+      <label class="form-label">Message<button type="button" class="help-dot" data-help="placeholders">?</button></label>
       <div class="md-toolbar">
         <button type="button" class="md-btn" data-wrap="**" title="Gras"><strong>B</strong></button>
         <button type="button" class="md-btn" data-wrap="*" title="Italique"><em>I</em></button>

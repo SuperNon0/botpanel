@@ -78,7 +78,7 @@
 </div>
 
 <div class="card" id="backup-card">
-  <h3>Sauvegarde &amp; migration</h3>
+  <h3>Sauvegarde &amp; migration<button type="button" class="help-dot" data-help="backup">?</button></h3>
   <p class="hint">
     Exporte toutes tes données (notifications, commandes, monitoring, paramètres) dans un fichier JSON,
     pour les sauvegarder ou les <strong>importer sur une nouvelle instance</strong> de BotPanel.
@@ -95,7 +95,7 @@
 </div>
 
 <div class="card" id="auth-card">
-  <h3>Compte &amp; sécurité</h3>
+  <h3>Compte &amp; sécurité<button type="button" class="help-dot" data-help="password">?</button></h3>
   <p class="hint" id="auth-status">Chargement…</p>
 
   <!-- Activer (aucun mot de passe encore) -->
@@ -131,7 +131,7 @@
 </div>
 
 <div class="card" id="cf-card">
-  <h3>Cloudflare / Accès</h3>
+  <h3>Cloudflare / Accès<button type="button" class="help-dot" data-help="cf_access">?</button></h3>
 
   <div class="form-group">
     <label class="form-label">Équipe (nom seul, ex. super-nono)</label>
@@ -174,7 +174,7 @@
   </p>
 
   <div class="form-group">
-    <label class="form-label">Clé API</label>
+    <label class="form-label">Clé API<button type="button" class="help-dot" data-help="integration_key">?</button></label>
     <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
       <input class="form-input" id="int-key" readonly style="flex:1; min-width:220px; font-size:0.8rem;">
       <button type="button" class="btn btn-secondary btn-small" id="int-copy">Copier</button>

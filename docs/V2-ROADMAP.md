@@ -73,11 +73,13 @@
 - ✅ **FAIT (socle)** — **Aide contextuelle** : moteur « ? » + pop-up riche
   (`static/js/help.js` + `help-content.js` + `help.css`), premières aides (slug,
   Proxmox).
-- ⏳ **EN COURS — Migration de la page Aide** : déplacer tout le contenu d'`/aide`
-  dans des « ? » à leur place (partout), retirer « Aide » du menu, ajouter un « ? »
-  sur la clé API Home Assistant dans les Paramètres.
+- ✅ **FAIT — Migration de la page Aide** : contenu déplacé en « ? » contextuels
+  (notifications : slug, mode d'envoi, groupe, placeholders ; commandes ; monitoring ;
+  paramètres : clé API, Cloudflare, mot de passe, sauvegarde ; setup : token/IDs/HA ;
+  API). « Aide » retiré du menu (route `/aide` conservée en secours).
 - 🔜 À affiner : le **parseur Proxmox** avec un vrai exemple de notification de
-  backup (extraction exacte de durée/taille/nom).
+  backup (extraction exacte de durée/taille/nom — best-effort pour l'instant,
+  `{var:message}` toujours garanti).
 
 ## Repères techniques (existant réutilisable)
 - Placeholders HA déjà supportés (résolus à l'envoi via `ha_client.get_state`) :
