@@ -263,13 +263,16 @@ def _build_generic_ha_command() -> app_commands.Command:
 def _build_clear_command() -> app_commands.Command:
     """Factory : commande /clear count:<n> pour purger un channel."""
 
-    @app_commands.command(name="clear", description="Supprime les N derniers messages du channel courant")
+    @app_commands.command(name="clear", description="Supprime les N derniers messages du channel ou post de forum courant")
     @app_commands.describe(count="Nombre de messages a supprimer (1-1000)")
     async def _clear(interaction: discord.Interaction, count: app_commands.Range[int, 1, 1000]) -> None:
         channel = interaction.channel
-        if channel is None or not isinstance(channel, discord.TextChannel):
+        # TextChannel (salon texte) OU Thread (post de forum / fil de discussion) :
+        # les deux savent purger, verifier les permissions et exposent .guild.
+        if channel is None or not isinstance(channel, (discord.TextChannel, discord.Thread)):
             await interaction.response.send_message(
-                "❌ Cette commande ne marche que dans un channel texte.", ephemeral=True
+                "❌ Cette commande ne marche que dans un salon texte ou un post de forum.",
+                ephemeral=True,
             )
             return
 
