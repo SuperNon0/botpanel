@@ -1,7 +1,7 @@
 {
   "domain": "botpanel",
   "name": "BotPanel",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "documentation": "https://github.com/SuperNon0/botpanel",
   "issue_tracker": "https://github.com/SuperNon0/botpanel/issues",
   "codeowners": ["@SuperNon0"],
