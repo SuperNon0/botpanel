@@ -14,8 +14,9 @@
 - **Parseur Proxmox** (`app/api/routes/integration.py`) : calé sur un **vrai
   backup vzdump PVE** (nom via `CT Name:`, datastore via `--storage`,
   durée/taille via le tableau *Details* / `Total …`), avec un **récap multi-VM**
-  (`{var:resume}` = une ligne par VM, 1 seule notif). Reste à étendre/valider pour les
-  **PBS Sync Jobs** et la **vérification** (formats un peu différents).
+  (`{var:resume}` = une ligne par VM, 1 seule notif). **PBS sync** géré (variables
+  `{var:job_id}`, `{var:remote}`, `{var:remote_store}` + datastore source).
+  Reste éventuellement la **vérif / GC / prune** PBS à peaufiner si besoin.
   `{var:message}`, `{var:statut}`, `{var:titre}` restent toujours garantis.
 
 ## Idées plus larges (à rediscuter)
