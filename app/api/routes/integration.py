@@ -150,6 +150,7 @@ def parse_proxmox(raw: str, content_type: str = "") -> dict:
         r"Backup of VM\s+([0-9]{2,})",
         r"backup-id[ =]+([0-9]{2,})",
         r"\bVM\s+([0-9]{2,})\b",
+        r"\b([0-9]{2,})\s+\S+\s+(?:ok|err|failed|error|warn)\b",  # ligne du tableau Details
         r"\b(?:vmid|ct|guest)[\s:=#]*([0-9]{2,})",
     )
     nom = _first(
@@ -173,16 +174,10 @@ def parse_proxmox(raw: str, content_type: str = "") -> dict:
         r"--storage\s+(\S+)",                      # commande vzdump (« --storage pbs-local »)
         r"\b(?:datastore|storage)[\s:=]+([^\s,;'\"]+)",
     )
-    # Champs specifiques aux jobs PBS (sync / verif) — vides pour un backup PVE.
+    # Champs specifiques aux jobs PBS de sync — vides pour un backup PVE.
     job_id = _first(r"\bJob ID:\s*([^\n]+)")
     remote = _first(r"\bRemote:\s*([^\n]+)")
     remote_store = _first(r"\bRemote Store:\s*([^\n]+)")
-    # GC : place liberee + en attente — best-effort, a confirmer sur une vraie notif.
-    removed = _first(
-        r"Removed data:\s*([0-9][0-9.,]*\s*[KMGTP]i?B)",
-        r"removed\s+(?:garbage|bytes|data)[:\s]+([0-9][0-9.,]*\s*[KMGTP]i?B)",
-    )
-    pending = _first(r"Pending removals:\s*([0-9][0-9.,]*\s*[KMGTP]i?B)")
 
     data = {
         "severite": severite,
@@ -197,8 +192,6 @@ def parse_proxmox(raw: str, content_type: str = "") -> dict:
         "job_id": job_id,
         "remote": remote,
         "remote_store": remote_store,
-        "removed": removed,
-        "pending": pending,
     }
     data["_is_error"] = is_error
     data["_is_warn"] = is_warn

@@ -16,7 +16,6 @@
   durée/taille via le tableau *Details* / `Total …`), avec un **récap multi-VM**
   (`{var:resume}` = une ligne par VM, 1 seule notif). **PBS sync** géré (variables
   `{var:job_id}`, `{var:remote}`, `{var:remote_store}` + datastore source).
-  Reste éventuellement la **vérif / GC / prune** PBS à peaufiner si besoin.
   `{var:message}`, `{var:statut}`, `{var:titre}` restent toujours garantis.
 
 ## Idées plus larges (à rediscuter)
