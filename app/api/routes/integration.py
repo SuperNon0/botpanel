@@ -199,16 +199,18 @@ def parse_proxmox(raw: str, content_type: str = "") -> dict:
 
 
 # Une ligne du tableau « Details » d'un backup vzdump :
-#   VMID  Name  Status  Time       Size         Filename
-#   108   Cine  ok      33s        1.021 GiB    ct/108/2026-...
-#   100   debian ok     1m 24s     2.673 GiB    ct/100/2026-...   <- duree multi-unites !
-# La colonne Time peut avoir un espace (« 1m 24s », « 5m 46s ») pour les backups
-# de plus d'une minute : il faut capturer toutes les unites, sinon la ligne est
-# ignoree et le backup manque dans la notif.
-_TIME_COL = r"(?:\d+(?:[.,]\d+)?\s*[hmsjd](?:\s+\d+(?:[.,]\d+)?\s*[hmsjd])*|[0-9][0-9:.,]*|-)"
+#   VMID  Name    Status  Time       Size         Filename
+#   108   Cine    ok      33s        1.021 GiB    ct/108/2026-...
+#   100   debian  ok      1m 24s     2.673 GiB    ct/100/2026-...   <- duree avec espace !
+# On ne DEVINE PLUS le format de la duree (il variait : « 33s », « 1m 24s »,
+# « 00:01:24 »...). On ancre la ligne sur sa STRUCTURE : un numero de VM au debut,
+# une TAILLE + un nom de fichier a la fin ; la duree est tout ce qu'il y a entre
+# le statut et la taille (capture non gourmande). Robuste quel que soit le format.
 _SIZE_COL = r"(?:[0-9][0-9.,]*\s*[KMGTP]i?B|0\s*B|-)"
 _VM_ROW_RE = re.compile(
-    r"^\s*(\d{2,})\s+(\S+)\s+(\w+)\s+(" + _TIME_COL + r")\s+(" + _SIZE_COL + r")\s+\S+",
+    r"^[ \t]*(\d{2,})[ \t]+(\S+)[ \t]+(\w+)[ \t]+(.+?)[ \t]+("
+    + _SIZE_COL
+    + r")[ \t]+\S+[ \t]*$",
     re.MULTILINE,
 )
 
