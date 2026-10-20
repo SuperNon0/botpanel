@@ -168,3 +168,33 @@ window.BP_HELP["api_usage"] = {
     '<div class="hbox hbox-ok">Cette route reste <b>toujours accessible</b>, même avec la protection par mot de passe : tes projets ne sont jamais bloqués.</div>' +
     '<div class="hbox hbox-info">Guide complet (Python, Node, PHP, Bash) : <code>docs/API.md</code>.</div>',
 };
+
+/* ---------- Serveur MCP (piloter BotPanel depuis Claude) ---------- */
+window.BP_HELP["mcp"] = {
+  title: "Serveur MCP — piloter BotPanel depuis Claude",
+  html:
+    '<p>Le <b>serveur MCP</b> connecte BotPanel à <b>Claude</b> (claude.ai, app Claude ou Claude Desktop). Une fois branché, <b>Claude peut agir sur BotPanel</b> : lister, déclencher et créer des notifications, envoyer un message ponctuel, lire l\'état et l\'historique.</p>' +
+    '<div class="hbox hbox-tip"><b>Exemple :</b> « Claude, crée une notif qui prévient quand la porte du garage s\'ouvre » → Claude lit l\'entité dans Home Assistant <b>et</b> crée la notif dans BotPanel, en direct.</div>' +
+    '<p class="help-label">1) L\'URL et la clé</p>' +
+    '<p>L\'<b>URL</b> et la clé sont affichées dans la carte au-dessus. La clé = ta <b>clé API BotPanel</b> (la même que Home Assistant / Proxmox). Deux façons de la présenter :</p>' +
+    '<ul>' +
+    '<li><b>En-tête</b> <code>Authorization: Bearer &lt;clé&gt;</code> (recommandé)</li>' +
+    '<li><b>Dans l\'URL</b> : <code>.../mcp/&lt;clé&gt;</code> (si le client ne gère pas les en-têtes — la clé apparaît alors dans les logs)</li>' +
+    '</ul>' +
+    '<p class="help-label">2) Connexion depuis claude.ai / app Claude</p>' +
+    '<div class="hbox hbox-warn"><b>Important — Cloudflare :</b> le site est protégé par Cloudflare Access (login). Claude vient d\'Internet, il faut donc <b>ouvrir le chemin <code>/mcp</code> dans Cloudflare Zero Trust</b> (Access → Applications → app sur le path <code>mcp</code> → policy <b>Bypass / Everyone</b>). BotPanel garde la protection par clé API. Détails dans <code>docs/MCP.md</code>.</div>' +
+    '<div class="hbox hbox-info">Réglages → <b>Connecteurs</b> → <b>Ajouter un connecteur personnalisé</b> → colle l\'URL. Si on te demande une auth, mets <code>Authorization = Bearer &lt;clé&gt;</code> ; sinon utilise l\'<b>URL avec la clé incluse</b>.</div>' +
+    '<p class="help-label">3) Connexion depuis Claude Desktop</p>' +
+    _cb("claude_desktop_config.json", '{\n  "mcpServers": {\n    "botpanel": {\n      "command": "npx",\n      "args": ["mcp-remote", "https://TON-DOMAINE/mcp",\n               "--header", "Authorization: Bearer TA_CLE"]\n    }\n  }\n}') +
+    '<p class="help-label">Ce que Claude peut faire</p>' +
+    '<ul>' +
+    '<li><code>list_notifications</code> — lister tes notifications</li>' +
+    '<li><code>send_notification</code> — déclencher une notif (par slug + variables)</li>' +
+    '<li><code>create_notification</code> — créer une nouvelle notif</li>' +
+    '<li><code>send_quick_message</code> — envoyer un message ponctuel sur Discord</li>' +
+    '<li><code>get_state</code> — état (bot en ligne, envois, dernière alerte)</li>' +
+    '<li><code>list_history</code> — derniers envois</li>' +
+    '</ul>' +
+    '<div class="hbox hbox-warn">Route <b>machine</b> protégée uniquement par la clé API. Si tu régénères la clé, remets-la à jour dans le connecteur Claude.</div>' +
+    '<div class="hbox hbox-info">Guide complet : <code>docs/MCP.md</code>.</div>',
+};
