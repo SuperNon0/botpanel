@@ -26,6 +26,7 @@ Hébergé dans un conteneur LXC Proxmox.
 - **Page Historique** : logs de tous les envois et clics de boutons, avec **origine de l'envoi** (Home Assistant / Proxmox / API / Manuel / Test), filtre et purge
 - **Intégration Home Assistant native** : composant HA officiel (boutons par notification, action `botpanel.envoyer`, capteurs d'état), sécurisé par une clé API
 - **Intégration Proxmox VE / PBS** : les backups/sync envoient leurs notifs directement à BotPanel (webhook natif), avec variables `{var:...}` et couleur auto selon le statut
+- **Serveur MCP intégré** : connecté à Claude (claude.ai / Claude Desktop), **Claude peut piloter BotPanel** — lister/déclencher/créer des notifications, envoyer un message ponctuel, lire l'état/l'historique. Voir [`docs/MCP.md`](docs/MCP.md)
 - **Aide contextuelle** : des petits « ? » partout ouvrent une pop-up d'explication (fini la page Aide séparée)
 - **Aperçu live avec vraies valeurs HA** : l'éditeur de notification résout `{state:...}`/`{attr:...}`/Jinja avec les valeurs réelles récupérées en direct
 - **Authentification à deux portes** : mot de passe local (LAN) + badge Cloudflare Access vérifié (JWT), avec mode « Cloudflare uniquement »
@@ -225,6 +226,7 @@ activée), pour ne jamais bloquer tes intégrations.
 | `GET` | `/api/settings/integration` | État de l'intégration (clé API, HA joignable, dernière connexion) |
 | `POST` | `/api/settings/integration/regenerate` | Régénère la clé API |
 | `GET` | `/health` | Vérification de santé — `{"status": "ok"}` |
+| `POST` | `/mcp` | **Serveur MCP** (JSON-RPC) pour Claude — auth par clé API (Bearer, `X-API-Key` ou `/mcp/<clé>`). Voir [docs/MCP.md](docs/MCP.md) |
 | `GET` | `/api/docs` | Documentation Swagger UI |
 
 #### Authentification (`/api/auth/*`)

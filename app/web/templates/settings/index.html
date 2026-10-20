@@ -190,6 +190,34 @@
     (<code>custom_components/botpanel/</code>, compatible HACS).
   </p>
 </div>
+
+<div class="card" id="mcp-card">
+  <h3>Serveur MCP (piloter BotPanel depuis Claude)<button type="button" class="help-dot" data-help="mcp">?</button></h3>
+  <p class="hint">
+    Connecte BotPanel à <strong>Claude</strong> (claude.ai / app / Desktop) : Claude pourra
+    <strong>lister, déclencher et créer des notifications</strong>, envoyer un message ponctuel
+    et lire l'état/l'historique. Même clé que ci-dessus.
+  </p>
+  <div class="form-hint" style="margin:-0.3rem 0 0.6rem;">⚠️ Site derrière Cloudflare : il faut <strong>ouvrir le chemin <code>/mcp</code></strong> dans Cloudflare Access (policy « Bypass »). Clique le « ? » pour les étapes.</div>
+
+  <div class="form-group">
+    <label class="form-label">URL du serveur MCP</label>
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+      <input class="form-input" id="mcp-url" readonly style="flex:1; min-width:220px; font-size:0.8rem;">
+      <button type="button" class="btn btn-secondary btn-small" id="mcp-url-copy">Copier</button>
+    </div>
+    <div class="form-hint">À coller dans Claude avec l'en-tête <code>Authorization: Bearer &lt;clé&gt;</code>.</div>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">URL avec la clé incluse (si le client ne gère pas les en-têtes)</label>
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+      <input class="form-input" id="mcp-url-key" readonly style="flex:1; min-width:220px; font-size:0.8rem;">
+      <button type="button" class="btn btn-secondary btn-small" id="mcp-urlkey-copy">Copier</button>
+    </div>
+    <div class="form-hint">⚠️ Pratique mais la clé apparaît dans les logs : préfère l'en-tête si possible. Clique le « ? » pour les étapes de connexion.</div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -646,10 +674,30 @@ async function loadIntegration() {
   try {
     const d = await API.get("/settings/integration");
     document.getElementById("int-key").value = d.api_key || "";
+    fillMcpUrls(d.api_key || "");
     renderIntegDiag(d);
   } catch (e) {
     document.getElementById("int-diag").innerHTML = `<div class="hint">Erreur : ${esc(e.message)}</div>`;
   }
+}
+// Remplit les URLs du serveur MCP (basées sur le domaine courant + la clé API).
+function fillMcpUrls(key) {
+  const base = window.location.origin + "/mcp";
+  const u = document.getElementById("mcp-url");
+  const uk = document.getElementById("mcp-url-key");
+  if (u) u.value = base;
+  if (uk) uk.value = key ? (base + "/" + key) : base + "/<clé>";
+}
+async function copyField(id, label) {
+  const v = document.getElementById(id).value;
+  try { await navigator.clipboard.writeText(v); toast((label || "Valeur") + " copié."); }
+  catch { const el = document.getElementById(id); el.select(); document.execCommand("copy"); toast((label || "Valeur") + " copié."); }
+}
+function bindMcp() {
+  const a = document.getElementById("mcp-url-copy");
+  const b = document.getElementById("mcp-urlkey-copy");
+  if (a) a.addEventListener("click", () => copyField("mcp-url", "URL"));
+  if (b) b.addEventListener("click", () => copyField("mcp-url-key", "URL"));
 }
 function bindIntegration() {
   document.getElementById("int-copy").addEventListener("click", async () => {
@@ -668,6 +716,7 @@ function bindIntegration() {
 }
 loadIntegration();
 bindIntegration();
+bindMcp();
 </script>
 <style>
   .cf-result { display:flex; flex-direction:column; gap:10px; }

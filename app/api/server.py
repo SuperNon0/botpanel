@@ -20,6 +20,7 @@ from app.api.routes import (
     ha_proxy,
     integration as integration_routes,
     logs,
+    mcp_server,
     monitoring,
     notifications,
     setup as setup_routes,
@@ -44,6 +45,9 @@ _SETUP_ALLOWED_PREFIXES = ("/setup", "/api/setup", "/static", "/health", "/api/s
 # - IMPORTANT : /api/notify (et webhooks) pour ne jamais bloquer Home Assistant / Proxmox
 _AUTH_PUBLIC_PREFIXES = (
     "/login", "/api/auth", "/static", "/health", "/favicon", "/api/notify",
+    # Serveur MCP : route machine (protégée par la clé API dans le handler),
+    # jamais derrière le login humain.
+    "/mcp",
     # PWA : le manifest et le service worker doivent rester accessibles.
     "/manifest.webmanifest", "/sw.js",
 )
@@ -176,6 +180,7 @@ def create_app() -> FastAPI:
     app.include_router(ha_proxy.router, prefix="/api/ha", tags=["ha"])
     app.include_router(settings_routes.router, prefix="/api/settings", tags=["settings"])
     app.include_router(integration_routes.router, prefix="/api/integration", tags=["integration"])
+    app.include_router(mcp_server.router, tags=["mcp"])
     app.include_router(discord_routes.router, prefix="/api/discord", tags=["discord"])
     app.include_router(logs.router, prefix="/api/logs", tags=["logs"])
     app.include_router(system_routes.router, prefix="/api/system", tags=["system"])
