@@ -24,7 +24,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from app.config import settings
-from app.db.models import Notification, NotificationField, NotificationIn
+from app.db.models import Notification, NotificationButton, NotificationField, NotificationIn
 from app.db.repositories import LogRepository, NotificationRepository
 from app.integration import get_api_key
 
@@ -91,6 +91,31 @@ TOOLS = [
                         "required": ["name", "value"],
                     },
                 },
+                "image_url": {"type": "string", "description": "Grande image affichée sous le texte (URL)."},
+                "icon_url": {"type": "string", "description": "Petite image (miniature) en haut à droite (URL)."},
+                "delete_button": {"type": "boolean", "description": "Ajoute le bouton intégré « Supprimer »."},
+                "snooze_button": {"type": "boolean", "description": "Ajoute le bouton intégré « Snooze »."},
+                "buttons": {
+                    "type": "array",
+                    "description": "Boutons d'action cliquables dans Discord. Chaque clic appelle un "
+                    "service Home Assistant (ex. allumer une lumière, verrouiller une porte).",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "label": {"type": "string", "description": "Texte du bouton."},
+                            "style": {
+                                "type": "string",
+                                "enum": ["primary", "secondary", "success", "danger"],
+                                "description": "Couleur : primary=bleu, secondary=gris, success=vert, danger=rouge.",
+                            },
+                            "emoji": {"type": "string", "description": "Emoji optionnel sur le bouton."},
+                            "ha_service": {"type": "string", "description": "Service HA appelé au clic, ex. light.turn_on, lock.lock, script.xxx."},
+                            "ha_entity_id": {"type": "string", "description": "Entité ciblée, ex. light.salon (optionnel)."},
+                            "ha_data": {"type": "object", "description": "Données additionnelles du service, ex. {\"brightness\": 255} (optionnel)."},
+                        },
+                        "required": ["label", "ha_service"],
+                    },
+                },
             },
             "required": ["slug", "title", "message"],
         },
@@ -109,6 +134,8 @@ TOOLS = [
                     "description": "ID du salon Discord. Si omis, le salon par défaut est utilisé.",
                 },
                 "color": {"type": "string", "description": "Couleur hex, ex. \"#e8c547\"."},
+                "image_url": {"type": "string", "description": "Grande image sous le texte (URL, optionnel)."},
+                "icon_url": {"type": "string", "description": "Miniature en haut à droite (URL, optionnel)."},
             },
             "required": ["title", "message"],
         },
@@ -189,6 +216,20 @@ async def _tool_create_notification(args: dict) -> str:
         NotificationField(name=f.get("name", ""), value_template=f.get("value", ""), position=i)
         for i, f in enumerate(args.get("fields") or [])
     ]
+    buttons = []
+    for i, b in enumerate(args.get("buttons") or []):
+        data = b.get("ha_data")
+        buttons.append(
+            NotificationButton(
+                label=b.get("label", ""),
+                style=b.get("style") or "primary",
+                emoji=b.get("emoji") or None,
+                ha_service=b.get("ha_service", ""),
+                ha_entity_id=b.get("ha_entity_id") or None,
+                ha_data_json=(json.dumps(data, ensure_ascii=False) if isinstance(data, dict) else None),
+                position=i,
+            )
+        )
     payload = NotificationIn(
         slug=slug,
         channel_id=(args.get("channel_id") or _default_channel()),
@@ -197,10 +238,21 @@ async def _tool_create_notification(args: dict) -> str:
         color=_parse_color(args.get("color")),
         footer=args.get("footer") or None,
         list_group=args.get("list_group") or None,
+        icon_url=args.get("icon_url") or None,
+        image_url=args.get("image_url") or None,
+        delete_button=bool(args.get("delete_button")),
+        snooze_button=bool(args.get("snooze_button")),
         fields=fields,
+        buttons=buttons,
     )
     notif = await repo.create(payload)
-    return f"✅ Notification créée : slug '{notif.slug}' (id {notif.id}). Déclenche-la avec send_notification."
+    extra = []
+    if buttons:
+        extra.append(f"{len(buttons)} bouton(s)")
+    if fields:
+        extra.append(f"{len(fields)} champ(s)")
+    suffix = (" — " + ", ".join(extra)) if extra else ""
+    return f"✅ Notification créée : slug '{notif.slug}' (id {notif.id}){suffix}. Déclenche-la avec send_notification."
 
 
 async def _tool_send_quick_message(args: dict) -> str:
@@ -216,6 +268,8 @@ async def _tool_send_quick_message(args: dict) -> str:
         title=args.get("title", ""),
         message=args.get("message", ""),
         color=_parse_color(args.get("color"), default=0xE8C547),
+        icon_url=args.get("icon_url") or None,
+        image_url=args.get("image_url") or None,
         show_timestamp=True,
     )
     msg = await send_notification_object(notif, source="mcp")
