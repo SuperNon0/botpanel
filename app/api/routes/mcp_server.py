@@ -5,8 +5,9 @@ lister / déclencher / créer des notifications, envoyer un message ponctuel sur
 Discord, lire l'état et l'historique.
 
 Transport : MCP « Streamable HTTP » implémenté à la main (JSON-RPC 2.0 sur
-POST /mcp). Pas de SSE côté serveur (GET -> 405), les réponses sont renvoyées en
-`application/json`, ce qui suffit pour un serveur d'outils requête/réponse.
+POST /mcp). Les réponses sont renvoyées en **SSE** (`text/event-stream`) quand le
+client l'accepte — ce qu'attendent la plupart des clients MCP, dont Claude — et
+en `application/json` sinon. `GET /mcp` -> 405 (pas de flux serveur->client).
 
 Sécurité : route MACHINE (hors login humain, cf. `_AUTH_PUBLIC_PREFIXES`),
 protégée par la **clé API BotPanel** présentée en `Authorization: Bearer <clé>`
@@ -15,11 +16,12 @@ ou `X-API-Key: <clé>`.
 from __future__ import annotations
 
 import hmac
+import json
 import logging
 import uuid
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from app.config import settings
 from app.db.models import Notification, NotificationField, NotificationIn
@@ -340,6 +342,28 @@ async def _handle_one(msg: dict):
         return {"jsonrpc": "2.0", "id": req_id, "error": {"code": err.code, "message": err.message}}
 
 
+def _wants_sse(request: Request) -> bool:
+    return "text/event-stream" in (request.headers.get("accept") or "").lower()
+
+
+def _respond(payload, headers: dict, sse: bool):
+    """Renvoie la réponse en SSE (text/event-stream) si le client l'accepte, sinon JSON.
+
+    La plupart des clients MCP « Streamable HTTP » (dont Claude) attendent du SSE :
+    un seul évènement `message` contenant la réponse JSON-RPC, puis fermeture.
+    """
+    if not sse:
+        return JSONResponse(payload, headers=headers)
+    data = json.dumps(payload, ensure_ascii=False)
+
+    async def _gen():
+        yield f"event: message\ndata: {data}\n\n"
+
+    h = dict(headers)
+    h["Cache-Control"] = "no-cache"
+    return StreamingResponse(_gen(), media_type="text/event-stream", headers=h)
+
+
 @router.post("/mcp")
 @router.post("/mcp/")
 async def mcp_endpoint(request: Request):
@@ -371,17 +395,18 @@ async def _serve(request: Request, path_token: str | None):
     # Session MCP : on en assigne une à l'initialize (non contraignante côté serveur).
     if isinstance(body, dict) and body.get("method") == "initialize":
         headers["Mcp-Session-Id"] = uuid.uuid4().hex
+    sse = _wants_sse(request)
 
     if isinstance(body, list):  # batch
         responses = [r for r in [await _handle_one(m) for m in body] if r is not None]
         if not responses:
             return Response(status_code=202, headers=headers)
-        return JSONResponse(responses, headers=headers)
+        return _respond(responses, headers, sse)
 
     response = await _handle_one(body)
     if response is None:  # notification -> 202 sans corps
         return Response(status_code=202, headers=headers)
-    return JSONResponse(response, headers=headers)
+    return _respond(response, headers, sse)
 
 
 @router.get("/mcp")
