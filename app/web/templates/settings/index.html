@@ -201,12 +201,21 @@
   <div class="form-hint" style="margin:-0.3rem 0 0.6rem;">⚠️ Site derrière Cloudflare : il faut <strong>ouvrir le chemin <code>/mcp</code></strong> dans Cloudflare Access (policy « Bypass »). Clique le « ? » pour les étapes.</div>
 
   <div class="form-group">
+    <label class="form-label">Clé API (à mettre dans l'en-tête du connecteur)</label>
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+      <input class="form-input" id="mcp-key" readonly style="flex:1; min-width:220px; font-size:0.8rem;">
+      <button type="button" class="btn btn-secondary btn-small" id="mcp-key-copy">Copier la clé</button>
+    </div>
+    <div class="form-hint">En-tête à ajouter dans Claude — <strong>Nom</strong> : <code>X-API-Key</code> · <strong>Valeur</strong> : la clé ci-dessus. <em>(ou Nom <code>Authorization</code>, Valeur <code>Bearer &lt;clé&gt;</code>)</em></div>
+  </div>
+
+  <div class="form-group">
     <label class="form-label">URL du serveur MCP</label>
     <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
       <input class="form-input" id="mcp-url" readonly style="flex:1; min-width:220px; font-size:0.8rem;">
       <button type="button" class="btn btn-secondary btn-small" id="mcp-url-copy">Copier</button>
     </div>
-    <div class="form-hint">À coller dans Claude avec l'en-tête <code>Authorization: Bearer &lt;clé&gt;</code>.</div>
+    <div class="form-hint">À coller dans Claude avec l'en-tête <code>X-API-Key</code> = la clé.</div>
   </div>
 
   <div class="form-group">
@@ -685,8 +694,10 @@ function fillMcpUrls(key) {
   const base = window.location.origin + "/mcp";
   const u = document.getElementById("mcp-url");
   const uk = document.getElementById("mcp-url-key");
+  const k = document.getElementById("mcp-key");
   if (u) u.value = base;
   if (uk) uk.value = key ? (base + "/" + key) : base + "/<clé>";
+  if (k) k.value = key || "";
 }
 async function copyField(id, label) {
   const v = document.getElementById(id).value;
@@ -696,8 +707,10 @@ async function copyField(id, label) {
 function bindMcp() {
   const a = document.getElementById("mcp-url-copy");
   const b = document.getElementById("mcp-urlkey-copy");
+  const k = document.getElementById("mcp-key-copy");
   if (a) a.addEventListener("click", () => copyField("mcp-url", "URL"));
   if (b) b.addEventListener("click", () => copyField("mcp-url-key", "URL"));
+  if (k) k.addEventListener("click", () => copyField("mcp-key", "Clé"));
 }
 function bindIntegration() {
   document.getElementById("int-copy").addEventListener("click", async () => {
