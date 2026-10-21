@@ -81,6 +81,8 @@ Puis redémarre Claude Desktop.
 | `list_notifications` | Liste les notifications (slug, titre, groupe) |
 | `send_notification` | Déclenche une notif existante (par slug, + variables) |
 | `create_notification` | Crée une nouvelle notification (titre, message, salon, couleur, champs, **images**, **boutons d'action HA**, boutons Supprimer/Snooze) |
+| `update_notification` | Modifie une notification existante (par slug) — seuls les champs fournis changent ; peut la renommer |
+| `delete_notification` | Supprime définitivement une notification (par slug) |
 | `send_quick_message` | Envoie un message ponctuel sur un salon Discord (sans sauvegarder) |
 | `get_state` | État : bot en ligne, envois du jour / total, dernière alerte |
 | `list_history` | Derniers envois (historique) |
