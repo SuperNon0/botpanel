@@ -15,14 +15,17 @@ ou `X-API-Key: <clé>`.
 """
 from __future__ import annotations
 
+import asyncio
 import hmac
 import json
 import logging
+import os
 import uuid
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
+from app.api.routes.system import INSTALL_DIR, _run as _sys_run
 from app.config import settings
 from app.db.models import Notification, NotificationButton, NotificationField, NotificationIn
 from app.db.repositories import LogRepository, NotificationRepository
@@ -153,6 +156,39 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "limit": {"type": "integer", "description": "Nombre d'entrées (1-100).", "minimum": 1, "maximum": 100}
+            },
+        },
+    },
+    {
+        "name": "check_update",
+        "description": "Vérifie si une mise à jour du code BotPanel est disponible (git) : commit "
+        "actuel, commit cible, et la liste des changements en attente. Lecture seule, sûr.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "update_site",
+        "description": "Met à jour l'instance BotPanel : fait d'abord une SAUVEGARDE du code "
+        "(point de rollback), puis applique la mise à jour (git) et redémarre le service. "
+        "SÉCURITÉ : n'agit QUE si confirm vaut \"OUI\" ; sinon, renvoie un aperçu sans rien changer. "
+        "Toujours demander l'accord de l'utilisateur avant de confirmer.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "confirm": {
+                    "type": "string",
+                    "description": "Mettre \"OUI\" pour appliquer réellement. Vide ou autre = simple aperçu (aucune modif).",
+                }
+            },
+        },
+    },
+    {
+        "name": "rollback_site",
+        "description": "Revient à la dernière sauvegarde de code (avant la dernière mise à jour) "
+        "et redémarre. SÉCURITÉ : n'agit QUE si confirm vaut \"OUI\".",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "confirm": {"type": "string", "description": "Mettre \"OUI\" pour appliquer le rollback. Sinon, aperçu."}
             },
         },
     },
@@ -323,7 +359,115 @@ HANDLERS = {
     "send_quick_message": _tool_send_quick_message,
     "get_state": _tool_get_state,
     "list_history": _tool_list_history,
+    "check_update": None,     # défini plus bas (après les helpers git)
+    "update_site": None,
+    "rollback_site": None,
 }
+
+
+# ======================================================================
+#  Mise à jour / rollback du code (git) — avec sauvegarde + confirmation
+# ======================================================================
+_BACKUP_TAG = "botpanel-pre-update"
+
+
+async def _git(*args: str, timeout: float = 60.0) -> dict:
+    return await _sys_run(["git", *args], cwd=INSTALL_DIR, timeout=timeout)
+
+
+def _confirmed(args: dict) -> bool:
+    return str(args.get("confirm", "")).strip().upper() in ("OUI", "YES", "TRUE", "CONFIRM", "OK")
+
+
+def _schedule_restart() -> None:
+    """Quitte le process après la réponse -> systemd (Restart=on-failure) relance."""
+    async def _exit() -> None:
+        await asyncio.sleep(0.6)
+        os._exit(1)  # noqa: SLF001
+    asyncio.create_task(_exit())
+
+
+async def _tool_check_update(args: dict) -> str:
+    if not (INSTALL_DIR / ".git").exists():
+        raise RuntimeError(f"{INSTALL_DIR} n'est pas un dépôt git.")
+    branch = (await _git("rev-parse", "--abbrev-ref", "HEAD", timeout=5))["stdout"].strip() or "main"
+    await _git("fetch", "--prune", timeout=120)
+    cur = (await _git("rev-parse", "--short", "HEAD", timeout=5))["stdout"].strip()
+    remote = (await _git("rev-parse", "--short", f"origin/{branch}", timeout=5))["stdout"].strip()
+    log = (await _git("log", "--oneline", f"HEAD..origin/{branch}", timeout=10))["stdout"].strip()
+    if not log or cur == remote:
+        return f"✅ À jour (commit {cur}, branche {branch}). Aucune mise à jour en attente."
+    n = len(log.splitlines())
+    return (
+        f"⬆️ Mise à jour disponible — {n} changement(s) :\n{log}\n\n"
+        f"Actuel {cur} → cible {remote} (branche {branch}).\n"
+        f"Pour l'appliquer : update_site(confirm=\"OUI\") — sauvegarde puis MàJ + redémarrage."
+    )
+
+
+async def _tool_update_site(args: dict) -> str:
+    if not (INSTALL_DIR / ".git").exists():
+        raise RuntimeError(f"{INSTALL_DIR} n'est pas un dépôt git.")
+    if not _confirmed(args):
+        preview = await _tool_check_update(args)
+        return (
+            "⚠️ Confirmation requise — je ne mets RIEN à jour sans ton accord.\n\n"
+            + preview
+            + "\n\nQuand tu es d'accord, relance avec confirm=\"OUI\"."
+        )
+    branch = (await _git("rev-parse", "--abbrev-ref", "HEAD", timeout=5))["stdout"].strip() or "main"
+    before = (await _git("rev-parse", "HEAD", timeout=5))["stdout"].strip()
+    before_short = before[:7]
+    # 1) SAUVEGARDE du code : tag de rollback sur l'état actuel
+    await _git("tag", "-f", _BACKUP_TAG, before, timeout=10)
+    # 2) récupération + application
+    fetch = await _git("fetch", "--prune", timeout=120)
+    if fetch["exit_code"] != 0:
+        raise RuntimeError(f"git fetch a échoué : {fetch['stderr'].strip()}")
+    reset = await _git("reset", "--hard", f"origin/{branch}", timeout=60)
+    if reset["exit_code"] != 0:
+        raise RuntimeError(f"git reset a échoué : {reset['stderr'].strip()}")
+    after = (await _git("rev-parse", "--short", "HEAD", timeout=5))["stdout"].strip()
+    # 3) dépendances Python si un venv existe
+    venv_pip = INSTALL_DIR / ".venv" / "bin" / "pip"
+    if venv_pip.exists():
+        await _sys_run(
+            [str(venv_pip), "install", "-q", "-r", str(INSTALL_DIR / "requirements.txt")],
+            cwd=INSTALL_DIR, timeout=180,
+        )
+    # 4) redémarrage
+    _schedule_restart()
+    return (
+        f"✅ Mis à jour : {before_short} → {after} (branche {branch}).\n"
+        f"💾 Sauvegarde du code faite (tag '{_BACKUP_TAG}' sur {before_short}) — rollback possible.\n"
+        f"🔄 Redémarrage en cours… reconnecte le connecteur dans ~10 s."
+    )
+
+
+async def _tool_rollback_site(args: dict) -> str:
+    if not (INSTALL_DIR / ".git").exists():
+        raise RuntimeError(f"{INSTALL_DIR} n'est pas un dépôt git.")
+    tag = await _git("rev-parse", "--short", _BACKUP_TAG, timeout=5)
+    if tag["exit_code"] != 0:
+        raise RuntimeError(f"Aucune sauvegarde trouvée (tag '{_BACKUP_TAG}' absent).")
+    target = tag["stdout"].strip()
+    cur = (await _git("rev-parse", "--short", "HEAD", timeout=5))["stdout"].strip()
+    if not _confirmed(args):
+        return (
+            f"⚠️ Confirmation requise — rollback {cur} → {target} (dernière sauvegarde).\n"
+            f"Relance avec confirm=\"OUI\" pour revenir en arrière + redémarrer."
+        )
+    reset = await _git("reset", "--hard", _BACKUP_TAG, timeout=60)
+    if reset["exit_code"] != 0:
+        raise RuntimeError(f"rollback a échoué : {reset['stderr'].strip()}")
+    after = (await _git("rev-parse", "--short", "HEAD", timeout=5))["stdout"].strip()
+    _schedule_restart()
+    return f"↩️ Rollback effectué : {cur} → {after}. 🔄 Redémarrage en cours…"
+
+
+HANDLERS["check_update"] = _tool_check_update
+HANDLERS["update_site"] = _tool_update_site
+HANDLERS["rollback_site"] = _tool_rollback_site
 
 
 # ======================================================================

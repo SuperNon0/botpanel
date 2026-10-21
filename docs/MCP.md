@@ -84,6 +84,16 @@ Puis redémarre Claude Desktop.
 | `send_quick_message` | Envoie un message ponctuel sur un salon Discord (sans sauvegarder) |
 | `get_state` | État : bot en ligne, envois du jour / total, dernière alerte |
 | `list_history` | Derniers envois (historique) |
+| `check_update` | Vérifie si une mise à jour du code est disponible (git) — lecture seule |
+| `update_site` | **Sauvegarde le code** puis met à jour + redémarre — **n'agit QUE si `confirm="OUI"`** |
+| `rollback_site` | Revient à la dernière sauvegarde + redémarre — **n'agit QUE si `confirm="OUI"`** |
+
+### Mise à jour pilotée par Claude (sécurisée)
+Claude peut mettre à jour l'instance, mais avec une **double sécurité** :
+1. L'outil `update_site` **refuse d'agir** sans `confirm="OUI"` (sinon il renvoie juste un aperçu des changements, sans rien modifier).
+2. Avant d'appliquer, il crée un **tag de sauvegarde** `botpanel-pre-update` sur l'état actuel → rollback possible à tout moment avec `rollback_site`.
+
+Dans la pratique : Claude **demande toujours** ton accord, puis, sur ton feu vert, fait la sauvegarde + `git fetch` + `git reset --hard origin/<branche>` + (pip si venv) + redémarrage. Prérequis identiques au bouton « Mettre à jour » (le dossier appartient à l'utilisateur du service, et une règle sudoers pour le restart si besoin).
 
 ## Sécurité
 - Le serveur MCP est une **route machine** (`/mcp`) : **jamais** derrière le login
