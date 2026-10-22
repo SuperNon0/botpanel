@@ -7,7 +7,7 @@
   <a href="/commands" class="btn btn-secondary">Retour</a>
 </div>
 
-<form id="cmd-form">
+<form id="cmd-form" class="editor-2col" data-dirty-guard>
   <div class="card">
     <h3>La commande</h3>
     <div class="form-row">
@@ -121,7 +121,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card preview-card">
     <div class="card-head">
       <h3>Aperçu</h3>
       <div style="display:flex; align-items:center; gap:0.6rem;">
@@ -146,10 +146,11 @@
     <button type="button" class="btn btn-secondary" id="btn-add" style="margin-top: 0.8rem;">+ Ajouter un bouton</button>
   </div>
 
-  <div style="display:flex; gap:0.7rem; justify-content:flex-end; flex-wrap:wrap;">
+  <div class="savebar" style="display:flex; gap:0.7rem; justify-content:flex-end; flex-wrap:wrap;">
+    <span class="dirty-flag">● Modifications non enregistrées</span>
     <a href="/commands" class="btn btn-secondary">Annuler</a>
     <button type="button" class="btn btn-purple" id="btn-test" style="display:none;">Tester (exécuter)</button>
-    <button type="submit" class="btn btn-primary">Enregistrer</button>
+    <button type="submit" class="btn btn-primary" title="Enregistrer (Ctrl+S)">Enregistrer</button>
   </div>
 </form>
 {% endblock %}
@@ -365,6 +366,7 @@ form.addEventListener("submit", async (e) => {
   try {
     if (CMD_ID) await API.put(`/commands/${CMD_ID}`, payload);
     else        await API.post("/commands", payload);
+    markSaved();
     toast("Enregistré ! (Discord se met à jour)");
     setTimeout(() => { window.location.href = "/commands"; }, 700);
   } catch (err) {
@@ -375,7 +377,7 @@ form.addEventListener("submit", async (e) => {
 document.getElementById("btn-test").addEventListener("click", async () => {
   if (!CMD_ID) return;
   const what = actionSel.value === "message" ? "" : "\nL'action sera VRAIMENT exécutée (version enregistrée).";
-  if (!confirm("Tester la commande ?" + what)) return;
+  if (!await confirmBox("Tester la commande ?" + what)) return;
   try {
     const r = await API.post(`/commands/${CMD_ID}/test`);
     toast("✅ OK — réponse : " + (r.message || r.title || "(vide)").slice(0, 120));

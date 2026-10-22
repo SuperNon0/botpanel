@@ -3,13 +3,19 @@
 
 {% block content %}
 <div class="page-header">
-  <h2>Monitoring temps reel<button type="button" class="help-dot" data-help="monitoring_intro">?</button></h2>
-  <span class="card-row-meta" id="block-count">0 bloc</span>
+  <h2>Monitoring temps réel<button type="button" class="help-dot" data-help="monitoring_intro">?</button></h2>
+  <div class="page-tools">
+    <div class="list-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" id="list-search" data-search="#groups-root" placeholder="Rechercher un bloc" aria-label="Rechercher un bloc" autocomplete="off">
+    </div>
+    <span class="card-row-meta" id="block-count">0 bloc</span>
+  </div>
 </div>
 
 <div id="groups-root" data-skeleton="3"></div>
 
-<a href="/monitoring/new" class="fab" title="Nouveau bloc de monitoring">+</a>
+<a href="/monitoring/new" class="fab" title="Nouveau bloc de monitoring"><span class="fab-plus" aria-hidden="true">+</span><span>Nouveau</span></a>
 {% endblock %}
 
 {% block scripts %}
@@ -47,10 +53,9 @@ function rowHtml(b) {
         </div>
       </div>
       <div class="row-actions">
-        <button class="btn btn-purple btn-small" data-push="${b.id}" ${b.enabled ? "" : "disabled"} title="Mettre à jour le message Discord maintenant">ACTUALISER</button>
-        <a class="btn btn-edit btn-small" href="/monitoring/${b.id}">EDITER</a>
-        <button class="btn btn-secondary btn-small" data-dup="${b.id}">CLONER</button>
-        <button class="btn btn-danger btn-small" data-del="${b.id}">SUPPR</button>
+        <button class="btn btn-purple btn-small" data-push="${b.id}" ${b.enabled ? "" : "disabled"} title="Mettre à jour le message Discord maintenant">Actualiser</button>
+        <a class="btn btn-edit btn-small" href="/monitoring/${b.id}">Éditer</a>
+        ${rowMenuHtml(b.id)}
       </div>
     </div>`;
 }
@@ -93,7 +98,7 @@ document.getElementById("groups-root").addEventListener("click", async (e) => {
       toast("Bloc cloné (désactivé)");
       window.location.href = `/monitoring/${copy.id}`;
     } else if (t.dataset.del) {
-      if (!confirm("Supprimer ce bloc ?")) return;
+      if (!await confirmBox("Supprimer ce bloc ?")) return;
       await API.del(`/monitoring/${t.dataset.del}`);
       toast("Bloc supprimé");
       loadBlocks();

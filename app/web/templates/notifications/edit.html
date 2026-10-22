@@ -7,7 +7,7 @@
   <a href="/notifications" class="btn btn-secondary">Retour</a>
 </div>
 
-<form id="notif-form">
+<form id="notif-form" class="editor-2col" data-dirty-guard>
   <div class="card">
     <h3>Identification</h3>
     <p class="hint">Le <code>slug</code> est l'identifiant appele depuis Home Assistant.</p>
@@ -142,7 +142,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card preview-card">
     <div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap; margin-bottom:0.3rem;">
       <h3 style="margin:0;">Aperçu</h3>
       <div style="display:flex; align-items:center; gap:0.6rem;">
@@ -224,10 +224,11 @@
     <button type="button" class="btn btn-secondary" id="field-add" style="margin-top: 0.8rem;">+ Ajouter un champ</button>
   </div>
 
-  <div style="display:flex; gap:0.7rem; justify-content:flex-end; flex-wrap:wrap;">
+  <div class="savebar" style="display:flex; gap:0.7rem; justify-content:flex-end; flex-wrap:wrap;">
+    <span class="dirty-flag">● Modifications non enregistrées</span>
     <a href="/notifications" class="btn btn-secondary">Annuler</a>
     <button type="button" class="btn btn-purple" id="btn-test-now">Tester maintenant</button>
-    <button type="submit" class="btn btn-primary">Enregistrer</button>
+    <button type="submit" class="btn btn-primary" title="Enregistrer (Ctrl+S)">Enregistrer</button>
   </div>
 </form>
 
@@ -695,6 +696,7 @@ form.addEventListener("submit", async (e) => {
     } else {
       await API.post("/notifications", payload);
     }
+    markSaved();
     toast("Enregistre !");
     setTimeout(() => { window.location.href = "/notifications"; }, 600);
   } catch (err) {

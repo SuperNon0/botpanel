@@ -4,12 +4,18 @@
 {% block content %}
 <div class="page-header">
   <h2>Notifications<button type="button" class="help-dot" data-help="api_usage" title="Déclencher depuis un projet (API)">?</button></h2>
-  <span class="card-row-meta" id="notif-count">0 notification</span>
+  <div class="page-tools">
+    <div class="list-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" id="list-search" data-search="#groups-root" placeholder="Rechercher une notification" aria-label="Rechercher une notification" autocomplete="off">
+    </div>
+    <span class="card-row-meta" id="notif-count">0 notification</span>
+  </div>
 </div>
 
 <div id="groups-root" data-skeleton="3"></div>
 
-<a href="/notifications/new" class="fab" title="Nouvelle notification">+</a>
+<a href="/notifications/new" class="fab" title="Nouvelle notification"><span class="fab-plus" aria-hidden="true">+</span><span>Nouveau</span></a>
 {% endblock %}
 
 {% block scripts %}
@@ -37,10 +43,9 @@ function rowHtml(n) {
         </div>
       </div>
       <div class="row-actions">
-        <button class="btn btn-purple btn-small" data-test="${n.id}">TESTER</button>
-        <a class="btn btn-edit btn-small" href="/notifications/${n.id}">EDITER</a>
-        <button class="btn btn-secondary btn-small" data-dup="${n.id}">CLONER</button>
-        <button class="btn btn-danger btn-small" data-del="${n.id}">SUPPR</button>
+        <button class="btn btn-purple btn-small" data-test="${n.id}">Tester</button>
+        <a class="btn btn-edit btn-small" href="/notifications/${n.id}">Éditer</a>
+        ${rowMenuHtml(n.id)}
       </div>
     </div>
   `;
@@ -115,7 +120,7 @@ async function loadNotifications() {
 
     root.querySelectorAll("[data-del]").forEach(btn => {
       btn.addEventListener("click", async () => {
-        if (!confirm("Supprimer cette notification ?")) return;
+        if (!await confirmBox("Supprimer cette notification ?")) return;
         try {
           await API.del(`/notifications/${btn.dataset.del}`);
           toast("Notification supprimee");

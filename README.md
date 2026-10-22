@@ -31,7 +31,7 @@ Hébergé dans un conteneur LXC Proxmox.
 - **Aperçu live avec vraies valeurs HA** : l'éditeur de notification résout `{state:...}`/`{attr:...}`/Jinja avec les valeurs réelles récupérées en direct
 - **Authentification à deux portes** : mot de passe local (LAN) + badge Cloudflare Access vérifié (JWT), avec mode « Cloudflare uniquement »
 - **PWA installable** + interface animée (respecte « réduire les animations »), squelettes de chargement, états vides illustrés
-- **Design FuelLog** (dark mode exclusif, DM Mono + DM Serif Display)
+- **Design « Atelier »** (dark mode exclusif, palette dorée, DM Mono + DM Serif Display) : menu flottant à icônes (barre d'onglets en bas sur mobile), listes en tuiles avec recherche, éditeurs avec aperçu Discord collant et barre Enregistrer toujours visible
 
 ## Le site web
 
@@ -46,6 +46,15 @@ Le site est l'interface d'administration du bot, accessible sur `http://IP_LXC:8
 > **États vides illustrés** : quand une liste est vide, un écran avec icône + message + bouton d'action s'affiche (au lieu d'un simple texte).
 >
 > **PWA installable** : BotPanel peut être **ajouté à l'écran d'accueil** (mobile/desktop) et s'ouvre en plein écran comme une app. Fourni par `manifest.webmanifest` + `sw.js` (service worker, servis à la racine) et les icônes `static/icons/`. Le service worker fait du **network-first** avec repli hors-ligne et **ne met jamais en cache les appels `/api/`** (données live / webhooks machines).
+
+> **Design « Atelier »** : couche `static/css/atelier.css` chargée après `style.css` (mêmes couleurs), plus `static/css/atelier-auth.css` pour les écrans de connexion. Ce qu'elle apporte :
+> - **Menu** en pastille flottante avec icônes ; sur mobile, **barre d'onglets en bas** (au pouce).
+> - **Listes en tuiles** (notifications, commandes, monitoring) avec **recherche** (touche `/` pour y aller) et boutons en clair : *Tester*, *Éditer*, et un menu **« ⋯ »** pour *Cloner* / *Supprimer*.
+> - Bouton **« + Nouveau »** doré en bas à droite.
+> - **Éditeurs** : sur ordi, l'**aperçu Discord reste visible à droite** ; la barre **Annuler / Tester / Enregistrer reste collée en bas**.
+> - **Ctrl+S** (ou Cmd+S) enregistre l'éditeur ouvert ; un repère **« Modifications non enregistrées »** s'affiche et le navigateur prévient si tu quittes sans enregistrer.
+> - **Confirmations** (supprimer, régénérer la clé, importer…) dans une fenêtre au style du site au lieu de la boîte grise du navigateur (`confirmBox()` dans `static/js/ux.js`).
+> - Textes plus lisibles (tailles minimum relevées, moins de majuscules) et accueil en 2 colonnes sur mobile.
 
 ### Notifications (`/notifications`)
 

@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="page-header">
-  <h2>Parametres</h2>
+  <h2>Paramètres</h2>
   <button type="button" class="btn btn-secondary btn-small" id="sec-toggle-all">Tout ouvrir</button>
 </div>
 
@@ -354,7 +354,7 @@ async function waitForRestart() {
 }
 
 document.getElementById("btn-update").addEventListener("click", async () => {
-  if (!confirm("Lancer git pull ? Le bot sera redemarre apres.")) return;
+  if (!await confirmBox("Lancer git pull ? Le bot sera redemarre apres.")) return;
   const btn = document.getElementById("btn-update");
   btn.disabled = true;
   document.getElementById("update-log").textContent = "";
@@ -513,7 +513,7 @@ async function loadThreads() {
     `).join("");
     root.querySelectorAll("[data-del-tid]").forEach(btn => {
       btn.addEventListener("click", async () => {
-        if (!confirm("Reinitialiser ce thread ? Il sera recrée au prochain envoi.")) return;
+        if (!await confirmBox("Reinitialiser ce thread ? Il sera recrée au prochain envoi.")) return;
         try {
           await API.del("/settings/threads/" + btn.dataset.delTid);
           toast("Thread reinitialise");
@@ -562,7 +562,7 @@ function bindBackup() {
   fileInput.addEventListener("change", async () => {
     const file = fileInput.files && fileInput.files[0];
     if (!file) return;
-    if (!confirm("Importer ce fichier ? Toutes les données de configuration actuelles seront REMPLACÉES.")) {
+    if (!await confirmBox("Importer ce fichier ? Toutes les données de configuration actuelles seront REMPLACÉES.")) {
       fileInput.value = "";
       return;
     }
@@ -631,7 +631,7 @@ function bindAuth() {
   document.getElementById("am-disable").addEventListener("click", async () => {
     const cur = document.getElementById("am-current").value;
     if (!cur) { toast("Entre ton mot de passe actuel pour désactiver.", "error"); return; }
-    if (!confirm("Désactiver la protection ? Le panel deviendra accessible sans mot de passe.")) return;
+    if (!await confirmBox("Désactiver la protection ? Le panel deviendra accessible sans mot de passe.")) return;
     try {
       await API.post("/auth/disable", { current_password: cur });
       toast("Protection désactivée.");
@@ -812,7 +812,7 @@ function bindMcp() {
 function bindIntegration() {
   document.getElementById("int-copy").addEventListener("click", () => copyField("int-key", "Clé"));
   document.getElementById("int-regen").addEventListener("click", async () => {
-    if (!confirm("Régénérer la clé ? L'ancienne cessera de fonctionner (à remettre à jour dans Home Assistant).")) return;
+    if (!await confirmBox("Régénérer la clé ? L'ancienne cessera de fonctionner (à remettre à jour dans Home Assistant).")) return;
     try {
       const d = await API.post("/settings/integration/regenerate", {});
       document.getElementById("int-key").value = d.api_key || "";
