@@ -37,7 +37,7 @@ Hébergé dans un conteneur LXC Proxmox.
 
 Le site est l'interface d'administration du bot, accessible sur `http://IP_LXC:8080`. Il regroupe plusieurs sections : Accueil, Notifications, Commandes, Monitoring, Historique et Paramètres.
 
-> **Aide contextuelle** : partout où c'est utile, un petit **« ? »** ouvre une pop-up d'explication (slug, mode d'envoi, placeholders, clé API, Cloudflare, sauvegarde…), avec encadrés colorés et blocs de code copiables. Plus besoin d'une page Aide séparée (l'ancienne reste accessible sur `/aide` en secours).
+> **Aide contextuelle** : partout où c'est utile, un petit **« ? »** ouvre une pop-up d'explication (slug, mode d'envoi, placeholders, clé API, Cloudflare, sauvegarde…), y compris l'intro de chaque page (Commandes, Monitoring, éditeurs), avec encadrés colorés et blocs de code copiables. Plus besoin d'une page Aide séparée (l'ancienne reste accessible sur `/aide` en secours).
 
 > **Interface animée** : micro-interactions et animations d'entrée légères (survol des cartes, retour au clic des boutons, focus clavier visible, toasts, `skeleton`/`spinner` de chargement) via `static/css/animations.css` + `static/js/anim.js`. Le tout est **additif** (ne change pas la mise en page) et **respecte `prefers-reduced-motion`** : si l'utilisateur a demandé à réduire les animations (OS/navigateur), elles sont automatiquement désactivées.
 >

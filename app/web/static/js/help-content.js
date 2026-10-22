@@ -70,6 +70,14 @@ window.BP_HELP["fields"] = {
 };
 
 /* ---------- Commandes ---------- */
+window.BP_HELP["commands_intro"] = {
+  title: "Commandes slash",
+  html:
+    '<p>Tes propres commandes Discord (<code>/temperature</code>, <code>/allumer_salon</code>…) : chacune répond un message et/ou déclenche une action Home Assistant.</p>' +
+    '<div class="hbox hbox-info">Toujours disponibles en plus : <code>/ha</code> (appeler n\'importe quel service HA) et <code>/clear</code> (vider un salon). Ces deux noms sont réservés.</div>' +
+    '<div class="hbox hbox-tip"><b>TESTER</b> exécute la commande depuis le panel, <b>CLONER</b> en fait une copie désactivée. Discord accepte 100 commandes max.</div>',
+};
+
 window.BP_HELP["command_action"] = {
   title: "Type d'action",
   html:
@@ -97,6 +105,17 @@ window.BP_HELP["command_response"] = {
 };
 
 /* ---------- Monitoring ---------- */
+window.BP_HELP["monitoring_intro"] = {
+  title: "Blocs de monitoring",
+  html:
+    '<p><b>Un bloc = un message épinglé sur Discord</b> qui se met à jour tout seul avec les <b>vraies valeurs</b> de Home Assistant (températures, conso, état des portes…).</p>' +
+    '<ul>' +
+    '<li>Choisis les <b>valeurs</b> à afficher, l\'<b>intervalle</b> de rafraîchissement et le salon.</li>' +
+    '<li>Ajoute des <b>boutons</b> d\'action HA sous le message (et un bouton « Actualiser »).</li>' +
+    '<li><b>ACTUALISER</b> met le message à jour tout de suite.</li>' +
+    '</ul>' +
+    '<div class="hbox hbox-info">L\'aperçu montre les valeurs actuelles. Si le message est supprimé sur Discord, il est recréé automatiquement.</div>',
+};
 window.BP_HELP["monitoring_fields"] = {
   title: "Valeurs affichées",
   html:
@@ -112,6 +131,13 @@ window.BP_HELP["monitoring_interval"] = {
   html:
     '<p>Le message épinglé se met à jour tout seul à cet intervalle (température, conso…).</p>' +
     '<div class="hbox hbox-warn">Minimum <b>30 secondes</b>. Si le message est supprimé sur Discord, il est recréé automatiquement.</div>',
+};
+
+window.BP_HELP["notif_intro"] = {
+  title: "Notification",
+  html:
+    '<p>Un message Discord que Home Assistant (ou un webhook) déclenche par son <code>slug</code>.</p>' +
+    '<div class="hbox hbox-tip">Modes d\'envoi, placeholders, groupes… tout est détaillé sur la <a href="/aide">page Aide</a>.</div>',
 };
 
 /* ---------- Paramètres ---------- */
