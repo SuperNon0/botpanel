@@ -119,13 +119,9 @@
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Couleur</label>
-        <div class="color-row">
-          <input type="color" name="color" id="f-color" value="#e8c547">
-          <select class="form-select" id="color-presets" style="flex:1;">
-            <option value="">— Preset —</option>
-          </select>
-        </div>
-        <div class="form-hint"><a href="/settings">Gerer les presets</a></div>
+        <input type="color" name="color" id="f-color" value="#e8c547">
+        <div class="swatches" id="color-swatches"></div>
+        <div class="form-hint">Clique une pastille, ou <strong>＋</strong> pour enregistrer la couleur actuelle comme preset.</div>
       </div>
       <div class="form-group">
         <label class="form-label">Miniature (petite image, URL)</label>
@@ -240,19 +236,6 @@
   </div>
 </form>
 
-<!-- Modal de selection d'entite -->
-<div class="ent-modal" id="ent-modal">
-  <div class="ent-modal-box">
-    <div class="ent-modal-head">
-      <strong>Choisir une entite Home Assistant</strong>
-      <button type="button" class="btn btn-secondary btn-small" id="ent-modal-close">Fermer</button>
-    </div>
-    <input type="text" class="form-input" id="ent-modal-search" placeholder="Filtrer par nom ou entity_id...">
-    <div class="ent-domain-bar" id="ent-domain-bar"></div>
-    <div class="ent-modal-list" id="ent-modal-list"></div>
-    <div class="form-hint" id="ent-modal-hint" style="margin-top:0.5rem;"></div>
-  </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
@@ -281,184 +264,6 @@ document.querySelectorAll(".md-toolbar .md-btn[data-wrap]").forEach(btn => {
   btn.addEventListener("click", () => {
     wrapSelection(document.getElementById("f-message"), btn.dataset.wrap);
   });
-});
-
-function renderDiscordMd(text) {
-  let html = esc(text);
-  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-  html = html.replace(/__(.+?)__/g, "<u>$1</u>");
-  html = html.replace(/~~(.+?)~~/g, "<s>$1</s>");
-  html = html.replace(/`([^`]+?)`/g, "<code>$1</code>");
-  html = html.replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, "$1<em>$2</em>");
-  return html;
-}
-
-// ============================================================
-// Modal de selection d'entites HA
-// ============================================================
-let _haEntities = null;
-async function loadEntities() {
-  if (_haEntities) return _haEntities;
-  try { _haEntities = await API.get("/ha/entities"); } catch { _haEntities = []; }
-  return _haEntities;
-}
-
-const entModal = document.getElementById("ent-modal");
-const entList = document.getElementById("ent-modal-list");
-const entSearch = document.getElementById("ent-modal-search");
-const entHint = document.getElementById("ent-modal-hint");
-let entOnPick = null;
-let _entDomain = null;  // domaine filtre actif (null = tous)
-const entDomainBar = document.getElementById("ent-domain-bar");
-
-// Domaines connus : libelle FR + icone (les autres sont affiches tels quels).
-const DOMAIN_META = {
-  light:         ["Lumières", "💡"],
-  switch:        ["Interrupteurs", "🔌"],
-  sensor:        ["Capteurs", "📊"],
-  binary_sensor: ["Capteurs bin.", "⚪"],
-  climate:       ["Chauffage/clim", "🌡️"],
-  cover:         ["Volets", "🪟"],
-  lock:          ["Serrures", "🔒"],
-  person:        ["Personnes", "🧍"],
-  device_tracker:["Présence", "📍"],
-  media_player:  ["Média", "🎵"],
-  fan:           ["Ventilation", "🌀"],
-  vacuum:        ["Aspirateurs", "🧹"],
-  camera:        ["Caméras", "📷"],
-  weather:       ["Météo", "⛅"],
-  automation:    ["Automatisations", "⚙️"],
-  scene:         ["Scènes", "🎬"],
-  script:        ["Scripts", "📜"],
-  input_boolean: ["Booléens", "🔘"],
-  input_number:  ["Nombres", "🔢"],
-  sun:           ["Soleil", "☀️"],
-  button:        ["Boutons", "🔴"],
-  input_button:  ["Boutons", "🔴"],
-  number:        ["Nombres", "🔢"],
-  update:        ["Mises à jour", "⬆️"],
-  select:        ["Listes", "📋"],
-  input_select:  ["Listes", "📋"],
-  input_text:    ["Textes", "📝"],
-  input_datetime:["Dates/heures", "📅"],
-  timer:         ["Minuteries", "⏲️"],
-};
-const SMALL_MAX = 5;          // domaines avec < SMALL_MAX entites -> regroupes dans « Divers »
-const DIVERS = "__divers__";  // cle synthetique du groupe fourre-tout
-function domainLabel(d) { return d === DIVERS ? "Divers" : (DOMAIN_META[d] || [d, "📦"])[0]; }
-function domainIcon(d)  { return d === DIVERS ? "🗃️" : (DOMAIN_META[d] || [d, "📦"])[1]; }
-function entDomainOf(e) { return e.domain || (e.entity_id || "").split(".")[0]; }
-
-// Compte les entites par domaine reel.
-function domainCounts() {
-  const c = {};
-  for (const e of (_haEntities || [])) {
-    const d = entDomainOf(e);
-    c[d] = (c[d] || 0) + 1;
-  }
-  return c;
-}
-// Bucket d'affichage : un petit domaine (< SMALL_MAX) tombe dans « Divers ».
-function bucketOf(e, counts) {
-  const d = entDomainOf(e);
-  return (counts[d] || 0) < SMALL_MAX ? DIVERS : d;
-}
-
-function renderDomainBar() {
-  const counts = domainCounts();
-  const bucket = {};
-  for (const e of (_haEntities || [])) {
-    const b = bucketOf(e, counts);
-    bucket[b] = (bucket[b] || 0) + 1;
-  }
-  const keys = Object.keys(bucket).filter(k => k !== DIVERS)
-    .sort((a, b) => bucket[b] - bucket[a] || a.localeCompare(b));
-  const total = (_haEntities || []).length;
-  const chip = (val, label, icon, n, active) =>
-    `<button type="button" class="ent-chip${active ? " active" : ""}" data-domain="${val === null ? "" : esc(val)}">`
-    + `${icon} ${esc(label)}<span class="ent-chip-count">${n}</span></button>`;
-  let html = chip(null, "Tous", "🗂️", total, _entDomain === null);
-  html += keys.map(d =>
-    chip(d, domainLabel(d), domainIcon(d), bucket[d], _entDomain === d)).join("");
-  if (bucket[DIVERS])  // le fourre-tout en dernier
-    html += chip(DIVERS, "Divers", domainIcon(DIVERS), bucket[DIVERS], _entDomain === DIVERS);
-  entDomainBar.innerHTML = html;
-}
-
-function renderEntList(filter) {
-  const q = (filter || "").toLowerCase();
-  const counts = domainCounts();
-  const matches = (_haEntities || []).filter(e =>
-    (_entDomain === null || bucketOf(e, counts) === _entDomain) &&
-    (!q || e.entity_id.toLowerCase().includes(q) ||
-      (e.friendly_name || "").toLowerCase().includes(q)));
-
-  // Regroupe par bucket (les petits domaines sont fondus dans « Divers »).
-  const groups = {};
-  for (const e of matches) {
-    const b = bucketOf(e, counts);
-    (groups[b] = groups[b] || []).push(e);
-  }
-  const order = Object.keys(groups).filter(k => k !== DIVERS)
-    .sort((a, b) => groups[b].length - groups[a].length || a.localeCompare(b));
-  if (groups[DIVERS]) order.push(DIVERS);  // « Divers » toujours a la fin
-
-  let shown = 0, html = "";
-  for (const d of order) {
-    if (shown >= 400) break;
-    const items = groups[d];
-    html += `<div class="ent-group-head">${domainIcon(d)} ${esc(domainLabel(d))}`
-      + `<span class="ent-group-count"> · ${items.length}</span></div>`;
-    for (const e of items) {
-      if (shown >= 400) break;
-      shown++;
-      const val = e.state ? esc(e.state) + (e.unit ? " " + esc(e.unit) : "") : "";
-      html += `<div class="ent-item" data-eid="${esc(e.entity_id)}">
-        <div class="ent-item-row">
-          <div class="ent-item-main">
-            <strong>${esc(e.friendly_name || e.entity_id)}</strong>
-            <code>${esc(e.entity_id)}</code>
-          </div>
-          ${val ? `<div class="ent-state" title="${val}">${val}</div>` : ""}
-        </div>
-      </div>`;
-    }
-  }
-  entList.innerHTML = html || `<div class="empty-state">Aucune entité</div>`;
-}
-
-async function openEntityPicker(onPick, hint) {
-  entOnPick = onPick;
-  entHint.textContent = hint || "Clique sur une entite pour l'inserer.";
-  entSearch.value = "";
-  _entDomain = null;
-  entModal.classList.add("open");
-  await loadEntities();
-  renderDomainBar();
-  renderEntList("");
-  setTimeout(() => entSearch.focus(), 50);
-}
-
-function closeEntityPicker() {
-  entModal.classList.remove("open");
-  entOnPick = null;
-}
-
-entSearch.addEventListener("input", () => renderEntList(entSearch.value));
-entDomainBar.addEventListener("click", (e) => {
-  const chip = e.target.closest(".ent-chip");
-  if (!chip) return;
-  _entDomain = chip.dataset.domain || null;
-  renderDomainBar();
-  renderEntList(entSearch.value);
-});
-document.getElementById("ent-modal-close").addEventListener("click", closeEntityPicker);
-entModal.addEventListener("click", (e) => { if (e.target === entModal) closeEntityPicker(); });
-entList.addEventListener("click", (e) => {
-  const item = e.target.closest(".ent-item");
-  if (!item || !entOnPick) return;
-  entOnPick(item.dataset.eid);
-  closeEntityPicker();
 });
 
 document.getElementById("msg-insert-emoji").addEventListener("click", () => {
@@ -574,78 +379,8 @@ function fillProxmoxSample(text) {
 }
 
 // ============================================================
-// Channels Discord (presets + bot)
-// ============================================================
-async function bindChannelSelect() {
-  const sel = document.getElementById("channel-select");
-  const idIn = document.getElementById("f-channel-id");
-
-  const [presets, botCh] = await Promise.all([
-    API.get("/settings/channels").catch(() => []),
-    API.get("/discord/channels").catch(() => []),
-  ]);
-
-  const opts = ['<option value="">— choisir —</option>'];
-  if (presets.length) {
-    opts.push('<optgroup label="Preconfigures">');
-    presets.forEach(p => opts.push(
-      `<option value="${esc(p.channel_id)}">${esc(p.name)} (${esc(p.channel_id)})</option>`
-    ));
-    opts.push('</optgroup>');
-  }
-  if (botCh.length) {
-    opts.push('<optgroup label="Detectes par le bot">');
-    botCh.forEach(c => opts.push(
-      `<option value="${esc(c.id)}"># ${esc(c.name)}${c.category ? " — " + esc(c.category) : ""}</option>`
-    ));
-    opts.push('</optgroup>');
-  }
-  sel.innerHTML = opts.join("");
-
-  sel.addEventListener("change", () => {
-    if (sel.value) idIn.value = sel.value;
-  });
-  if (idIn.value) sel.value = idIn.value;
-}
-
-// ============================================================
-// Couleur : presets
-// ============================================================
-async function bindColorPresets() {
-  const sel = document.getElementById("color-presets");
-  const colorIn = document.getElementById("f-color");
-  let presets = [];
-  try { presets = await API.get("/settings/colors"); } catch { presets = []; }
-  presets.forEach(p => {
-    const hex = "#" + (p.color & 0xFFFFFF).toString(16).padStart(6, "0");
-    const opt = document.createElement("option");
-    opt.value = hex;
-    opt.textContent = `${p.name} (${hex})`;
-    sel.appendChild(opt);
-  });
-  sel.addEventListener("change", () => {
-    if (sel.value) {
-      colorIn.value = sel.value;
-      colorIn.dispatchEvent(new Event("input", { bubbles: true }));
-    }
-  });
-}
-
-// ============================================================
 // Apercu live
 // ============================================================
-function formatTsFr(d) {
-  const months = ["janvier","fevrier","mars","avril","mai","juin",
-                  "juillet","aout","septembre","octobre","novembre","decembre"];
-  const pad = n => String(n).padStart(2, "0");
-  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()} a ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-const STYLE_BG = {
-  primary: "#5865f2", secondary: "#4e5058",
-  success: "#248046", danger: "#da373c",
-};
-
 let buttons = [];
 let fields = [];
 
@@ -705,14 +440,10 @@ function updatePreview() {
   `).join("");
   document.getElementById("p-fields").innerHTML = fHtml;
 
-  const btnHtml = [];
-  if (delBtn) btnHtml.push(`<span class="d-btn d-btn-secondary">Supprimer</span>`);
-  if (snzBtn) btnHtml.push(`<span class="d-btn d-btn-secondary">Snooze</span>`);
-  buttons.forEach(b => {
-    const bg = STYLE_BG[b.style] || STYLE_BG.primary;
-    btnHtml.push(`<span class="d-btn" style="background:${bg};">${esc(b.label || "Action")}</span>`);
-  });
-  document.getElementById("p-buttons").innerHTML = btnHtml.join("");
+  const extra = [];
+  if (snzBtn) extra.push("Snooze");
+  if (delBtn) extra.push("Supprimer");
+  document.getElementById("p-buttons").innerHTML = previewButtonsHtml(buttons, extra);
 
   // Grande image : on l'affiche seulement si c'est une vraie URL (pas un {var:...})
   const img = document.getElementById("p-image");
@@ -740,12 +471,6 @@ function bindPreview() {
 // Apercu live : resout les vraies valeurs Home Assistant
 // ({state:...}, {attr:...}, {unit:...}, Jinja HA). Les {var:...} restent visibles.
 // ============================================================
-// NB : on construit la regex par concatenation pour ne PAS ecrire en clair les
-// deux motifs Jinja (double-accolade et accolade-pourcent), sinon Jinja — qui
-// rend cette page — tenterait de les interpreter. _OB = accolade ouvrante.
-const _OB = "{";
-const HA_PLACEHOLDER_RE = new RegExp("\\{(state|attr|unit):|" + _OB + _OB + "|" + _OB + "%");
-
 function formHasHaPlaceholders() {
   const parts = [
     document.getElementById("f-title").value,
@@ -758,21 +483,13 @@ function formHasHaPlaceholders() {
   return parts.some(s => HA_PLACEHOLDER_RE.test(s || ""));
 }
 
-function setResolveStatus(kind) {
-  const el = document.getElementById("resolve-status");
-  if (!el) return;
-  el.textContent =
-    kind === "ok"      ? "🟢 valeurs Home Assistant en direct" :
-    kind === "loading" ? "⏳ récupération…" :
-    kind === "err"     ? "🔴 Home Assistant injoignable" :
-                         "⚪ aucune entité HA";
-}
+const statusEl = document.getElementById("resolve-status");
 
 async function refreshResolved() {
   if (!formHasHaPlaceholders()) {
-    resolvedCache = null; setResolveStatus("none"); updatePreview(); return;
+    resolvedCache = null; setResolveStatus(statusEl, "none"); updatePreview(); return;
   }
-  setResolveStatus("loading");
+  setResolveStatus(statusEl, "loading");
   try {
     resolvedCache = await API.post("/notifications/resolve-preview", {
       title: document.getElementById("f-title").value || "",
@@ -783,9 +500,9 @@ async function refreshResolved() {
       fields: fields.map(fl => ({ name: fl.name || "", value_template: fl.value_template || "" })),
     });
     // ha_ok=false -> les valeurs affichees sont des replis, pas du "en direct".
-    setResolveStatus(resolvedCache && resolvedCache.ha_ok === false ? "err" : "ok");
+    setResolveStatus(statusEl, resolvedCache && resolvedCache.ha_ok === false ? "err" : "ok");
   } catch (e) {
-    resolvedCache = null; setResolveStatus("err");
+    resolvedCache = null; setResolveStatus(statusEl, "err");
   }
   updatePreview();
 }
@@ -807,56 +524,8 @@ function bindResolve() {
 // ============================================================
 // Builder de boutons
 // ============================================================
-function renderButtons() {
-  builder.innerHTML = buttons.map((b, i) => `
-    <div class="button-row" data-idx="${i}">
-      <div>
-        <label class="form-label">Label</label>
-        <input class="form-input" data-k="label" value="${esc(b.label)}">
-        <label class="form-label" style="margin-top:0.4rem;">Service HA</label>
-        <input class="form-input ha-service-input" data-k="ha_service" value="${esc(b.ha_service)}" placeholder="light.turn_on">
-      </div>
-      <div>
-        <label class="form-label">Entite</label>
-        <input class="form-input ha-entity-input" data-k="ha_entity_id" value="${esc(b.ha_entity_id || '')}" placeholder="light.salon">
-        <label class="form-label" style="margin-top:0.4rem;">Style</label>
-        <select class="form-select" data-k="style">
-          ${["primary","secondary","success","danger"].map(s =>
-            `<option ${s===b.style?"selected":""}>${s}</option>`
-          ).join("")}
-        </select>
-      </div>
-      <button type="button" class="btn btn-danger btn-small" data-remove="${i}">X</button>
-    </div>
-  `).join("");
-
-  builder.querySelectorAll(".button-row").forEach(row => {
-    const idx = +row.dataset.idx;
-    row.querySelectorAll("[data-k]").forEach(inp => {
-      const sync = () => { buttons[idx][inp.dataset.k] = inp.value; updatePreview(); };
-      inp.addEventListener("input", sync);
-      inp.addEventListener("change", sync);
-    });
-  });
-  builder.querySelectorAll("[data-remove]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      buttons.splice(+btn.dataset.remove, 1);
-      renderButtons();
-      updatePreview();
-    });
-  });
-
-  builder.querySelectorAll(".ha-service-input").forEach(inp =>
-    attachAutocomplete(inp, "/ha/services", it => it.service, it => it.service));
-  builder.querySelectorAll(".ha-entity-input").forEach(inp =>
-    attachAutocomplete(inp, "/ha/entities", it => it.friendly_name, it => it.entity_id));
-}
-
-document.getElementById("btn-add").addEventListener("click", () => {
-  buttons.push({ label: "Action", style: "primary", ha_service: "", ha_entity_id: "" });
-  renderButtons();
-  updatePreview();
-});
+const btnBuilder = createHaButtonsBuilder(builder, () => buttons, () => updatePreview());
+document.getElementById("btn-add").addEventListener("click", () => btnBuilder.add());
 
 // ============================================================
 // Builder de fields
@@ -937,7 +606,7 @@ async function loadExisting() {
     }
     buttons = n.buttons || [];
     fields = n.fields || [];
-    renderButtons();
+    btnBuilder.render();
     renderFields();
     updatePreview();
 
@@ -1200,8 +869,13 @@ async function boot() {
   bindPreview();
   bindResolve();
   updateThreadModeUI(document.getElementById("f-thread-mode").value);
-  await Promise.all([bindChannelSelect(), bindColorPresets(), bindGroupDatalist(), loadForumChannels()]);
+  await Promise.all([
+    bindChannelSelect(document.getElementById("channel-select"), document.getElementById("f-channel-id")),
+    bindGroupDatalist(), loadForumChannels(),
+  ]);
   await loadExisting();
+  if (!NOTIF_ID) btnBuilder.render();
+  bindColorPresets(document.getElementById("f-color"), document.getElementById("color-swatches"));
   if (detectProxmox()) setProxmoxMode(true);  // mode Proxmox auto si variables présentes
   refreshResolved();  // resout tout de suite si le brouillon contient des entites HA
 }

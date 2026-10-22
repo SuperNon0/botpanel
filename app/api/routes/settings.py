@@ -24,6 +24,15 @@ async def set_color_presets(payload: list[ColorPreset]) -> list[ColorPreset]:
     return payload
 
 
+@router.post("/colors", response_model=list[ColorPreset], status_code=201)
+async def add_color_preset(payload: ColorPreset) -> list[ColorPreset]:
+    """Ajoute un preset (depuis un editeur). Un preset du meme nom est remplace."""
+    raw = [c for c in await repo.get_color_presets() if c.get("name") != payload.name]
+    raw.append(payload.model_dump())
+    await repo.set("color_presets", raw)
+    return [ColorPreset(**c) for c in raw]
+
+
 @router.get("/channels", response_model=list[ChannelPreset])
 async def get_channel_presets() -> list[ChannelPreset]:
     raw = await repo.get_channel_presets()

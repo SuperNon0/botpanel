@@ -3,68 +3,119 @@
 
 {% block content %}
 <div class="page-header">
-  <h2>Commandes slash</h2>
+  <h2>Commandes slash<button type="button" class="help-dot" data-help="command_action">?</button></h2>
   <span class="card-row-meta" id="quota">0 / 100</span>
 </div>
 
-<div class="card" style="padding: 0;">
-  <div id="cmd-list" data-skeleton="4"></div>
-</div>
+<p class="hint" style="margin:-0.3rem 0 1rem;">
+  Toujours disponibles sur Discord : <code>/ha</code> (appeler n'importe quel service HA) et
+  <code>/clear</code> (vider un salon). Les commandes ci-dessous sont les tiennes.
+</p>
+
+<div id="groups-root" data-skeleton="3"></div>
 
 <a href="/commands/new" class="fab" title="Nouvelle commande">+</a>
 {% endblock %}
 
 {% block scripts %}
 <script>
+const ACTION_META = {
+  message:      { label: "Réponse",      cls: "tag-green" },
+  service:      { label: "Service HA",   cls: "tag-yellow" },
+  script:       { label: "Script",       cls: "tag-green" },
+  scene:        { label: "Scène",        cls: "tag-orange" },
+  notification: { label: "Notification", cls: "tag-purple" },
+};
+
+// Resume lisible de ce que fait la commande
+function actionSummary(c) {
+  if (c.action_type === "service") return [c.ha_service, c.ha_entity_id].filter(Boolean).join(" → ");
+  if (c.action_type === "script" || c.action_type === "scene") return c.ha_entity_id || "";
+  if (c.action_type === "notification") return c.notification_slug || "";
+  return "";
+}
+
+let _cmds = [];
+
+function rowHtml(c) {
+  const meta = ACTION_META[c.action_type] || { label: c.action_type, cls: "tag-muted" };
+  const summary = actionSummary(c);
+  const nb = (c.buttons || []).length;
+  return `
+    <div class="card-row">
+      <div>
+        <div>
+          <code>/${esc(c.name)}</code>
+          <button type="button" class="tag mini-toggle ${c.enabled ? "tag-green" : "tag-muted"}" data-toggle="${c.id}"
+                  title="Cliquer pour ${c.enabled ? "désactiver" : "activer"}">${c.enabled ? "ON" : "OFF"}</button>
+        </div>
+        <div class="card-row-meta">
+          ${esc(c.description)}
+          &nbsp;&middot;&nbsp;<span class="tag ${meta.cls}">${esc(meta.label)}</span>
+          ${summary ? `&nbsp;<code>${esc(summary)}</code>` : ""}
+          ${nb ? `&nbsp;&middot;&nbsp;${nb} bouton${nb > 1 ? "s" : ""}` : ""}
+          ${c.response_ephemeral ? "" : '&nbsp;<span class="tag tag-muted">PUBLIC</span>'}
+        </div>
+      </div>
+      <div class="row-actions">
+        <button class="btn btn-purple btn-small" data-test="${c.id}">TESTER</button>
+        <a class="btn btn-edit btn-small" href="/commands/${c.id}">EDITER</a>
+        <button class="btn btn-secondary btn-small" data-dup="${c.id}">CLONER</button>
+        <button class="btn btn-danger btn-small" data-del="${c.id}">SUPPR</button>
+      </div>
+    </div>`;
+}
+
 async function loadCommands() {
-  const list = document.getElementById("cmd-list");
+  const root = document.getElementById("groups-root");
   const quota = document.getElementById("quota");
   try {
     const [cmds, q] = await Promise.all([API.get("/commands"), API.get("/commands/quota")]);
+    _cmds = cmds;
     quota.textContent = `${q.used} / ${q.max}`;
 
     if (cmds.length === 0) {
-      list.innerHTML = emptyBox(ICONS.slash, "Aucune commande",
-        "Ajoute une commande slash Discord (appel d'un service HA, message, etc.).",
-        '<a class="btn btn-primary btn-small" href="/commands/new">+ Nouvelle commande</a>');
+      root.innerHTML = `<div class="card">` + emptyBox(ICONS.slash, "Aucune commande",
+        "Ajoute une commande slash Discord : afficher une valeur HA, allumer une lumière, lancer un script…",
+        '<a class="btn btn-primary btn-small" href="/commands/new">+ Nouvelle commande</a>') + `</div>`;
       return;
     }
 
-    list.innerHTML = cmds.map(c => `
-      <div class="card-row">
-        <div>
-          <div><code>/${esc(c.name)}</code> ${c.enabled ? '' : '<span class="tag tag-muted">OFF</span>'}</div>
-          <div class="card-row-meta">
-            ${esc(c.description)}
-            &nbsp;&middot;&nbsp;
-            <span class="tag ${tagForAction(c.action_type)}">${esc(c.action_type)}</span>
-          </div>
-        </div>
-        <div class="row-actions">
-          <a class="btn btn-edit btn-small" href="/commands/${c.id}">EDITER</a>
-          <button class="btn btn-danger btn-small" data-del="${c.id}">SUPPR</button>
-        </div>
-      </div>
-    `).join("");
-
-    list.querySelectorAll("[data-del]").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        if (!confirm("Supprimer cette commande ?")) return;
-        try {
-          await API.del(`/commands/${btn.dataset.del}`);
-          toast("Commande supprimee");
-          loadCommands();
-        } catch (e) { toast(e.message, "error"); }
-      });
-    });
+    renderGroupedList(root, cmds, c => c.list_group, rowHtml, "bp_cmd_groups_closed");
   } catch (e) {
-    list.innerHTML = `<div class="empty-state">Erreur : ${esc(e.message)}</div>`;
+    root.innerHTML = `<div class="card"><div class="empty-state">Erreur : ${esc(e.message)}</div></div>`;
   }
 }
 
-function tagForAction(t) {
-  return { service: "tag-yellow", script: "tag-green", scene: "tag-orange", notification: "tag-purple" }[t] || "tag-muted";
-}
+document.getElementById("groups-root").addEventListener("click", async (e) => {
+  const t = e.target.closest("[data-toggle],[data-test],[data-dup],[data-del]");
+  if (!t) return;
+  try {
+    if (t.dataset.toggle) {
+      const c = _cmds.find(x => x.id === +t.dataset.toggle);
+      if (!c) return;
+      const { id, ...payload } = c;
+      await API.put(`/commands/${id}`, { ...payload, enabled: !c.enabled });
+      toast(c.enabled ? `/${c.name} désactivée` : `/${c.name} activée`);
+      loadCommands();
+    } else if (t.dataset.test) {
+      const c = _cmds.find(x => x.id === +t.dataset.test);
+      const warn = c && c.action_type !== "message" ? "\nL'action sera VRAIMENT exécutée." : "";
+      if (!confirm(`Tester /${c ? c.name : ""} ?${warn}`)) return;
+      const r = await API.post(`/commands/${t.dataset.test}/test`);
+      toast("✅ OK — réponse : " + (r.message || r.title || "(vide)").slice(0, 120));
+    } else if (t.dataset.dup) {
+      const copy = await API.post(`/commands/${t.dataset.dup}/duplicate`);
+      toast(`Clonée en /${copy.name} (désactivée)`);
+      window.location.href = `/commands/${copy.id}`;
+    } else if (t.dataset.del) {
+      if (!confirm("Supprimer cette commande ?")) return;
+      await API.del(`/commands/${t.dataset.del}`);
+      toast("Commande supprimée");
+      loadCommands();
+    }
+  } catch (err) { toast(err.message, "error"); }
+});
 
 loadCommands();
 </script>

@@ -10,15 +10,14 @@ redemarrage du bot.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 
 import discord
 from discord.ui import Button, View
 
+from app.bot.ha_actions import DISCORD_STYLES, call_ha_button, call_ha_service
 from app.db.models import Notification, NotificationButton
 from app.db.repositories import LogRepository, NotificationRepository
-from app.ha import ha_client
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +29,9 @@ logger = logging.getLogger(__name__)
 #     - bp:del:<notif_id>             -> supprime le message
 #     - bp:snz:<notif_id>             -> re-envoie la notif apres N minutes
 #     - bp:btn:<notif_id>:<button_id> -> execute le service HA du bouton custom
+#     - bp:cbtn:<cmd_id>:<idx>        -> bouton HA sous la reponse d'une commande
+#     - bp:mbtn:<block_id>:<idx>      -> bouton HA sous un bloc de monitoring
+#     - bp:mref:<block_id>            -> « Actualiser » un bloc de monitoring
 # -----------------------------------------------------------------
 CUSTOM_ID_PREFIX = "bp"
 
@@ -50,12 +52,16 @@ def _cid_preview(idx: int) -> str:
     return f"{CUSTOM_ID_PREFIX}:preview:{idx}"
 
 
-DISCORD_STYLES: dict[str, discord.ButtonStyle] = {
-    "primary": discord.ButtonStyle.primary,
-    "secondary": discord.ButtonStyle.secondary,
-    "success": discord.ButtonStyle.success,
-    "danger": discord.ButtonStyle.danger,
-}
+def cid_command_button(cmd_id: int, idx: int) -> str:
+    return f"{CUSTOM_ID_PREFIX}:cbtn:{cmd_id}:{idx}"
+
+
+def cid_monitoring_button(block_id: int, idx: int) -> str:
+    return f"{CUSTOM_ID_PREFIX}:mbtn:{block_id}:{idx}"
+
+
+def cid_monitoring_refresh(block_id: int) -> str:
+    return f"{CUSTOM_ID_PREFIX}:mref:{block_id}"
 
 
 # -----------------------------------------------------------------
@@ -223,27 +229,10 @@ async def _handle_custom_button(
         )
         return
 
-    # On construit la data HA (entity_id + data_json eventuel).
     service = target.ha_service
-    if "." not in service:
-        await interaction.response.send_message(
-            f"Service HA invalide : {service}", ephemeral=True
-        )
-        return
-    domain, srv = service.split(".", 1)
-
-    data: dict = {}
-    if target.ha_data_json:
-        try:
-            data = json.loads(target.ha_data_json)
-        except json.JSONDecodeError:
-            logger.warning("ha_data_json invalide sur bouton %s", button_id)
-    if target.ha_entity_id:
-        data["entity_id"] = target.ha_entity_id
-
     await interaction.response.defer(ephemeral=True, thinking=True)
     try:
-        await ha_client.call_service(domain, srv, data)
+        await call_ha_service(service, target.ha_entity_id, target.ha_data_json)
     except Exception as exc:  # HomeAssistantError remonte ici
         logger.error("Erreur appel HA depuis bouton : %s", exc)
         await _log_click(
@@ -262,6 +251,96 @@ async def _handle_custom_button(
     )
     await interaction.followup.send(
         f"\u2705 {target.label} execute.", ephemeral=True
+    )
+
+
+async def _handle_command_button(
+    interaction: discord.Interaction, cmd_id: int, idx: int
+) -> None:
+    """Bouton HA sous la reponse d'une commande slash (identifie par position)."""
+    from app.db.repositories import SlashCommandRepository
+
+    cmd = await SlashCommandRepository().get_by_id(cmd_id)
+    target = cmd.buttons[idx] if cmd and 0 <= idx < len(cmd.buttons) else None
+    if target is None:
+        await interaction.response.send_message(
+            "Bouton introuvable (commande modifiee ou supprimee).", ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(ephemeral=True, thinking=True)
+    try:
+        await call_ha_button(target)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Erreur bouton commande /%s : %s", cmd.name, exc)
+        await LogRepository().add(
+            kind="button", notification_slug=f"/{cmd.name}",
+            channel_id=str(interaction.channel_id) if interaction.channel_id else None,
+            user_id=str(interaction.user.id) if interaction.user else None,
+            user_name=str(interaction.user) if interaction.user else None,
+            button_label=target.label, detail=f"{target.ha_service} -> {exc}"[:300],
+            success=False,
+        )
+        await interaction.followup.send(f"\u274c Erreur : {exc}", ephemeral=True)
+        return
+
+    await LogRepository().add(
+        kind="button", notification_slug=f"/{cmd.name}",
+        channel_id=str(interaction.channel_id) if interaction.channel_id else None,
+        user_id=str(interaction.user.id) if interaction.user else None,
+        user_name=str(interaction.user) if interaction.user else None,
+        button_label=target.label, detail=target.ha_service,
+    )
+    await interaction.followup.send(f"\u2705 {target.label} execute.", ephemeral=True)
+
+
+async def _handle_monitoring_button(
+    interaction: discord.Interaction, block_id: int, idx: int | None
+) -> None:
+    """Bouton sous un bloc de monitoring : action HA (idx) ou « Actualiser » (None).
+
+    Dans les deux cas, le message du bloc est re-rendu juste apres pour que
+    les valeurs affichees refletent tout de suite le nouvel etat.
+    """
+    from app.bot.monitoring import block_buttons, refresh_block_now
+    from app.db.repositories import MonitoringRepository
+
+    block = await MonitoringRepository().get_by_id(block_id)
+    if block is None:
+        await interaction.response.send_message("Bloc introuvable.", ephemeral=True)
+        return
+
+    await interaction.response.defer(ephemeral=True, thinking=True)
+    label = "Actualiser"
+    if idx is not None:
+        buttons = block_buttons(block)
+        target = buttons[idx] if 0 <= idx < len(buttons) else None
+        if target is None:
+            await interaction.followup.send(
+                "Bouton introuvable (bloc modifie ?).", ephemeral=True
+            )
+            return
+        label = target.label
+        try:
+            await call_ha_button(target)
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Erreur bouton monitoring %s : %s", block_id, exc)
+            await interaction.followup.send(f"\u274c Erreur : {exc}", ephemeral=True)
+            return
+        # Laisse a HA le temps d'appliquer le changement avant de relire l'etat.
+        await asyncio.sleep(1.5)
+
+    ok = await refresh_block_now(interaction.client, block_id)
+    await LogRepository().add(
+        kind="button", notification_slug=block.name,
+        channel_id=str(interaction.channel_id) if interaction.channel_id else None,
+        user_id=str(interaction.user.id) if interaction.user else None,
+        user_name=str(interaction.user) if interaction.user else None,
+        button_label=label, detail="monitoring", success=ok,
+    )
+    await interaction.followup.send(
+        f"\u2705 {label} : bloc mis a jour." if ok else "\u26a0\ufe0f Mise a jour du bloc impossible.",
+        ephemeral=True,
     )
 
 
@@ -304,6 +383,19 @@ async def dispatch_interaction(interaction: discord.Interaction) -> bool:
         except ValueError:
             return False
         await _handle_custom_button(interaction, notif_id, button_id)
+        return True
+    if action in ("cbtn", "mbtn") and len(parts) == 4:
+        try:
+            idx = int(parts[3])
+        except ValueError:
+            return False
+        if action == "cbtn":
+            await _handle_command_button(interaction, notif_id, idx)
+        else:
+            await _handle_monitoring_button(interaction, notif_id, idx)
+        return True
+    if action == "mref":
+        await _handle_monitoring_button(interaction, notif_id, None)
         return True
     return False
 

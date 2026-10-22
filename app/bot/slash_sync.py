@@ -16,6 +16,7 @@ import logging
 import discord
 from discord import app_commands
 
+from app.bot.ha_actions import build_ha_buttons_view, call_ha_service
 from app.config import settings
 from app.db.models import SlashCommand
 from app.db.repositories import SlashCommandRepository
@@ -23,6 +24,9 @@ from app.ha import ha_client
 from app.ha.client import HomeAssistantError
 
 logger = logging.getLogger(__name__)
+
+# Noms de commandes fixes (non utilisables pour une commande personnalisee).
+RESERVED_NAMES = {"ha", "clear"}
 
 
 def _make_callback(command: SlashCommand):
@@ -42,44 +46,115 @@ def _make_callback(command: SlashCommand):
             )
             return
 
-        await interaction.response.defer(ephemeral=True, thinking=True)
+        await interaction.response.defer(ephemeral=cmd.response_ephemeral, thinking=True)
         try:
             await _execute_action(cmd)
         except HomeAssistantError as exc:
             logger.error("Erreur execution commande %s : %s", cmd.name, exc)
+            await _log_command(interaction, cmd, success=False, detail=str(exc))
             await interaction.followup.send(
                 f"\u274c Erreur : {exc}", ephemeral=True
             )
             return
 
-        await interaction.followup.send(cmd.response_message, ephemeral=True)
+        content, embed, view = await build_command_response(cmd)
+        kwargs: dict = {"ephemeral": cmd.response_ephemeral}
+        if content:
+            kwargs["content"] = content
+        if embed is not None:
+            kwargs["embed"] = embed
+        if view is not None:
+            kwargs["view"] = view
+        if "content" not in kwargs and "embed" not in kwargs:
+            kwargs["content"] = "\u2705"
+        await interaction.followup.send(**kwargs)
+        await _log_command(interaction, cmd, success=True)
 
     return _callback
 
 
+async def _log_command(
+    interaction: discord.Interaction, cmd: SlashCommand, *, success: bool,
+    detail: str | None = None,
+) -> None:
+    """Trace l'utilisation d'une commande dans l'historique."""
+    from app.db.repositories import LogRepository
+
+    user = interaction.user
+    try:
+        await LogRepository().add(
+            kind="command",
+            notification_slug=f"/{cmd.name}",
+            channel_id=str(interaction.channel_id) if interaction.channel_id else None,
+            user_id=str(user.id) if user else None,
+            user_name=str(user) if user else None,
+            detail=(detail or cmd.action_type)[:300],
+            source="discord",
+            success=success,
+        )
+    except Exception:  # noqa: BLE001 — l'historique ne doit pas casser la commande
+        logger.exception("Log de la commande /%s impossible", cmd.name)
+
+
+async def render_command_response(cmd: SlashCommand) -> dict:
+    """Textes de la reponse avec les VRAIES valeurs HA (placeholders + Jinja).
+
+    Utilise par Discord et par le bouton « Tester » du site.
+    """
+    from app.bot.notifications import _resolve_template  # import tardif (cycle bot)
+
+    async def r(text: str | None) -> str:
+        if not text:
+            return ""
+        try:
+            return await _resolve_template(text, None, resolve_vars=False)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Resolution reponse /%s echouee : %s", cmd.name, exc)
+            return text
+
+    return {
+        "title": (await r(cmd.response_title))[:256],
+        "message": (await r(cmd.response_message))[: 4096 if cmd.response_embed else 2000],
+        "image_url": (await r(cmd.response_image_url)).strip(),
+    }
+
+
+async def build_command_response(
+    cmd: SlashCommand,
+) -> tuple[str | None, discord.Embed | None, discord.ui.View | None]:
+    """Construit (texte, embed, boutons) de la reponse d'une commande."""
+    from app.bot.views import cid_command_button
+
+    data = await render_command_response(cmd)
+    view = build_ha_buttons_view(cmd.buttons, lambda idx: cid_command_button(cmd.id, idx))
+
+    if not cmd.response_embed:
+        return (data["message"] or None), None, view
+
+    embed = discord.Embed(
+        title=data["title"] or None,
+        description=data["message"] or None,
+        color=cmd.response_color,
+    )
+    if data["image_url"].lower().startswith(("http://", "https://")):
+        embed.set_image(url=data["image_url"])
+    return None, embed, view
+
+
 async def _execute_action(cmd: SlashCommand) -> None:
     """Execute l'action associee a une commande slash."""
-    data: dict = {}
-    if cmd.ha_data_json:
-        try:
-            data = json.loads(cmd.ha_data_json)
-        except json.JSONDecodeError:
-            logger.warning("ha_data_json invalide sur commande %s", cmd.name)
+    if cmd.action_type == "message":
+        return  # la commande se contente de repondre
 
     if cmd.action_type == "service":
-        if not cmd.ha_service or "." not in cmd.ha_service:
-            raise HomeAssistantError(f"Service invalide : {cmd.ha_service}")
-        domain, service = cmd.ha_service.split(".", 1)
-        if cmd.ha_entity_id:
-            data["entity_id"] = cmd.ha_entity_id
-        await ha_client.call_service(domain, service, data)
+        await call_ha_service(cmd.ha_service, cmd.ha_entity_id, cmd.ha_data_json)
 
     elif cmd.action_type == "script":
         # ha_entity_id est attendu sous la forme "script.mon_script"
         if not cmd.ha_entity_id or not cmd.ha_entity_id.startswith("script."):
             raise HomeAssistantError(f"Script invalide : {cmd.ha_entity_id}")
         script_name = cmd.ha_entity_id.split(".", 1)[1]
-        await ha_client.call_service("script", script_name, data)
+        await call_ha_service(f"script.{script_name}", None, cmd.ha_data_json)
 
     elif cmd.action_type == "scene":
         if not cmd.ha_entity_id or not cmd.ha_entity_id.startswith("scene."):
@@ -92,7 +167,7 @@ async def _execute_action(cmd: SlashCommand) -> None:
         from app.bot.notifications import send_notification
         if not cmd.notification_slug:
             raise HomeAssistantError("Aucune notification associee")
-        message = await send_notification(cmd.notification_slug)
+        message = await send_notification(cmd.notification_slug, source="commande")
         if message is None:
             raise HomeAssistantError(
                 f"Echec d'envoi de la notification '{cmd.notification_slug}'"
@@ -334,7 +409,7 @@ async def sync_slash_commands(bot_: discord.Client) -> None:
     repo = SlashCommandRepository()
     commands = await repo.list_all(only_enabled=True)
 
-    RESERVED = {"ha", "clear"}
+    RESERVED = RESERVED_NAMES
     for cmd in commands:
         if cmd.name in RESERVED:
             logger.warning("Commande DB ignoree (nom reserve) : %s", cmd.name)

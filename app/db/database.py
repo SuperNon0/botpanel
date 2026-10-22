@@ -92,12 +92,19 @@ CREATE TABLE IF NOT EXISTS slash_commands (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     name            TEXT NOT NULL UNIQUE,             -- ex: allumer_salon
     description     TEXT NOT NULL,
-    action_type     TEXT NOT NULL,                    -- service|script|scene|notification
+    action_type     TEXT NOT NULL,                    -- service|script|scene|notification|message
     ha_service      TEXT,                             -- si action_type=service
     ha_entity_id    TEXT,
     ha_data_json    TEXT,                             -- payload JSON extra
     notification_slug TEXT,                           -- si action_type=notification
-    response_message TEXT NOT NULL DEFAULT 'OK',      -- message ephemere de confirmation
+    response_message TEXT NOT NULL DEFAULT 'OK',      -- reponse (placeholders HA resolus)
+    response_ephemeral INTEGER NOT NULL DEFAULT 1,    -- 1 = visible seulement par l'auteur
+    response_embed  INTEGER NOT NULL DEFAULT 0,       -- 1 = reponse en embed
+    response_title  TEXT,
+    response_color  INTEGER NOT NULL DEFAULT 15254855,-- 0xE8C547
+    response_image_url TEXT,
+    buttons_json    TEXT NOT NULL DEFAULT '[]',       -- boutons d'action HA sous la reponse
+    list_group      TEXT,                             -- rangement sur la liste du site
     enabled         INTEGER NOT NULL DEFAULT 1,
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
@@ -107,7 +114,9 @@ CREATE TABLE IF NOT EXISTS slash_commands (
 -- BLOCS DE MONITORING
 -- N blocs custom (creation libre depuis le site).
 -- Chaque bloc = un message Discord epingle, edite a intervalle regulier.
--- config_json : { "fields": [{label, icon, entity_id, attribute, suffix, inline}, ...] }
+-- config_json : { "description", "thumbnail_url", "image_url", "buttons": [...],
+--                 "fields": [{label, icon, entity_id, attribute, suffix, decimals,
+--                             value_template, inline}, ...] }
 -- ==========================================================
 CREATE TABLE IF NOT EXISTS monitoring_blocks (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -120,6 +129,7 @@ CREATE TABLE IF NOT EXISTS monitoring_blocks (
     interval_seconds INTEGER NOT NULL DEFAULT 300,
     footer          TEXT,
     config_json     TEXT NOT NULL DEFAULT '{}',
+    list_group      TEXT,                             -- rangement sur la liste du site
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -204,6 +214,14 @@ _MIGRATIONS_ALTER: list[str] = [
     "ALTER TABLE notifications ADD COLUMN list_group TEXT",
     "ALTER TABLE notifications ADD COLUMN image_url TEXT",
     "ALTER TABLE notification_logs ADD COLUMN source TEXT",
+    "ALTER TABLE slash_commands ADD COLUMN response_ephemeral INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE slash_commands ADD COLUMN response_embed INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE slash_commands ADD COLUMN response_title TEXT",
+    "ALTER TABLE slash_commands ADD COLUMN response_color INTEGER NOT NULL DEFAULT 15254855",
+    "ALTER TABLE slash_commands ADD COLUMN response_image_url TEXT",
+    "ALTER TABLE slash_commands ADD COLUMN buttons_json TEXT NOT NULL DEFAULT '[]'",
+    "ALTER TABLE slash_commands ADD COLUMN list_group TEXT",
+    "ALTER TABLE monitoring_blocks ADD COLUMN list_group TEXT",
 ]
 
 
@@ -239,6 +257,7 @@ async def _migrate(db: aiosqlite.Connection) -> None:
                 interval_seconds INTEGER NOT NULL DEFAULT 300,
                 footer          TEXT,
                 config_json     TEXT NOT NULL DEFAULT '{}',
+                list_group      TEXT,
                 created_at      TEXT NOT NULL DEFAULT (datetime('now')),
                 updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
             );

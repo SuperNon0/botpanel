@@ -4,9 +4,20 @@
 {% block content %}
 <div class="page-header">
   <h2>Parametres</h2>
+  <button type="button" class="btn btn-secondary btn-small" id="sec-toggle-all">Tout ouvrir</button>
 </div>
 
-<div class="card">
+<p class="hint" style="margin:-0.3rem 0 1rem;">Clique sur un bloc pour l'ouvrir ou le refermer.</p>
+
+<details class="card group-card settings-section" data-sec="general">
+  <summary>
+    <span class="group-arrow">&#9656;</span>
+    <span class="sec-ico">🏠</span>
+    <span class="group-name">Général</span>
+    <span class="sec-sub">accueil · mise à jour</span>
+  </summary>
+  <div class="sec-body">
+<div class="sub-block">
   <h3>URL d'accueil</h3>
   <p class="hint">
     Quand tu cliques sur le logo depuis la page d'accueil, tu es redirige vers cette URL.
@@ -22,8 +33,7 @@
     <button type="button" class="btn btn-primary" id="home-url-save">Enregistrer</button>
   </div>
 </div>
-
-<div class="card" id="update-card">
+<div class="sub-block" id="update-card">
   <h3>Mise a jour</h3>
   <div id="update-info" class="hint">Chargement des infos...</div>
   <div id="update-progress-wrap" style="display:none; margin-top:0.8rem;">
@@ -37,27 +47,59 @@
     <button type="button" class="btn btn-purple" id="btn-update">Mettre a jour</button>
   </div>
 </div>
+  </div>
+</details>
 
-<div class="card">
-  <h3>Couleurs preconfigurees</h3>
+<details class="card group-card settings-section" data-sec="colors">
+  <summary>
+    <span class="group-arrow">&#9656;</span>
+    <span class="sec-ico">🎨</span>
+    <span class="group-name">Couleurs</span>
+    <span class="sec-sub">presets</span>
+  </summary>
+  <div class="sec-body">
+<div class="sub-block">
+  <h3>Couleurs préconfigurées</h3>
   <p class="hint">
-    Ces couleurs apparaissent dans le selecteur rapide quand tu crees ou modifies une notification.
-    Donne-leur un nom parlant (ex: <em>Alerte porte</em>, <em>Info confort</em>).
+    Elles apparaissent en <strong>pastilles</strong> dans les éditeurs (notifications, commandes, monitoring).
+    Donne-leur un nom parlant (ex : <em>Alerte porte</em>, <em>Info confort</em>). Tu peux aussi en créer
+    directement depuis un éditeur avec la pastille <strong>＋</strong>.
   </p>
-  <div id="colors-builder" class="buttons-builder"></div>
-  <button type="button" class="btn btn-secondary" id="color-add" style="margin-top: 0.8rem;">+ Ajouter une couleur</button>
-  <div style="display:flex; gap:0.7rem; justify-content:flex-end; margin-top:1rem;">
+  <div id="colors-builder" class="color-presets-grid"></div>
+  <div style="display:flex; gap:0.7rem; justify-content:space-between; flex-wrap:wrap; margin-top:1rem;">
+    <button type="button" class="btn btn-secondary" id="color-add">+ Ajouter une couleur</button>
     <button type="button" class="btn btn-primary" id="colors-save">Enregistrer les couleurs</button>
   </div>
 </div>
+  </div>
+</details>
 
-<div class="card">
+<details class="card group-card settings-section" data-sec="discord">
+  <summary>
+    <span class="group-arrow">&#9656;</span>
+    <span class="sec-ico">💬</span>
+    <span class="group-name">Channels Discord</span>
+    <span class="sec-sub">favoris · détectés · forums · fils</span>
+  </summary>
+  <div class="sec-body">
+<div class="sub-block">
+  <h3>Channels favoris</h3>
+  <p class="hint">
+    Tes channels les plus utilisés, avec un nom parlant : ils apparaissent en tête (★) dans la liste
+    des channels de chaque éditeur. Ajoute-les en un clic depuis la liste « détectés » ci-dessous.
+  </p>
+  <div id="fav-channels" class="buttons-builder"></div>
+  <div style="display:flex; gap:0.7rem; justify-content:space-between; flex-wrap:wrap; margin-top:1rem;">
+    <button type="button" class="btn btn-secondary" id="fav-add">+ Ajouter un ID à la main</button>
+    <button type="button" class="btn btn-primary" id="fav-save">Enregistrer les favoris</button>
+  </div>
+</div>
+<div class="sub-block">
   <h3>Channels Discord detectes par le bot</h3>
   <p class="hint">Channels texte accessibles par le bot sur ton serveur Discord.</p>
   <div id="bot-channels" class="buttons-builder"></div>
 </div>
-
-<div class="card">
+<div class="sub-block">
   <h3>Channels forum detectes par le bot</h3>
   <p class="hint">
     Ces channels peuvent etre utilises comme destination dans le mode <em>Forum</em>
@@ -66,8 +108,7 @@
   </p>
   <div id="bot-forums" class="buttons-builder"><div class="empty-state">Chargement...</div></div>
 </div>
-
-<div class="card">
+<div class="sub-block">
   <h3>Threads Discord actifs</h3>
   <p class="hint">
     Quand une notification a un <em>groupe</em>, elle est envoyee dans un thread Discord portant ce nom.
@@ -76,96 +117,18 @@
   </p>
   <div id="threads-list"><div class="empty-state">Chargement...</div></div>
 </div>
-
-<div class="card" id="backup-card">
-  <h3>Sauvegarde &amp; migration<button type="button" class="help-dot" data-help="backup">?</button></h3>
-  <p class="hint">
-    Exporte toutes tes données (notifications, commandes, monitoring, paramètres) dans un fichier JSON,
-    pour les sauvegarder ou les <strong>importer sur une nouvelle instance</strong> de BotPanel.
-    L'historique et les états Discord ne sont pas inclus.
-  </p>
-  <div style="display:flex; gap:0.7rem; flex-wrap:wrap; align-items:center;">
-    <a class="btn btn-primary" href="/api/backup/export">Exporter les données</a>
-    <button type="button" class="btn btn-secondary" id="import-btn">Importer un fichier…</button>
-    <input type="file" id="import-file" accept="application/json,.json" style="display:none;">
   </div>
-  <p class="hint" style="margin-top:0.7rem; color:#f59e0b;">
-    ⚠️ L'import <strong>remplace</strong> toutes les données de configuration existantes. À utiliser sur une nouvelle instance ou pour restaurer une sauvegarde.
-  </p>
-</div>
+</details>
 
-<div class="card" id="auth-card">
-  <h3>Compte &amp; sécurité<button type="button" class="help-dot" data-help="password">?</button></h3>
-  <p class="hint" id="auth-status">Chargement…</p>
-
-  <!-- Activer (aucun mot de passe encore) -->
-  <div id="auth-enable" style="display:none;">
-    <div class="form-group">
-      <label class="form-label">Mot de passe admin (min. 6 caractères)</label>
-      <input class="form-input" id="ae-pass" type="password" autocomplete="new-password">
-      <div class="form-hint">Compte unique : <code>admin</code>. La connexion se fera avec ce mot de passe.</div>
-    </div>
-    <button type="button" class="btn btn-primary" id="ae-btn">Activer la protection</button>
-  </div>
-
-  <!-- Changer / désactiver (mot de passe déjà défini) -->
-  <div id="auth-manage" style="display:none;">
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Mot de passe actuel</label>
-        <input class="form-input" id="am-current" type="password" autocomplete="current-password">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Nouveau mot de passe (min. 6)</label>
-        <input class="form-input" id="am-new" type="password" autocomplete="new-password">
-      </div>
-    </div>
-    <div style="display:flex; gap:0.7rem; flex-wrap:wrap;">
-      <button type="button" class="btn btn-primary" id="am-change">Changer le mot de passe</button>
-      <button type="button" class="btn btn-danger" id="am-disable">Désactiver la protection</button>
-    </div>
-    <p class="hint" style="margin-top:0.8rem;">
-      💡 En cas d'oubli du mot de passe, utilise le script <code>deploy/reset_admin.sh</code> sur le serveur.
-    </p>
-  </div>
-</div>
-
-<div class="card" id="cf-card">
-  <h3>Cloudflare / Accès<button type="button" class="help-dot" data-help="cf_access">?</button></h3>
-
-  <div class="form-group">
-    <label class="form-label">Équipe (nom seul, ex. super-nono)</label>
-    <input class="form-input" id="cf-team" placeholder="super-nono">
-  </div>
-  <div class="form-group">
-    <label class="form-label">AUD (Application Audience tag)</label>
-    <input class="form-input" id="cf-aud" placeholder="a1b2c3…">
-  </div>
-  <label class="form-checkbox" style="margin-bottom:0.6rem;">
-    <input type="checkbox" id="cf-verify" checked> Vérifier le JWT Cloudflare (recommandé en production)
-  </label>
-  <label class="form-checkbox" style="margin-bottom:0.8rem;">
-    <input type="checkbox" id="cf-allow-local" checked> Autoriser l'accès local (mot de passe LAN / secours)
-  </label>
-  <p class="hint" style="margin:-0.4rem 0 0.8rem;">
-    ⚠️ Décoché = accès <strong>uniquement via Cloudflare</strong> : tout accès direct (sans badge) est
-    refusé (403). Ne le décoche que si l'origine est bien injoignable hors Cloudflare, sinon tu risques
-    de te verrouiller dehors.
-  </p>
-  <div style="display:flex; gap:0.7rem; flex-wrap:wrap;">
-    <button type="button" class="btn btn-secondary" id="cf-test">Tester</button>
-    <button type="button" class="btn btn-primary" id="cf-save">Enregistrer</button>
-  </div>
-
-  <label class="form-label" style="display:block; margin:1.3rem 0 0.6rem;">Résultat du test</label>
-  <div id="cf-result" class="cf-result"><div class="hint">Clique sur « Tester » pour vérifier la connexion.</div></div>
-  <p class="hint" style="margin-top:0.6rem;">
-    « non testé » = aucun badge reçu (tu n'es pas derrière Cloudflare). Erreur « audience » → l'AUD ne
-    correspond pas à l'app Access. Erreur « …cloudflareaccess.com… » → mets le <strong>nom seul</strong> dans Équipe.
-  </p>
-</div>
-
-<div class="card" id="integration-card">
+<details class="card group-card settings-section" data-sec="integrations">
+  <summary>
+    <span class="group-arrow">&#9656;</span>
+    <span class="sec-ico">🔌</span>
+    <span class="group-name">Intégrations</span>
+    <span class="sec-sub">Home Assistant · MCP Claude</span>
+  </summary>
+  <div class="sec-body">
+<div class="sub-block" id="integration-card">
   <h3>API / Intégration Home Assistant</h3>
   <p class="hint">
     Clé secrète utilisée par le <strong>module BotPanel dans Home Assistant</strong> pour se connecter
@@ -190,8 +153,7 @@
     (<code>custom_components/botpanel/</code>, compatible HACS).
   </p>
 </div>
-
-<div class="card" id="mcp-card">
+<div class="sub-block" id="mcp-card">
   <h3>Serveur MCP (piloter BotPanel depuis Claude)<button type="button" class="help-dot" data-help="mcp">?</button></h3>
   <p class="hint">
     Connecte BotPanel à <strong>Claude</strong> (claude.ai / app / Desktop) : Claude pourra
@@ -227,6 +189,116 @@
     <div class="form-hint">⚠️ Pratique mais la clé apparaît dans les logs : préfère l'en-tête si possible. Clique le « ? » pour les étapes de connexion.</div>
   </div>
 </div>
+  </div>
+</details>
+
+<details class="card group-card settings-section" data-sec="security">
+  <summary>
+    <span class="group-arrow">&#9656;</span>
+    <span class="sec-ico">🔒</span>
+    <span class="group-name">Compte &amp; sécurité</span>
+    <span class="sec-sub">mot de passe · Cloudflare</span>
+  </summary>
+  <div class="sec-body">
+<div class="sub-block" id="auth-card">
+  <h3>Compte &amp; sécurité<button type="button" class="help-dot" data-help="password">?</button></h3>
+  <p class="hint" id="auth-status">Chargement…</p>
+
+  <!-- Activer (aucun mot de passe encore) -->
+  <div id="auth-enable" style="display:none;">
+    <div class="form-group">
+      <label class="form-label">Mot de passe admin (min. 6 caractères)</label>
+      <input class="form-input" id="ae-pass" type="password" autocomplete="new-password">
+      <div class="form-hint">Compte unique : <code>admin</code>. La connexion se fera avec ce mot de passe.</div>
+    </div>
+    <button type="button" class="btn btn-primary" id="ae-btn">Activer la protection</button>
+  </div>
+
+  <!-- Changer / désactiver (mot de passe déjà défini) -->
+  <div id="auth-manage" style="display:none;">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Mot de passe actuel</label>
+        <input class="form-input" id="am-current" type="password" autocomplete="current-password">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nouveau mot de passe (min. 6)</label>
+        <input class="form-input" id="am-new" type="password" autocomplete="new-password">
+      </div>
+    </div>
+    <div style="display:flex; gap:0.7rem; flex-wrap:wrap;">
+      <button type="button" class="btn btn-primary" id="am-change">Changer le mot de passe</button>
+      <button type="button" class="btn btn-danger" id="am-disable">Désactiver la protection</button>
+    </div>
+    <p class="hint" style="margin-top:0.8rem;">
+      💡 En cas d'oubli du mot de passe, utilise le script <code>deploy/reset_admin.sh</code> sur le serveur.
+    </p>
+  </div>
+</div>
+<div class="sub-block" id="cf-card">
+  <h3>Cloudflare / Accès<button type="button" class="help-dot" data-help="cf_access">?</button></h3>
+
+  <div class="form-group">
+    <label class="form-label">Équipe (nom seul, ex. super-nono)</label>
+    <input class="form-input" id="cf-team" placeholder="super-nono">
+  </div>
+  <div class="form-group">
+    <label class="form-label">AUD (Application Audience tag)</label>
+    <input class="form-input" id="cf-aud" placeholder="a1b2c3…">
+  </div>
+  <label class="form-checkbox" style="margin-bottom:0.6rem;">
+    <input type="checkbox" id="cf-verify" checked> Vérifier le JWT Cloudflare (recommandé en production)
+  </label>
+  <label class="form-checkbox" style="margin-bottom:0.8rem;">
+    <input type="checkbox" id="cf-allow-local" checked> Autoriser l'accès local (mot de passe LAN / secours)
+  </label>
+  <p class="hint" style="margin:-0.4rem 0 0.8rem;">
+    ⚠️ Décoché = accès <strong>uniquement via Cloudflare</strong> : tout accès direct (sans badge) est
+    refusé (403). Ne le décoche que si l'origine est bien injoignable hors Cloudflare, sinon tu risques
+    de te verrouiller dehors.
+  </p>
+  <div style="display:flex; gap:0.7rem; flex-wrap:wrap;">
+    <button type="button" class="btn btn-secondary" id="cf-test">Tester</button>
+    <button type="button" class="btn btn-primary" id="cf-save">Enregistrer</button>
+  </div>
+
+  <label class="form-label" style="display:block; margin:1.3rem 0 0.6rem;">Résultat du test</label>
+  <div id="cf-result" class="cf-result"><div class="hint">Clique sur « Tester » pour vérifier la connexion.</div></div>
+  <p class="hint" style="margin-top:0.6rem;">
+    « non testé » = aucun badge reçu (tu n'es pas derrière Cloudflare). Erreur « audience » → l'AUD ne
+    correspond pas à l'app Access. Erreur « …cloudflareaccess.com… » → mets le <strong>nom seul</strong> dans Équipe.
+  </p>
+</div>
+  </div>
+</details>
+
+<details class="card group-card settings-section" data-sec="backup">
+  <summary>
+    <span class="group-arrow">&#9656;</span>
+    <span class="sec-ico">💾</span>
+    <span class="group-name">Sauvegarde</span>
+    <span class="sec-sub">export · import</span>
+  </summary>
+  <div class="sec-body">
+<div class="sub-block" id="backup-card">
+  <h3>Sauvegarde &amp; migration<button type="button" class="help-dot" data-help="backup">?</button></h3>
+  <p class="hint">
+    Exporte toutes tes données (notifications, commandes, monitoring, paramètres) dans un fichier JSON,
+    pour les sauvegarder ou les <strong>importer sur une nouvelle instance</strong> de BotPanel.
+    L'historique et les états Discord ne sont pas inclus.
+  </p>
+  <div style="display:flex; gap:0.7rem; flex-wrap:wrap; align-items:center;">
+    <a class="btn btn-primary" href="/api/backup/export">Exporter les données</a>
+    <button type="button" class="btn btn-secondary" id="import-btn">Importer un fichier…</button>
+    <input type="file" id="import-file" accept="application/json,.json" style="display:none;">
+  </div>
+  <p class="hint" style="margin-top:0.7rem; color:#f59e0b;">
+    ⚠️ L'import <strong>remplace</strong> toutes les données de configuration existantes. À utiliser sur une nouvelle instance ou pour restaurer une sauvegarde.
+  </p>
+</div>
+  </div>
+</details>
+
 {% endblock %}
 
 {% block scripts %}
@@ -251,29 +323,16 @@ document.getElementById("home-url-save").addEventListener("click", async () => {
   } catch (e) { toast(e.message, "error"); }
 });
 
-function colorToHex(n) {
-  return "#" + (n & 0xFFFFFF).toString(16).padStart(6, "0");
-}
-function hexToInt(h) {
-  return parseInt((h || "#000000").replace("#", ""), 16);
-}
-
 function renderColors() {
   const root = document.getElementById("colors-builder");
   root.innerHTML = colors.map((c, i) => `
-    <div class="button-row" data-cidx="${i}">
-      <div>
-        <label class="form-label">Nom</label>
-        <input class="form-input" data-ck="name" value="${esc(c.name || "")}" placeholder="Alerte porte">
-      </div>
-      <div>
-        <label class="form-label">Couleur</label>
-        <input type="color" data-ck="color" value="${colorToHex(c.color || 0)}">
-      </div>
-      <button type="button" class="btn btn-danger btn-small" data-cdel="${i}">X</button>
+    <div class="color-preset" data-cidx="${i}">
+      <input type="color" data-ck="color" value="${colorToHex(c.color || 0)}" title="Changer la couleur">
+      <input class="form-input" data-ck="name" value="${esc(c.name || "")}" placeholder="Alerte porte">
+      <button type="button" class="btn btn-danger btn-small" data-cdel="${i}" title="Retirer">✕</button>
     </div>
-  `).join("");
-  root.querySelectorAll(".button-row").forEach(row => {
+  `).join("") || `<div class="hint" style="margin:0;">Aucune couleur : ajoute-en une.</div>`;
+  root.querySelectorAll(".color-preset").forEach(row => {
     const idx = +row.dataset.cidx;
     row.querySelectorAll("[data-ck]").forEach(inp => {
       const sync = () => {
@@ -295,13 +354,17 @@ function renderColors() {
 document.getElementById("color-add").addEventListener("click", () => {
   colors.push({ name: "", color: 0xE8C547 });
   renderColors();
+  const inputs = document.querySelectorAll('#colors-builder [data-ck="name"]');
+  if (inputs.length) inputs[inputs.length - 1].focus();
 });
 
 document.getElementById("colors-save").addEventListener("click", async () => {
   try {
-    const cleaned = colors.filter(c => c.name && c.name.trim());
-    await API.put("/settings/colors", cleaned);
-    toast("Couleurs enregistrees");
+    const cleaned = colors.filter(c => c.name && c.name.trim())
+      .map(c => ({ name: c.name.trim().slice(0, 64), color: c.color }));
+    colors = await API.put("/settings/colors", cleaned);
+    renderColors();
+    toast("Couleurs enregistrées");
   } catch (e) { toast(e.message, "error"); }
 });
 
@@ -410,28 +473,94 @@ async function loadAll() {
     renderColors();
   } catch (e) { toast("Erreur couleurs : " + e.message, "error"); }
 
+  await loadFavs();
   try {
-    const bot = await API.get("/discord/channels");
-    const root = document.getElementById("bot-channels");
-    if (!bot.length) {
-      root.innerHTML = `<div class="empty-state">Aucun channel detecte (le bot est-il en ligne ?).</div>`;
-      return;
-    }
-    root.innerHTML = bot.map(ch => `
-      <div class="card-row">
-        <div>
-          <strong># ${esc(ch.name)}</strong>
-          <div class="card-row-meta">
-            ${ch.category ? esc(ch.category) + " &middot; " : ""}<code>${esc(ch.id)}</code>
-          </div>
-        </div>
-      </div>
-    `).join("");
+    botChannels = await API.get("/discord/channels");
+    renderBotChannels();
   } catch (e) {
     document.getElementById("bot-channels").innerHTML =
       `<div class="empty-state">Erreur : ${esc(e.message)}</div>`;
   }
 }
+
+// ============================================================
+// Channels favoris (presets) + channels detectes
+// ============================================================
+let favs = [];
+let botChannels = [];
+
+async function loadFavs() {
+  try { favs = await API.get("/settings/channels"); } catch { favs = []; }
+  renderFavs();
+}
+
+function renderFavs() {
+  const root = document.getElementById("fav-channels");
+  root.innerHTML = favs.map((f, i) => `
+    <div class="color-preset" data-fidx="${i}">
+      <span style="color:var(--accent);">★</span>
+      <input class="form-input" data-fk="name" value="${esc(f.name || "")}" placeholder="Alertes maison">
+      <input class="form-input" data-fk="channel_id" value="${esc(f.channel_id || "")}" placeholder="123456789012345678" inputmode="numeric" style="max-width:13rem;">
+      <button type="button" class="btn btn-danger btn-small" data-fdel="${i}" title="Retirer">✕</button>
+    </div>
+  `).join("") || `<div class="hint" style="margin:0;">Aucun favori pour l'instant.</div>`;
+  root.querySelectorAll(".color-preset").forEach(row => {
+    const idx = +row.dataset.fidx;
+    row.querySelectorAll("[data-fk]").forEach(inp => {
+      inp.addEventListener("input", () => { favs[idx][inp.dataset.fk] = inp.value; });
+    });
+  });
+  root.querySelectorAll("[data-fdel]").forEach(btn => btn.addEventListener("click", () => {
+    favs.splice(+btn.dataset.fdel, 1);
+    renderFavs();
+    renderBotChannels();
+  }));
+}
+
+function renderBotChannels() {
+  const root = document.getElementById("bot-channels");
+  if (!botChannels.length) {
+    root.innerHTML = `<div class="empty-state">Aucun channel detecte (le bot est-il en ligne ?).</div>`;
+    return;
+  }
+  const favIds = new Set(favs.map(f => String(f.channel_id)));
+  root.innerHTML = botChannels.map(ch => `
+    <div class="card-row">
+      <div>
+        <strong># ${esc(ch.name)}</strong>
+        <div class="card-row-meta">
+          ${ch.category ? esc(ch.category) + " &middot; " : ""}<code>${esc(ch.id)}</code>
+        </div>
+      </div>
+      ${favIds.has(String(ch.id))
+        ? '<span class="tag tag-yellow">★ Favori</span>'
+        : `<button type="button" class="btn btn-secondary btn-small" data-fav="${esc(ch.id)}" data-name="${esc(ch.name)}">★ Favori</button>`}
+    </div>
+  `).join("");
+  root.querySelectorAll("[data-fav]").forEach(btn => btn.addEventListener("click", async () => {
+    favs.push({ name: btn.dataset.name, channel_id: btn.dataset.fav });
+    await saveFavs();
+  }));
+}
+
+async function saveFavs() {
+  const cleaned = favs
+    .map(f => ({ name: (f.name || "").trim().slice(0, 64), channel_id: String(f.channel_id || "").trim() }))
+    .filter(f => f.name && /^\d{5,32}$/.test(f.channel_id));
+  if (cleaned.length !== favs.length) toast("Favoris incomplets ignorés (nom + ID numérique requis)", "error");
+  try {
+    favs = await API.put("/settings/channels", cleaned);
+    renderFavs();
+    renderBotChannels();
+    toast("Favoris enregistrés");
+  } catch (e) { toast(e.message, "error"); }
+}
+
+document.getElementById("fav-add").addEventListener("click", () => {
+  favs.push({ name: "", channel_id: "" });
+  renderFavs();
+});
+document.getElementById("fav-save").addEventListener("click", saveFavs);
 
 // ============================================================
 // Threads Discord
@@ -648,6 +777,35 @@ function bindCf() {
   });
 }
 
+// ============================================================
+// Sections repliables (etat memorise dans le navigateur)
+// ============================================================
+const SEC_KEY = "bp_settings_open";
+function bindSections() {
+  const secs = [...document.querySelectorAll("details.settings-section")];
+  let open = [];
+  try { open = JSON.parse(localStorage.getItem(SEC_KEY) || "[]"); } catch { open = []; }
+  // Lien direct (#colors, #discord…) : ouvre la section visee.
+  const hash = (location.hash || "").slice(1);
+  secs.forEach(d => { d.open = open.includes(d.dataset.sec) || d.dataset.sec === hash; });
+  const save = () => {
+    try { localStorage.setItem(SEC_KEY, JSON.stringify(secs.filter(d => d.open).map(d => d.dataset.sec))); }
+    catch { /* ignore */ }
+    toggleBtn.textContent = secs.every(d => d.open) ? "Tout fermer" : "Tout ouvrir";
+  };
+  const toggleBtn = document.getElementById("sec-toggle-all");
+  toggleBtn.addEventListener("click", () => {
+    const openAll = !secs.every(d => d.open);
+    secs.forEach(d => { d.open = openAll; });
+    save();
+  });
+  secs.forEach(d => d.addEventListener("toggle", save));
+  save();
+  const target = secs.find(d => d.dataset.sec === hash);
+  if (target) target.scrollIntoView({ block: "start" });
+}
+
+bindSections();
 loadHomeUrl();
 loadSystemInfo();
 loadAll();

@@ -1124,3 +1124,162 @@ input[type="color"] {
   font-size: 0.78rem;
   font-weight: 500;
 }
+
+/* ---------- Presets de couleurs en pastilles ---------- */
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+.swatch {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+.swatch:hover { transform: scale(1.12); }
+.swatch.active { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
+.swatch-add {
+  background: var(--bg);
+  color: var(--accent);
+  font-size: 0.9rem;
+  line-height: 1;
+  border-style: dashed;
+}
+
+/* ---------- Constructeur de boutons d'action HA ---------- */
+.ha-btn-row {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.8rem;
+}
+.ha-btn-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 0.6rem 0.75rem;
+}
+@media (max-width: 600px) { .ha-btn-grid { grid-template-columns: 1fr; } }
+.ha-btn-adv { margin-top: 0.6rem; }
+.ha-btn-adv > summary {
+  cursor: pointer;
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-bottom: 0.4rem;
+}
+.ha-btn-tools {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: flex-end;
+  margin-top: 0.6rem;
+}
+.md-btn[disabled] { opacity: 0.35; cursor: default; }
+
+/* ---------- Titre de card avec actions a droite ---------- */
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.4rem;
+}
+.card-head h3 { margin: 0; }
+
+/* ---------- Champs monitoring (ligne d'un champ) ---------- */
+.mon-field {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.8rem;
+}
+.mon-field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.6rem 0.75rem;
+}
+@media (max-width: 700px) { .mon-field-grid { grid-template-columns: 1fr; } }
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 0.6rem;
+}
+.seg button {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.7rem;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+}
+.seg button.active { background: rgba(232, 197, 71, 0.15); color: var(--accent); }
+
+/* ---------- Parametres : sections repliables ---------- */
+.settings-section > summary .sec-ico { font-size: 1.1rem; }
+.settings-section > summary .sec-sub {
+  font-family: "DM Mono", monospace;
+  font-size: 0.65rem;
+  color: var(--muted);
+  margin-left: auto;
+  text-align: right;
+}
+.settings-section .sec-body {
+  padding: 1.1rem 1.2rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+}
+.sub-block + .sub-block {
+  border-top: 1px dashed var(--border);
+  padding-top: 1.2rem;
+}
+.sub-block > h3 { font-size: 1rem; }
+@media (max-width: 600px) {
+  .settings-section > summary .sec-sub { display: none; }
+}
+
+/* Interrupteur ON/OFF compact (listes) */
+.mini-toggle {
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+}
+
+/* Apercu d'une reponse texte (pas en carte) : bulle de message simple */
+.embed-preview.plain-msg {
+  background: transparent;
+  border-left-color: transparent;
+  padding-left: 0.2rem;
+}
+
+/* Ligne de preset (couleur ou channel favori) dans les Parametres */
+.color-presets-grid,
+#fav-channels {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.color-preset {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.45rem 0.6rem;
+}
+.color-preset .form-input { flex: 1; min-width: 0; }
+.color-preset input[type="color"] {
+  width: 2.2rem;
+  height: 2.2rem;
+  flex: none;
+  border-radius: 50%;
+  overflow: hidden;
+}

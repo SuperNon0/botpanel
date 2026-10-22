@@ -76,9 +76,29 @@ class Notification(NotificationIn):
 
 
 # ==========================================================
+#  Boutons d'action HA generiques (commandes + monitoring)
+# ==========================================================
+class HaButton(BaseModel):
+    """Bouton Discord qui appelle un service Home Assistant au clic.
+
+    Meme forme que les boutons de notification, mais stocke en JSON
+    (commandes : colonne `buttons_json`, monitoring : `config_json.buttons`).
+    """
+
+    label: str = Field(..., max_length=80)
+    style: Literal["primary", "secondary", "success", "danger"] = "primary"
+    emoji: Optional[str] = None
+    ha_service: str = Field(..., description="Ex: light.toggle")
+    ha_entity_id: Optional[str] = None
+    ha_data_json: Optional[str] = None
+
+
+# ==========================================================
 #  Commandes slash
 # ==========================================================
-ActionType = Literal["service", "script", "scene", "notification"]
+# "message" = pas d'action HA, la commande repond juste (ex: /temperature
+# qui affiche {state:sensor.temp_salon}).
+ActionType = Literal["service", "script", "scene", "notification", "message"]
 
 
 class SlashCommandIn(BaseModel):
@@ -89,7 +109,16 @@ class SlashCommandIn(BaseModel):
     ha_entity_id: Optional[str] = None
     ha_data_json: Optional[str] = None
     notification_slug: Optional[str] = None
-    response_message: str = "OK"
+    # Reponse : texte avec placeholders HA ({state:...}, Jinja) resolus a l'envoi.
+    response_message: str = Field("OK", max_length=4000)
+    response_ephemeral: bool = True          # visible seulement par l'auteur
+    response_embed: bool = False             # reponse en embed (titre/couleur/image)
+    response_title: Optional[str] = Field(default=None, max_length=256)
+    response_color: int = Field(0xE8C547, ge=0, le=0xFFFFFF)
+    response_image_url: Optional[str] = None
+    buttons: list[HaButton] = Field(default_factory=list, max_length=20)
+    # list_group : rangement sur la liste du site
+    list_group: Optional[str] = Field(default=None, max_length=64)
     enabled: bool = True
 
 
@@ -105,13 +134,21 @@ class MonitoringBlockIn(BaseModel):
 
     `config_json` est un JSON serialise. Structure libre, mais le bot lit :
         {
+          "description": "Texte sous le titre ({state:...} / Jinja acceptes)",
+          "thumbnail_url": "https://...",   # petite image (placeholders acceptes)
+          "image_url": "https://...",       # grande image
+          "show_timestamp": true,           # date de mise a jour dans le footer
+          "refresh_button": true,           # bouton "Actualiser" sous le message
+          "buttons": [ {label, style, emoji, ha_service, ha_entity_id, ha_data_json} ],
           "fields": [
             {
-              "label": "Temperature",
+              "label": "Temperature",       # placeholders acceptes
               "icon": "\U0001f321️",
               "entity_id": "sensor.temp_salon",
               "attribute": null,           # ou "humidity" pour lire un attribut
-              "suffix": "°C",
+              "suffix": "°C",              # vide = unite HA automatique
+              "decimals": 1,               # arrondi optionnel des nombres
+              "value_template": "",        # si rempli : remplace entity_id
               "inline": true
             }
           ]
@@ -126,6 +163,8 @@ class MonitoringBlockIn(BaseModel):
     interval_seconds: int = Field(300, ge=30)
     footer: Optional[str] = None
     config_json: str = "{}"
+    # list_group : rangement sur la liste du site
+    list_group: Optional[str] = Field(default=None, max_length=64)
 
 
 class MonitoringBlock(MonitoringBlockIn):

@@ -32,13 +32,14 @@ class MonitoringRepository:
                 """
                 INSERT INTO monitoring_blocks (
                     name, icon, color, enabled, channel_id,
-                    interval_seconds, footer, config_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    interval_seconds, footer, config_json, list_group
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     payload.name, payload.icon, payload.color,
                     int(payload.enabled), payload.channel_id,
                     payload.interval_seconds, payload.footer, payload.config_json,
+                    payload.list_group,
                 ),
             )
             await db.commit()
@@ -54,14 +55,14 @@ class MonitoringRepository:
                 UPDATE monitoring_blocks SET
                     name = ?, icon = ?, color = ?, enabled = ?, channel_id = ?,
                     interval_seconds = ?, footer = ?, config_json = ?,
-                    updated_at = datetime('now')
+                    list_group = ?, updated_at = datetime('now')
                 WHERE id = ?
                 """,
                 (
                     payload.name, payload.icon, payload.color,
                     int(payload.enabled), payload.channel_id,
                     payload.interval_seconds, payload.footer, payload.config_json,
-                    block_id,
+                    payload.list_group, block_id,
                 ),
             )
             if cursor.rowcount == 0:
@@ -98,4 +99,5 @@ class MonitoringRepository:
             interval_seconds=row["interval_seconds"],
             footer=row["footer"],
             config_json=row["config_json"] or "{}",
+            list_group=row["list_group"] if "list_group" in row.keys() else None,
         )
