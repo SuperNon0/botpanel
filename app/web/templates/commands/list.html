@@ -4,12 +4,18 @@
 {% block content %}
 <div class="page-header">
   <h2>Commandes slash<button type="button" class="help-dot" data-help="commands_intro">?</button></h2>
-  <span class="card-row-meta" id="quota">0 / 100</span>
+  <div class="page-tools">
+    <div class="list-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" id="list-search" data-search="#groups-root" placeholder="Rechercher une commande" aria-label="Rechercher une commande" autocomplete="off">
+    </div>
+    <span class="card-row-meta" id="quota">0 / 100</span>
+  </div>
 </div>
 
 <div id="groups-root" data-skeleton="3"></div>
 
-<a href="/commands/new" class="fab" title="Nouvelle commande">+</a>
+<a href="/commands/new" class="fab" title="Nouvelle commande"><span class="fab-plus" aria-hidden="true">+</span><span>Nouveau</span></a>
 {% endblock %}
 
 {% block scripts %}
@@ -53,10 +59,9 @@ function rowHtml(c) {
         </div>
       </div>
       <div class="row-actions">
-        <button class="btn btn-purple btn-small" data-test="${c.id}">TESTER</button>
-        <a class="btn btn-edit btn-small" href="/commands/${c.id}">EDITER</a>
-        <button class="btn btn-secondary btn-small" data-dup="${c.id}">CLONER</button>
-        <button class="btn btn-danger btn-small" data-del="${c.id}">SUPPR</button>
+        <button class="btn btn-purple btn-small" data-test="${c.id}">Tester</button>
+        <a class="btn btn-edit btn-small" href="/commands/${c.id}">Éditer</a>
+        ${rowMenuHtml(c.id)}
       </div>
     </div>`;
 }
@@ -96,7 +101,7 @@ document.getElementById("groups-root").addEventListener("click", async (e) => {
     } else if (t.dataset.test) {
       const c = _cmds.find(x => x.id === +t.dataset.test);
       const warn = c && c.action_type !== "message" ? "\nL'action sera VRAIMENT exécutée." : "";
-      if (!confirm(`Tester /${c ? c.name : ""} ?${warn}`)) return;
+      if (!await confirmBox(`Tester /${c ? c.name : ""} ?${warn}`)) return;
       const r = await API.post(`/commands/${t.dataset.test}/test`);
       toast("✅ OK — réponse : " + (r.message || r.title || "(vide)").slice(0, 120));
     } else if (t.dataset.dup) {
@@ -104,7 +109,7 @@ document.getElementById("groups-root").addEventListener("click", async (e) => {
       toast(`Clonée en /${copy.name} (désactivée)`);
       window.location.href = `/commands/${copy.id}`;
     } else if (t.dataset.del) {
-      if (!confirm("Supprimer cette commande ?")) return;
+      if (!await confirmBox("Supprimer cette commande ?")) return;
       await API.del(`/commands/${t.dataset.del}`);
       toast("Commande supprimée");
       loadCommands();

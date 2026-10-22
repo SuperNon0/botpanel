@@ -7,7 +7,7 @@
   <a href="/monitoring" class="btn btn-secondary">Retour</a>
 </div>
 
-<form id="block-form">
+<form id="block-form" class="editor-2col" data-dirty-guard>
   <div class="card">
     <h3>Le bloc</h3>
     <div class="form-row">
@@ -96,7 +96,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card preview-card">
     <div class="card-head">
       <h3>Aperçu</h3>
       <div style="display:flex; align-items:center; gap:0.6rem;">
@@ -134,10 +134,11 @@
     <button type="button" class="btn btn-secondary" id="btn-add" style="margin-top: 0.8rem;">+ Ajouter un bouton</button>
   </div>
 
-  <div style="display:flex; gap:0.7rem; justify-content:flex-end; flex-wrap:wrap;">
+  <div class="savebar" style="display:flex; gap:0.7rem; justify-content:flex-end; flex-wrap:wrap;">
+    <span class="dirty-flag">● Modifications non enregistrées</span>
     <a href="/monitoring" class="btn btn-secondary">Annuler</a>
     <button type="button" class="btn btn-purple" id="btn-push" style="display:none;">Mettre à jour Discord maintenant</button>
-    <button type="submit" class="btn btn-primary">Enregistrer</button>
+    <button type="submit" class="btn btn-primary" title="Enregistrer (Ctrl+S)">Enregistrer</button>
   </div>
 </form>
 {% endblock %}
@@ -454,6 +455,7 @@ form.addEventListener("submit", async (e) => {
   try {
     if (BLOCK_ID) await API.put(`/monitoring/${BLOCK_ID}`, payload);
     else          await API.post("/monitoring", payload);
+    markSaved();
     toast(payload.enabled ? "Enregistré ! Le message Discord se met à jour." : "Enregistré (bloc inactif).");
     setTimeout(() => { window.location.href = "/monitoring"; }, 700);
   } catch (err) {

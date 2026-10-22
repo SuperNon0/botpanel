@@ -116,7 +116,7 @@ document.getElementById("filter-limit").addEventListener("change", loadLogs);
 document.getElementById("refresh").addEventListener("click", loadLogs);
 
 document.getElementById("purge").addEventListener("click", async () => {
-  if (!confirm("Supprimer tous les evenements vieux de plus de 30 jours ?")) return;
+  if (!await confirmBox("Supprimer tous les evenements vieux de plus de 30 jours ?")) return;
   try {
     await API.del("/logs/older/30");
     toast("Lignes supprimees");
