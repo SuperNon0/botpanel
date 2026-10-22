@@ -2,8 +2,9 @@
 
 BotPanel expose un **serveur MCP** (Model Context Protocol) intégré. Une fois
 connecté à Claude (claude.ai, app Claude ou Claude Desktop), **Claude peut agir
-sur BotPanel** : lister / déclencher / créer des notifications, envoyer un message
-ponctuel sur Discord, lire l'état et l'historique.
+sur BotPanel** : gérer les notifications, les commandes slash, les blocs de
+monitoring et les couleurs préconfigurées, envoyer un message ponctuel sur Discord, lire l'état, l'historique et
+les erreurs.
 
 > Exemple : « Claude, crée une notif qui prévient quand la porte du garage
 > s'ouvre » → Claude lit l'entité dans Home Assistant **et** crée la notification
@@ -85,7 +86,23 @@ Puis redémarre Claude Desktop.
 | `delete_notification` | Supprime définitivement une notification (par slug) |
 | `send_quick_message` | Envoie un message ponctuel sur un salon Discord (sans sauvegarder) |
 | `get_state` | État : bot en ligne, envois du jour / total, dernière alerte |
-| `list_history` | Derniers envois (historique) |
+| `list_history` | Historique (envois, commandes, monitoring, clics), filtrable par type |
+| `list_errors` | Erreurs récentes : échecs de l'historique + avertissements/erreurs du serveur depuis le dernier redémarrage |
+| `list_commands` | Liste les commandes slash (nom, action, état) |
+| `get_command` | Détail complet d'une commande (par nom) |
+| `create_command` | Crée une commande slash (action HA, script, scène, notification ou simple réponse ; réponse en encadré, boutons HA) — synchronisée sur Discord |
+| `update_command` | Modifie une commande (par nom) — seuls les champs fournis changent ; peut la renommer |
+| `delete_command` | Supprime définitivement une commande |
+| `run_command` | Exécute une commande comme sur Discord et renvoie sa réponse (tracé dans l'historique, source `mcp`) |
+| `list_monitoring` | Liste les blocs de monitoring (id, nom, actif, salon, fréquence) |
+| `get_monitoring` | Détail d'un bloc (par id) + rendu actuel avec les vraies valeurs HA |
+| `create_monitoring` | Crée un bloc (champs HA, description, images, boutons HA, bouton Actualiser) — inactif sauf `enabled=true` |
+| `update_monitoring` | Modifie un bloc (par id) — seuls les champs fournis changent ; `enabled=true` l'active |
+| `delete_monitoring` | Supprime définitivement un bloc |
+| `send_monitoring` | Envoie / met à jour tout de suite le message Discord d'un bloc actif |
+| `list_colors` | Liste les couleurs préconfigurées (nom + hex) |
+| `set_color` | Crée une couleur préconfigurée, ou la modifie si le nom existe (peut la renommer) |
+| `delete_color` | Supprime une couleur préconfigurée |
 | `check_update` | Vérifie si une mise à jour du code est disponible (git) — lecture seule |
 | `update_site` | **Sauvegarde le code** puis met à jour + redémarre — **n'agit QUE si `confirm="OUI"`** |
 | `rollback_site` | Revient à la dernière sauvegarde + redémarre — **n'agit QUE si `confirm="OUI"`** |
@@ -96,6 +113,13 @@ Claude peut mettre à jour l'instance, mais avec une **double sécurité** :
 2. Avant d'appliquer, il crée un **tag de sauvegarde** `botpanel-pre-update` sur l'état actuel → rollback possible à tout moment avec `rollback_site`.
 
 Dans la pratique : Claude **demande toujours** ton accord, puis, sur ton feu vert, fait la sauvegarde + `git fetch` + `git reset --hard origin/<branche>` + (pip si venv) + redémarrage. Prérequis identiques au bouton « Mettre à jour » (le dossier appartient à l'utilisateur du service, et une règle sudoers pour le restart si besoin).
+
+> Après une mise à jour qui ajoute des outils : **reconnecte le connecteur** puis
+> ouvre une **nouvelle conversation** (une conversation déjà ouverte garde l'ancienne
+> liste d'outils).
+
+> Les erreurs serveur lues par `list_errors` sont gardées **en mémoire** (200
+> dernières, niveau WARNING et plus) : elles repartent de zéro à chaque redémarrage.
 
 ## Sécurité
 - Le serveur MCP est une **route machine** (`/mcp`) : **jamais** derrière le login
