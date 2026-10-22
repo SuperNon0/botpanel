@@ -48,6 +48,7 @@ class LogRepository:
         limit: int = 200,
         kind: Optional[str] = None,
         notification_id: Optional[int] = None,
+        success: Optional[bool] = None,
     ) -> list[NotificationLog]:
         clauses: list[str] = []
         params: list = []
@@ -57,6 +58,9 @@ class LogRepository:
         if notification_id is not None:
             clauses.append("notification_id = ?")
             params.append(notification_id)
+        if success is not None:
+            clauses.append("success = ?")
+            params.append(int(success))
         where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
         params.append(limit)
 

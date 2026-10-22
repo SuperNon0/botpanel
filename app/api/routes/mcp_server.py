@@ -1,8 +1,9 @@
 """Serveur MCP intégré à BotPanel — sans dépendance externe.
 
 Expose des « outils » à Claude (claude.ai / Claude Desktop) pour piloter BotPanel :
-lister / déclencher / créer des notifications, envoyer un message ponctuel sur
-Discord, lire l'état et l'historique.
+gérer les notifications, les commandes slash, les blocs de monitoring et les
+couleurs préconfigurées, envoyer
+un message ponctuel sur Discord, lire l'état, l'historique et les erreurs.
 
 Transport : MCP « Streamable HTTP » implémenté à la main (JSON-RPC 2.0 sur
 POST /mcp). Les réponses sont renvoyées en **SSE** (`text/event-stream`) quand le
@@ -27,8 +28,23 @@ from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from app.api.routes.system import INSTALL_DIR, _run as _sys_run
 from app.config import settings
-from app.db.models import Notification, NotificationButton, NotificationField, NotificationIn
-from app.db.repositories import LogRepository, NotificationRepository
+from app.db.models import (
+    ColorPreset,
+    HaButton,
+    MonitoringBlockIn,
+    Notification,
+    NotificationButton,
+    NotificationField,
+    NotificationIn,
+    SlashCommandIn,
+)
+from app.db.repositories import (
+    LogRepository,
+    MonitoringRepository,
+    NotificationRepository,
+    SettingsRepository,
+    SlashCommandRepository,
+)
 from app.integration import get_api_key
 
 logger = logging.getLogger(__name__)
@@ -151,11 +167,18 @@ TOOLS = [
     },
     {
         "name": "list_history",
-        "description": "Derniers envois (historique). Paramètre limit optionnel (défaut 20).",
+        "description": "Historique BotPanel (envois, commandes, monitoring, clics…), du plus récent "
+        "au plus ancien. Filtre optionnel par type.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "limit": {"type": "integer", "description": "Nombre d'entrées (1-100).", "minimum": 1, "maximum": 100}
+                "limit": {"type": "integer", "description": "Nombre d'entrées (1-100, défaut 20).", "minimum": 1, "maximum": 100},
+                "kind": {
+                    "type": "string",
+                    "enum": ["all", "send", "command", "monitoring", "button", "snooze", "delete"],
+                    "description": "Type d'entrée : send=envoi de notification, command=commande slash, "
+                    "monitoring=mise à jour d'un bloc, button/snooze/delete=clics. Défaut : all.",
+                },
             },
         },
     },
@@ -400,15 +423,20 @@ async def _tool_get_state(args: dict) -> str:
 async def _tool_list_history(args: dict) -> str:
     limit = int(args.get("limit") or 20)
     limit = max(1, min(100, limit))
-    logs = await LogRepository().list_recent(limit=limit, kind="send")
+    kind = (args.get("kind") or "all").strip()
+    logs = await LogRepository().list_recent(limit=limit, kind=None if kind == "all" else kind)
     if not logs:
-        return "Aucun envoi dans l'historique."
-    lines = [
-        f"{'✅' if l.success else '❌'} {l.created_at} · {l.notification_slug or '—'} "
-        f"· {l.source or '—'}" + (f" · {l.detail}" if l.detail else "")
-        for l in logs
-    ]
-    return f"{len(logs)} dernier(s) envoi(s) :\n" + "\n".join(lines)
+        return "Rien dans l'historique."
+    return f"{len(logs)} dernière(s) entrée(s) :\n" + "\n".join(_log_line(l) for l in logs)
+
+
+def _log_line(l) -> str:
+    who = f" · par {l.user_name}" if l.user_name else ""
+    btn = f" · bouton « {l.button_label} »" if l.button_label else ""
+    return (
+        f"{'✅' if l.success else '❌'} {l.created_at} · {l.kind} · {l.notification_slug or '—'} "
+        f"· {l.source or '—'}{who}{btn}" + (f" · {l.detail}" if l.detail else "")
+    )
 
 
 def _fields_from_args(raw) -> list:
@@ -613,6 +641,599 @@ async def _tool_rollback_site(args: dict) -> str:
 HANDLERS["check_update"] = _tool_check_update
 HANDLERS["update_site"] = _tool_update_site
 HANDLERS["rollback_site"] = _tool_rollback_site
+
+
+# ======================================================================
+#  Commandes slash, blocs de monitoring, erreurs, couleurs
+# ======================================================================
+_HA_BUTTONS_SCHEMA = {
+    "type": "array",
+    "description": "Boutons d'action sous le message. Chaque clic appelle un service Home Assistant.",
+    "items": {
+        "type": "object",
+        "properties": {
+            "label": {"type": "string", "description": "Texte du bouton."},
+            "style": {"type": "string", "enum": ["primary", "secondary", "success", "danger"]},
+            "emoji": {"type": "string"},
+            "ha_service": {"type": "string", "description": "Service HA, ex. light.toggle."},
+            "ha_entity_id": {"type": "string", "description": "Entité ciblée (optionnel)."},
+            "ha_data": {"type": "object", "description": "Données du service (optionnel)."},
+        },
+        "required": ["label", "ha_service"],
+    },
+}
+
+_COMMAND_PROPS = {
+    "description": {"type": "string", "description": "Description affichée dans Discord (100 car. max)."},
+    "action_type": {
+        "type": "string",
+        "enum": ["message", "service", "script", "scene", "notification"],
+        "description": "message=répond seulement ; service=appelle ha_service ; script/scene=lance "
+        "ha_entity_id (script.xxx / scene.xxx) ; notification=envoie notification_slug.",
+    },
+    "ha_service": {"type": "string", "description": "Service HA pour action_type=service, ex. light.toggle."},
+    "ha_entity_id": {"type": "string", "description": "Entité ciblée (ou script.xxx / scene.xxx)."},
+    "ha_data": {"type": "object", "description": "Données du service HA, ex. {\"brightness\": 255}."},
+    "notification_slug": {"type": "string", "description": "Notification envoyée pour action_type=notification."},
+    "response_message": {
+        "type": "string",
+        "description": "Réponse affichée. Accepte {state:sensor.x}, {attr:entité:attribut} et le Jinja HA.",
+    },
+    "response_ephemeral": {"type": "boolean", "description": "Réponse visible seulement par l'auteur (défaut true)."},
+    "response_embed": {"type": "boolean", "description": "Réponse en encadré (titre, couleur, image)."},
+    "response_title": {"type": "string", "description": "Titre de l'encadré."},
+    "response_color": {"type": "string", "description": "Couleur hex de l'encadré, ex. \"#e8c547\"."},
+    "response_image_url": {"type": "string", "description": "Image de l'encadré (URL)."},
+    "buttons": _HA_BUTTONS_SCHEMA,
+    "list_group": {"type": "string", "description": "Groupe de rangement sur le site."},
+    "enabled": {"type": "boolean", "description": "Commande active sur Discord (défaut true)."},
+}
+
+_MONITORING_PROPS = {
+    "name": {"type": "string", "description": "Titre du bloc (placeholders HA acceptés)."},
+    "icon": {"type": "string", "description": "Emoji devant le titre, ou URL d'une miniature."},
+    "color": {"type": "string", "description": "Couleur hex, ex. \"#49a0df\"."},
+    "enabled": {
+        "type": "boolean",
+        "description": "Actif = le message Discord est posté puis mis à jour en boucle. Défaut false.",
+    },
+    "channel_id": {"type": "string", "description": "Salon Discord. Si omis, le salon de monitoring par défaut."},
+    "interval_seconds": {"type": "integer", "minimum": 30, "description": "Fréquence de mise à jour (défaut 300)."},
+    "footer": {"type": "string", "description": "Pied de page."},
+    "list_group": {"type": "string", "description": "Groupe de rangement sur le site."},
+    "description": {"type": "string", "description": "Texte sous le titre ({state:...} / Jinja acceptés)."},
+    "thumbnail_url": {"type": "string", "description": "Miniature en haut à droite (URL)."},
+    "image_url": {"type": "string", "description": "Grande image (URL)."},
+    "show_timestamp": {"type": "boolean", "description": "Heure de mise à jour dans le pied (défaut true)."},
+    "refresh_button": {"type": "boolean", "description": "Ajoute un bouton « Actualiser »."},
+    "fields": {
+        "type": "array",
+        "description": "Valeurs affichées en grille.",
+        "items": {
+            "type": "object",
+            "properties": {
+                "label": {"type": "string"},
+                "icon": {"type": "string", "description": "Emoji devant le libellé."},
+                "entity_id": {"type": "string", "description": "Entité HA lue, ex. sensor.temp_salon."},
+                "attribute": {"type": "string", "description": "Attribut à lire au lieu de l'état."},
+                "suffix": {"type": "string", "description": "Unité affichée (vide = unité HA)."},
+                "decimals": {"type": "integer", "description": "Arrondi des nombres."},
+                "value_template": {"type": "string", "description": "Texte/Jinja libre (remplace entity_id)."},
+                "inline": {"type": "boolean"},
+            },
+        },
+    },
+    "buttons": _HA_BUTTONS_SCHEMA,
+}
+
+# Clés de config_json pilotées par les outils monitoring.
+_MONITORING_CFG_KEYS = (
+    "description", "thumbnail_url", "image_url", "show_timestamp", "refresh_button", "fields",
+)
+
+TOOLS.extend([
+    {
+        "name": "list_commands",
+        "description": "Liste les commandes slash Discord de BotPanel (nom, action, état).",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "get_command",
+        "description": "Détail complet d'une commande slash (par son nom), utile avant de la modifier.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"name": {"type": "string", "description": "Nom de la commande, sans « / »."}},
+            "required": ["name"],
+        },
+    },
+    {
+        "name": "create_command",
+        "description": "Crée une commande slash Discord (ex. /garage). Nom en minuscules, chiffres, - ou _ "
+        "(32 car. max). Elle est synchronisée tout de suite sur Discord.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Nom sans « / » (a-z0-9_-)."},
+                **_COMMAND_PROPS,
+            },
+            "required": ["name", "description", "action_type"],
+        },
+    },
+    {
+        "name": "update_command",
+        "description": "Modifie une commande slash (par son nom). Seuls les champs fournis changent ; "
+        "buttons remplace tous les boutons. new_name pour la renommer.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Nom actuel de la commande."},
+                "new_name": {"type": "string", "description": "Nouveau nom (optionnel)."},
+                **_COMMAND_PROPS,
+            },
+            "required": ["name"],
+        },
+    },
+    {
+        "name": "delete_command",
+        "description": "Supprime définitivement une commande slash (par son nom).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"name": {"type": "string"}},
+            "required": ["name"],
+        },
+    },
+    {
+        "name": "run_command",
+        "description": "Exécute une commande slash comme si on la tapait sur Discord (lance son action HA "
+        "ou sa notification) et renvoie la réponse qu'elle afficherait.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"name": {"type": "string"}},
+            "required": ["name"],
+        },
+    },
+    {
+        "name": "list_monitoring",
+        "description": "Liste les blocs de monitoring (id, nom, actif, salon, fréquence).",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "get_monitoring",
+        "description": "Détail d'un bloc de monitoring (par id) + rendu actuel avec les vraies valeurs HA.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"id": {"type": "integer"}},
+            "required": ["id"],
+        },
+    },
+    {
+        "name": "create_monitoring",
+        "description": "Crée un bloc de monitoring : un message Discord mis à jour en boucle avec des "
+        "valeurs Home Assistant. Créé inactif sauf si enabled=true.",
+        "inputSchema": {
+            "type": "object",
+            "properties": _MONITORING_PROPS,
+            "required": ["name"],
+        },
+    },
+    {
+        "name": "update_monitoring",
+        "description": "Modifie un bloc de monitoring (par id). Seuls les champs fournis changent ; "
+        "fields et buttons remplacent toute la liste.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"id": {"type": "integer"}, **_MONITORING_PROPS},
+            "required": ["id"],
+        },
+    },
+    {
+        "name": "delete_monitoring",
+        "description": "Supprime définitivement un bloc de monitoring (par id).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"id": {"type": "integer"}},
+            "required": ["id"],
+        },
+    },
+    {
+        "name": "send_monitoring",
+        "description": "Envoie / met à jour tout de suite le message Discord d'un bloc de monitoring actif.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"id": {"type": "integer"}},
+            "required": ["id"],
+        },
+    },
+    {
+        "name": "list_errors",
+        "description": "Erreurs récentes : entrées en échec de l'historique + derniers avertissements "
+        "et erreurs du serveur (gardés en mémoire depuis le dernier redémarrage).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "limit": {"type": "integer", "minimum": 1, "maximum": 100, "description": "Défaut 20."}
+            },
+        },
+    },
+    {
+        "name": "list_colors",
+        "description": "Liste les couleurs préconfigurées (nom + hex) proposées dans les éditeurs du site.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "set_color",
+        "description": "Crée une couleur préconfigurée, ou la modifie si le nom existe déjà. "
+        "new_name pour la renommer.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Nom de la couleur (64 car. max)."},
+                "color": {"type": "string", "description": "Couleur hex, ex. \"#e8c547\"."},
+                "new_name": {"type": "string", "description": "Nouveau nom (optionnel)."},
+            },
+            "required": ["name", "color"],
+        },
+    },
+    {
+        "name": "delete_color",
+        "description": "Supprime une couleur préconfigurée (par son nom).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"name": {"type": "string"}},
+            "required": ["name"],
+        },
+    },
+])
+
+
+def _ha_buttons_from_args(raw) -> list[HaButton]:
+    out = []
+    for b in raw or []:
+        data = b.get("ha_data")
+        out.append(
+            HaButton(
+                label=b.get("label", ""),
+                style=b.get("style") or "primary",
+                emoji=b.get("emoji") or None,
+                ha_service=b.get("ha_service", ""),
+                ha_entity_id=b.get("ha_entity_id") or None,
+                ha_data_json=(json.dumps(data, ensure_ascii=False) if isinstance(data, dict) else None),
+            )
+        )
+    return out
+
+
+def _apply_command_args(data: dict, args: dict) -> None:
+    """Reporte dans `data` (forme SlashCommandIn) les champs fournis par Claude."""
+    for key in ("description", "action_type", "response_message"):
+        if key in args:
+            data[key] = args[key]
+    for key in ("ha_service", "ha_entity_id", "notification_slug", "response_title",
+                "response_image_url", "list_group"):
+        if key in args:
+            data[key] = args[key] or None
+    for key in ("response_ephemeral", "response_embed", "enabled"):
+        if key in args:
+            data[key] = bool(args[key])
+    if "ha_data" in args:
+        d = args["ha_data"]
+        data["ha_data_json"] = json.dumps(d, ensure_ascii=False) if isinstance(d, dict) and d else None
+    if args.get("response_color"):
+        data["response_color"] = _parse_color(args["response_color"], default=data.get("response_color", 0xE8C547))
+    if "buttons" in args:
+        data["buttons"] = _ha_buttons_from_args(args["buttons"])
+
+
+async def _check_command_name(repo: SlashCommandRepository, name: str, cmd_id: int | None = None) -> None:
+    from app.bot.slash_sync import RESERVED_NAMES
+
+    if name in RESERVED_NAMES:
+        raise ValueError(f"/{name} est une commande fixe de BotPanel (nom réservé).")
+    other = await repo.get_by_name(name)
+    if other is not None and other.id != cmd_id:
+        raise ValueError(f"/{name} existe déjà.")
+
+
+async def _get_command(repo: SlashCommandRepository, args: dict):
+    name = (args.get("name") or "").strip().lstrip("/")
+    cmd = await repo.get_by_name(name)
+    if cmd is None:
+        raise ValueError(f"Commande /{name} introuvable.")
+    return cmd
+
+
+async def _tool_list_commands(args: dict) -> str:
+    cmds = await SlashCommandRepository().list_all()
+    if not cmds:
+        return "Aucune commande slash."
+    lines = []
+    for c in cmds:
+        target = c.ha_service or c.ha_entity_id or c.notification_slug or ""
+        lines.append(
+            f"- /{c.name} — {c.description} · {c.action_type}"
+            + (f" ({target})" if target else "")
+            + ("" if c.enabled else " · désactivée")
+            + (f"  [{c.list_group}]" if c.list_group else "")
+        )
+    return f"{len(cmds)} commande(s) :\n" + "\n".join(lines)
+
+
+async def _tool_get_command(args: dict) -> str:
+    cmd = await _get_command(SlashCommandRepository(), args)
+    data = cmd.model_dump()
+    data["response_color"] = f"#{cmd.response_color:06x}"
+    return json.dumps(data, ensure_ascii=False, indent=2)
+
+
+async def _tool_create_command(args: dict) -> str:
+    from app.api.routes.slash_commands import _resync_discord
+    from app.db.repositories.slash_commands import MAX_SLASH_COMMANDS
+
+    repo = SlashCommandRepository()
+    name = (args.get("name") or "").strip().lstrip("/")
+    if await repo.count() >= MAX_SLASH_COMMANDS:
+        raise ValueError(f"Limite Discord atteinte ({MAX_SLASH_COMMANDS} commandes max).")
+    await _check_command_name(repo, name)
+    data: dict = {"name": name}
+    _apply_command_args(data, args)
+    cmd = await repo.create(SlashCommandIn(**data))
+    await _resync_discord()
+    return f"✅ Commande /{cmd.name} créée (id {cmd.id}). Teste-la avec run_command."
+
+
+async def _tool_update_command(args: dict) -> str:
+    from app.api.routes.slash_commands import _resync_discord
+
+    repo = SlashCommandRepository()
+    cmd = await _get_command(repo, args)
+    data = cmd.model_dump(exclude={"id"})
+    _apply_command_args(data, args)
+    new_name = (args.get("new_name") or "").strip().lstrip("/")
+    if new_name and new_name != cmd.name:
+        await _check_command_name(repo, new_name, cmd.id)
+        data["name"] = new_name
+    payload = SlashCommandIn(**data)
+    if await repo.update(cmd.id, payload) is None:
+        raise RuntimeError("Mise à jour échouée.")
+    await _resync_discord()
+    suffix = f" (renommée /{payload.name})" if payload.name != cmd.name else ""
+    return f"✅ Commande /{cmd.name} mise à jour{suffix}."
+
+
+async def _tool_delete_command(args: dict) -> str:
+    from app.api.routes.slash_commands import _resync_discord
+
+    repo = SlashCommandRepository()
+    cmd = await _get_command(repo, args)
+    if not await repo.delete(cmd.id):
+        raise RuntimeError("Suppression échouée.")
+    await _resync_discord()
+    return f"🗑️ Commande /{cmd.name} supprimée."
+
+
+async def _tool_run_command(args: dict) -> str:
+    from app.bot.slash_sync import _execute_action, render_command_response
+
+    cmd = await _get_command(SlashCommandRepository(), args)
+    log_repo = LogRepository()
+    try:
+        await _execute_action(cmd)
+    except Exception as exc:  # noqa: BLE001
+        await log_repo.add(kind="command", notification_slug=f"/{cmd.name}",
+                           detail=str(exc)[:300], source="mcp", success=False)
+        raise RuntimeError(f"Action de /{cmd.name} échouée : {exc}") from exc
+    await log_repo.add(kind="command", notification_slug=f"/{cmd.name}",
+                       detail=cmd.action_type, source="mcp", success=True)
+    data = await render_command_response(cmd)
+    parts = [f"✅ /{cmd.name} exécutée ({cmd.action_type})."]
+    if data.get("title"):
+        parts.append(f"Titre : {data['title']}")
+    if data.get("message"):
+        parts.append(f"Réponse : {data['message']}")
+    return "\n".join(parts)
+
+
+def _apply_monitoring_args(data: dict, args: dict) -> None:
+    """Reporte dans `data` (forme MonitoringBlockIn) les champs fournis par Claude."""
+    for key in ("name", "interval_seconds"):
+        if key in args:
+            data[key] = args[key]
+    for key in ("icon", "footer", "list_group", "channel_id"):
+        if key in args:
+            data[key] = args[key] or None
+    if "enabled" in args:
+        data["enabled"] = bool(args["enabled"])
+    if args.get("color"):
+        data["color"] = _parse_color(args["color"], default=data.get("color", 0x49A0DF))
+    try:
+        cfg = json.loads(data.get("config_json") or "{}")
+    except json.JSONDecodeError:
+        cfg = {}
+    if not isinstance(cfg, dict):
+        cfg = {}
+    for key in _MONITORING_CFG_KEYS:
+        if key in args:
+            cfg[key] = args[key]
+    if "buttons" in args:
+        cfg["buttons"] = [b.model_dump() for b in _ha_buttons_from_args(args["buttons"])]
+    data["config_json"] = json.dumps(cfg, ensure_ascii=False)
+
+
+async def _get_block(repo: MonitoringRepository, args: dict):
+    try:
+        block_id = int(args.get("id"))
+    except (TypeError, ValueError):
+        raise ValueError("Le paramètre 'id' (entier) est requis — voir list_monitoring.") from None
+    block = await repo.get_by_id(block_id)
+    if block is None:
+        raise ValueError(f"Bloc de monitoring {block_id} introuvable.")
+    return block
+
+
+async def _tool_list_monitoring(args: dict) -> str:
+    blocks = await MonitoringRepository().list_all()
+    if not blocks:
+        return "Aucun bloc de monitoring."
+    lines = [
+        f"- id {b.id} · « {b.name} » · {'🟢 actif' if b.enabled else '⚪ inactif'} "
+        f"· salon {b.channel_id or 'monitoring par défaut'} · toutes les {b.interval_seconds} s"
+        + (f"  [{b.list_group}]" if b.list_group else "")
+        for b in blocks
+    ]
+    return f"{len(blocks)} bloc(s) :\n" + "\n".join(lines)
+
+
+async def _tool_get_monitoring(args: dict) -> str:
+    from app.bot.monitoring import block_config, render_block
+
+    block = await _get_block(MonitoringRepository(), args)
+    data = block.model_dump(exclude={"config_json"})
+    data["color"] = f"#{block.color:06x}"
+    data["config"] = block_config(block)
+    try:
+        rendered = await render_block(block)
+    except Exception as exc:  # noqa: BLE001
+        rendered = f"(rendu impossible : {exc})"
+    return (
+        "Configuration :\n" + json.dumps(data, ensure_ascii=False, indent=2)
+        + "\n\nRendu actuel :\n" + json.dumps(rendered, ensure_ascii=False, indent=2)
+    )
+
+
+async def _tool_create_monitoring(args: dict) -> str:
+    from app.api.routes.monitoring import _refresh_task
+
+    data: dict = {}
+    _apply_monitoring_args(data, args)
+    block = await MonitoringRepository().create(MonitoringBlockIn(**data))
+    await _refresh_task(block.id)
+    state = "actif, il va être posté sur Discord" if block.enabled else \
+        "inactif (active-le avec update_monitoring enabled=true)"
+    return f"✅ Bloc « {block.name} » créé (id {block.id}), {state}."
+
+
+async def _tool_update_monitoring(args: dict) -> str:
+    from app.api.routes.monitoring import _refresh_task
+
+    repo = MonitoringRepository()
+    block = await _get_block(repo, args)
+    data = block.model_dump(exclude={"id", "message_id"})
+    _apply_monitoring_args(data, args)
+    if await repo.update(block.id, MonitoringBlockIn(**data)) is None:
+        raise RuntimeError("Mise à jour échouée.")
+    await _refresh_task(block.id)
+    return f"✅ Bloc {block.id} (« {data['name']} ») mis à jour."
+
+
+async def _tool_delete_monitoring(args: dict) -> str:
+    repo = MonitoringRepository()
+    block = await _get_block(repo, args)
+    try:
+        from app.bot.monitoring import stop_block_task
+        await stop_block_task(block.id)
+    except Exception:  # noqa: BLE001
+        pass
+    if not await repo.delete(block.id):
+        raise RuntimeError("Suppression échouée.")
+    return f"🗑️ Bloc {block.id} (« {block.name} ») supprimé."
+
+
+async def _tool_send_monitoring(args: dict) -> str:
+    from app.bot.client import bot
+    from app.bot.monitoring import refresh_block_now
+
+    block = await _get_block(MonitoringRepository(), args)
+    if not block.enabled:
+        raise ValueError("Bloc inactif : active-le d'abord avec update_monitoring enabled=true.")
+    if not bot.is_ready():
+        raise RuntimeError("Bot Discord hors ligne.")
+    if not await refresh_block_now(bot, block.id):
+        raise RuntimeError("Mise à jour impossible (voir list_errors).")
+    return f"✅ Bloc « {block.name} » envoyé / mis à jour sur Discord."
+
+
+async def _tool_list_errors(args: dict) -> str:
+    from app import log_buffer
+
+    limit = max(1, min(100, int(args.get("limit") or 20)))
+    failed = await LogRepository().list_recent(limit=limit, success=False)
+    server = log_buffer.recent(limit)
+    parts = []
+    if failed:
+        parts.append(f"❌ {len(failed)} échec(s) dans l'historique :\n" + "\n".join(_log_line(l) for l in failed))
+    else:
+        parts.append("Aucun échec dans l'historique.")
+    if server:
+        parts.append(
+            f"⚠️ {len(server)} message(s) du serveur depuis le démarrage :\n"
+            + "\n".join(f"{r['time']} [{r['level']}] {r['logger']} : {r['message']}" for r in server)
+        )
+    else:
+        parts.append("Aucun avertissement ni erreur du serveur depuis le démarrage.")
+    return "\n\n".join(parts)
+
+
+async def _tool_list_colors(args: dict) -> str:
+    presets = await SettingsRepository().get_color_presets()
+    if not presets:
+        return "Aucune couleur préconfigurée."
+    lines = [f"- {c.get('name')} — #{int(c.get('color', 0)):06x}" for c in presets]
+    return f"{len(presets)} couleur(s) :\n" + "\n".join(lines)
+
+
+async def _tool_set_color(args: dict) -> str:
+    repo = SettingsRepository()
+    name = (args.get("name") or "").strip()
+    raw = str(args.get("color") or "").strip().lstrip("#")
+    try:
+        value = int(raw, 16)
+    except ValueError:
+        raise ValueError(f"Couleur invalide : {args.get('color')!r} (attendu : hex, ex. #e8c547).") from None
+    new_name = (args.get("new_name") or "").strip() or name
+    preset = ColorPreset(name=new_name, color=value)
+    presets = list(await repo.get_color_presets())
+    if new_name != name and any(c.get("name") == new_name for c in presets):
+        raise ValueError(f"La couleur « {new_name} » existe déjà.")
+    idx = next((i for i, c in enumerate(presets) if c.get("name") == name), None)
+    if idx is None:
+        presets.append(preset.model_dump())
+        verb = "créée"
+    else:
+        presets[idx] = preset.model_dump()
+        verb = "modifiée"
+    await repo.set("color_presets", presets)
+    return f"✅ Couleur « {new_name} » (#{value:06x}) {verb}."
+
+
+async def _tool_delete_color(args: dict) -> str:
+    repo = SettingsRepository()
+    name = (args.get("name") or "").strip()
+    presets = await repo.get_color_presets()
+    kept = [c for c in presets if c.get("name") != name]
+    if len(kept) == len(presets):
+        raise ValueError(f"Couleur « {name} » introuvable.")
+    await repo.set("color_presets", kept)
+    return f"🗑️ Couleur « {name} » supprimée."
+
+
+HANDLERS.update({
+    "list_commands": _tool_list_commands,
+    "get_command": _tool_get_command,
+    "create_command": _tool_create_command,
+    "update_command": _tool_update_command,
+    "delete_command": _tool_delete_command,
+    "run_command": _tool_run_command,
+    "list_monitoring": _tool_list_monitoring,
+    "get_monitoring": _tool_get_monitoring,
+    "create_monitoring": _tool_create_monitoring,
+    "update_monitoring": _tool_update_monitoring,
+    "delete_monitoring": _tool_delete_monitoring,
+    "send_monitoring": _tool_send_monitoring,
+    "list_errors": _tool_list_errors,
+    "list_colors": _tool_list_colors,
+    "set_color": _tool_set_color,
+    "delete_color": _tool_delete_color,
+})
 
 
 # ======================================================================
