@@ -29,6 +29,7 @@ from fastapi.responses import JSONResponse, Response, StreamingResponse
 from app.api.routes.system import INSTALL_DIR, _run as _sys_run
 from app.config import settings
 from app.db.models import (
+    ChannelPreset,
     ColorPreset,
     HaButton,
     MonitoringBlockIn,
@@ -44,6 +45,7 @@ from app.db.repositories import (
     NotificationRepository,
     SettingsRepository,
     SlashCommandRepository,
+    ThreadRepository,
 )
 from app.integration import get_api_key
 
@@ -1233,6 +1235,431 @@ HANDLERS.update({
     "list_colors": _tool_list_colors,
     "set_color": _tool_set_color,
     "delete_color": _tool_delete_color,
+})
+
+
+# ======================================================================
+#  Duplication, aperçus, salons Discord, fils, stats, système, réglages
+# ======================================================================
+def _id_schema(desc: str = "Id du bloc (voir list_monitoring).") -> dict:
+    return {
+        "type": "object",
+        "properties": {"id": {"type": "integer", "description": desc}},
+        "required": ["id"],
+    }
+
+
+_CONFIRM_PROP = {"type": "string", "description": "Mettre \"OUI\" pour appliquer. Sinon, simple aperçu."}
+
+TOOLS.extend([
+    {
+        "name": "get_notification",
+        "description": "Détail complet d'une notification (par slug), utile avant de la modifier.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"slug": {"type": "string"}},
+            "required": ["slug"],
+        },
+    },
+    {
+        "name": "duplicate_notification",
+        "description": "Duplique une notification. Slug de la copie : new_slug, sinon <slug>_copy.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "slug": {"type": "string", "description": "Notification à copier."},
+                "new_slug": {"type": "string", "description": "Slug de la copie (optionnel, a-z0-9_)."},
+            },
+            "required": ["slug"],
+        },
+    },
+    {
+        "name": "preview_notification",
+        "description": "Aperçu d'une notification avec les vraies valeurs Home Assistant, SANS l'envoyer.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "slug": {"type": "string"},
+                "variables": {
+                    "type": "object",
+                    "description": "Valeurs pour les {var:nom} (optionnel).",
+                    "additionalProperties": {"type": "string"},
+                },
+            },
+            "required": ["slug"],
+        },
+    },
+    {
+        "name": "duplicate_command",
+        "description": "Duplique une commande slash (copie nommée <nom>-copie, créée désactivée).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"name": {"type": "string"}},
+            "required": ["name"],
+        },
+    },
+    {
+        "name": "duplicate_monitoring",
+        "description": "Duplique un bloc de monitoring (copie créée inactive).",
+        "inputSchema": _id_schema(),
+    },
+    {
+        "name": "list_channels",
+        "description": "Liste les salons du serveur Discord (nom, catégorie, id), pour trouver l'id d'un salon "
+        "à partir de son nom. kind=forum pour les forums.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"kind": {"type": "string", "enum": ["text", "forum"], "description": "Défaut : text."}},
+        },
+    },
+    {
+        "name": "list_forum_posts",
+        "description": "Liste les posts actifs d'un salon forum Discord.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"channel_id": {"type": "string", "description": "Id du salon forum."}},
+            "required": ["channel_id"],
+        },
+    },
+    {
+        "name": "list_favorite_channels",
+        "description": "Liste les salons favoris (raccourcis proposés dans les éditeurs du site).",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "set_favorite_channel",
+        "description": "Ajoute un salon favori, ou le modifie si le nom existe déjà. new_name pour le renommer.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Nom affiché du favori."},
+                "channel_id": {"type": "string", "description": "Id du salon Discord (voir list_channels)."},
+                "new_name": {"type": "string", "description": "Nouveau nom (optionnel)."},
+            },
+            "required": ["name", "channel_id"],
+        },
+    },
+    {
+        "name": "delete_favorite_channel",
+        "description": "Supprime un salon favori (par son nom). Le salon Discord n'est pas touché.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"name": {"type": "string"}},
+            "required": ["name"],
+        },
+    },
+    {
+        "name": "list_threads",
+        "description": "Liste les fils Discord mémorisés pour les groupes de notifications (groupe, salon, fil).",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "delete_thread",
+        "description": "Oublie le fil Discord d'un groupe (par id, voir list_threads) : le prochain envoi du "
+        "groupe en créera un nouveau. Le fil existant sur Discord n'est pas supprimé.",
+        "inputSchema": _id_schema("Id de l'entrée (voir list_threads)."),
+    },
+    {
+        "name": "get_stats",
+        "description": "Statistiques du tableau de bord : bot, Home Assistant, envois/erreurs/clics du jour, "
+        "activité de la semaine et envois des 7 derniers jours.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "purge_history",
+        "description": "Supprime les entrées d'historique plus vieilles que N jours. "
+        "SÉCURITÉ : n'agit QUE si confirm vaut \"OUI\" ; sinon, aperçu.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "days": {"type": "integer", "minimum": 1, "description": "Garder les N derniers jours."},
+                "confirm": _CONFIRM_PROP,
+            },
+            "required": ["days"],
+        },
+    },
+    {
+        "name": "get_system_info",
+        "description": "Infos système : version (commit), branche et dossier d'installation du site.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "restart_site",
+        "description": "Redémarre le service BotPanel (sans mise à jour). "
+        "SÉCURITÉ : n'agit QUE si confirm vaut \"OUI\".",
+        "inputSchema": {"type": "object", "properties": {"confirm": _CONFIRM_PROP}},
+    },
+    {
+        "name": "get_home_url",
+        "description": "Lit l'URL d'accueil réglée dans les Paramètres.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "set_home_url",
+        "description": "Change l'URL d'accueil des Paramètres (vide pour l'effacer).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"url": {"type": "string"}},
+            "required": ["url"],
+        },
+    },
+])
+
+
+async def _call_route(coro):
+    """Appelle une route du site et traduit ses HTTPException en erreur d'outil lisible."""
+    from fastapi import HTTPException
+
+    try:
+        return await coro
+    except HTTPException as exc:
+        raise ValueError(str(exc.detail)) from None
+
+
+async def _get_notification(repo: NotificationRepository, args: dict):
+    slug = (args.get("slug") or "").strip()
+    notif = await repo.get_by_slug(slug)
+    if notif is None:
+        raise ValueError(f"Notification '{slug}' introuvable.")
+    return notif
+
+
+async def _tool_get_notification(args: dict) -> str:
+    notif = await _get_notification(NotificationRepository(), args)
+    data = notif.model_dump()
+    data["color"] = f"#{notif.color:06x}"
+    return json.dumps(data, ensure_ascii=False, indent=2)
+
+
+async def _tool_duplicate_notification(args: dict) -> str:
+    from app.api.routes.notifications import duplicate_notification
+
+    repo = NotificationRepository()
+    src = await _get_notification(repo, args)
+    new_slug = (args.get("new_slug") or "").strip()
+    if new_slug:
+        if await repo.get_by_slug(new_slug) is not None:
+            raise ValueError(f"Le slug '{new_slug}' existe déjà.")
+        payload = NotificationIn(
+            **{**src.model_dump(exclude={"id"}), "slug": new_slug, "title": f"{src.title} (copie)"}
+        )
+        copy = await repo.create(payload)
+    else:
+        copy = await _call_route(duplicate_notification(src.id))
+    return f"✅ Notification '{src.slug}' dupliquée → '{copy.slug}' (id {copy.id})."
+
+
+async def _tool_preview_notification(args: dict) -> str:
+    from app.bot.notifications import _resolve_template
+
+    notif = await _get_notification(NotificationRepository(), args)
+    variables = args.get("variables") or None
+
+    async def r(text: str | None) -> str:
+        if not text:
+            return ""
+        try:
+            return await _resolve_template(text, variables, resolve_vars=bool(variables))
+        except Exception:  # noqa: BLE001 — l'aperçu ne doit jamais planter
+            return text
+
+    lines = [f"Titre : {await r(notif.title)}", f"Message :\n{await r(notif.message)}"]
+    for f in notif.fields:
+        lines.append(f"• {await r(f.name)} : {await r(f.value_template)}")
+    if notif.footer:
+        lines.append(f"Pied : {await r(notif.footer)}")
+    for label, url in (("Miniature", notif.icon_url), ("Image", notif.image_url)):
+        if url:
+            lines.append(f"{label} : {await r(url)}")
+    if notif.buttons:
+        lines.append("Boutons : " + ", ".join(f"« {b.label} » ({b.ha_service})" for b in notif.buttons))
+    lines.append(f"Salon : {notif.channel_id} · couleur #{notif.color:06x}")
+    return "Aperçu (non envoyé) :\n" + "\n".join(lines)
+
+
+async def _tool_duplicate_command(args: dict) -> str:
+    from app.api.routes.slash_commands import duplicate_command
+
+    cmd = await _get_command(SlashCommandRepository(), args)
+    copy = await _call_route(duplicate_command(cmd.id))
+    return f"✅ /{cmd.name} dupliquée → /{copy.name} (désactivée ; active-la avec update_command enabled=true)."
+
+
+async def _tool_duplicate_monitoring(args: dict) -> str:
+    from app.api.routes.monitoring import duplicate_block
+
+    block = await _get_block(MonitoringRepository(), args)
+    copy = await _call_route(duplicate_block(block.id))
+    return f"✅ Bloc {block.id} dupliqué → « {copy.name} » (id {copy.id}, inactif)."
+
+
+async def _tool_list_channels(args: dict) -> str:
+    from app.api.routes.discord import list_forum_channels, list_text_channels
+    from app.bot.client import bot
+
+    if not bot.is_ready():
+        raise RuntimeError("Bot Discord hors ligne : impossible de lister les salons.")
+    forum = args.get("kind") == "forum"
+    channels = await (list_forum_channels() if forum else list_text_channels())
+    if not channels:
+        return "Aucun salon trouvé."
+    lines = [
+        f"- #{c['name']} — id {c['id']}" + (f"  [{c['category']}]" if c.get("category") else "")
+        for c in channels
+    ]
+    return f"{len(channels)} salon(s) {'forum' if forum else 'texte'} :\n" + "\n".join(lines)
+
+
+async def _tool_list_forum_posts(args: dict) -> str:
+    from app.api.routes.discord import list_forum_posts
+    from app.bot.client import bot
+
+    if not bot.is_ready():
+        raise RuntimeError("Bot Discord hors ligne.")
+    posts = await list_forum_posts(str(args.get("channel_id") or ""))
+    if not posts:
+        return "Aucun post actif (ou ce n'est pas un salon forum)."
+    lines = [f"- {p['name']} — id {p['id']} · {p['message_count']} message(s)" for p in posts]
+    return f"{len(posts)} post(s) :\n" + "\n".join(lines)
+
+
+async def _tool_list_favorite_channels(args: dict) -> str:
+    favs = await SettingsRepository().get_channel_presets()
+    if not favs:
+        return "Aucun salon favori."
+    return f"{len(favs)} favori(s) :\n" + "\n".join(f"- {c.get('name')} — id {c.get('channel_id')}" for c in favs)
+
+
+async def _tool_set_favorite_channel(args: dict) -> str:
+    repo = SettingsRepository()
+    name = (args.get("name") or "").strip()
+    new_name = (args.get("new_name") or "").strip() or name
+    preset = ChannelPreset(name=new_name, channel_id=str(args.get("channel_id") or "").strip())
+    favs = list(await repo.get_channel_presets())
+    if new_name != name and any(c.get("name") == new_name for c in favs):
+        raise ValueError(f"Le favori « {new_name} » existe déjà.")
+    idx = next((i for i, c in enumerate(favs) if c.get("name") == name), None)
+    if idx is None:
+        favs.append(preset.model_dump())
+        verb = "ajouté"
+    else:
+        favs[idx] = preset.model_dump()
+        verb = "modifié"
+    await repo.set("channel_presets", favs)
+    return f"✅ Favori « {new_name} » (salon {preset.channel_id}) {verb}."
+
+
+async def _tool_delete_favorite_channel(args: dict) -> str:
+    repo = SettingsRepository()
+    name = (args.get("name") or "").strip()
+    favs = await repo.get_channel_presets()
+    kept = [c for c in favs if c.get("name") != name]
+    if len(kept) == len(favs):
+        raise ValueError(f"Favori « {name} » introuvable.")
+    await repo.set("channel_presets", kept)
+    return f"🗑️ Favori « {name} » supprimé."
+
+
+async def _tool_list_threads(args: dict) -> str:
+    threads = await ThreadRepository().list_all()
+    if not threads:
+        return "Aucun fil mémorisé."
+    lines = [
+        f"- id {t.id} · groupe « {t.group_name} » · salon {t.channel_id} · fil {t.thread_id} · depuis {t.created_at}"
+        for t in threads
+    ]
+    return f"{len(threads)} fil(s) :\n" + "\n".join(lines)
+
+
+async def _tool_delete_thread(args: dict) -> str:
+    try:
+        entry_id = int(args.get("id"))
+    except (TypeError, ValueError):
+        raise ValueError("Le paramètre 'id' (entier) est requis — voir list_threads.") from None
+    if not await ThreadRepository().delete(entry_id):
+        raise ValueError(f"Fil {entry_id} introuvable.")
+    return f"🗑️ Fil {entry_id} oublié : le prochain envoi du groupe en créera un nouveau."
+
+
+async def _tool_get_stats(args: dict) -> str:
+    from app.api.routes.dashboard import dashboard_stats
+
+    s = await dashboard_stats()
+    bot_txt = f"🟢 en ligne ({s['bot_latency_ms']} ms)" if s["bot_ready"] else "🔴 hors ligne"
+    days = "\n".join(f"  {d['day']} : {d['sent']} envoi(s), {d['errors']} erreur(s)" for d in s["daily"])
+    return (
+        f"Bot Discord : {bot_txt}\n"
+        f"Home Assistant : {'🟢 joignable' if s['ha_ok'] else '🔴 injoignable'}\n"
+        f"Aujourd'hui : {s['sent_today']} envoi(s), {s['errors_today']} erreur(s), {s['clicks_today']} clic(s)\n"
+        f"Activité sur 7 jours : {s['activity_week']}\n"
+        f"Notifications : {s['notifications_total']} · monitoring : "
+        f"{s['monitoring_enabled']}/{s['monitoring_total']} bloc(s) actif(s)\n"
+        f"Envois des 7 derniers jours :\n{days}"
+    )
+
+
+async def _tool_purge_history(args: dict) -> str:
+    try:
+        days = int(args.get("days"))
+    except (TypeError, ValueError):
+        raise ValueError("Le paramètre 'days' (entier) est requis.") from None
+    if days < 1:
+        raise ValueError("'days' doit valoir au moins 1.")
+    if not _confirmed(args):
+        return (
+            f"⚠️ Confirmation requise — je supprimerais l'historique de plus de {days} jour(s). "
+            f"Relance avec confirm=\"OUI\" pour appliquer."
+        )
+    n = await LogRepository().purge_older_than(days)
+    return f"🗑️ {n} entrée(s) d'historique de plus de {days} jour(s) supprimée(s)."
+
+
+async def _tool_get_system_info(args: dict) -> str:
+    from app.api.routes.system import system_info
+
+    info = await system_info()
+    if not info.get("is_git"):
+        return f"Dossier : {info['install_dir']} (pas un dépôt git)."
+    return f"Commit : {info.get('commit')} · branche : {info.get('branch')} · dossier : {info['install_dir']}"
+
+
+async def _tool_restart_site(args: dict) -> str:
+    if not _confirmed(args):
+        return "⚠️ Confirmation requise — relance avec confirm=\"OUI\" pour redémarrer BotPanel."
+    _schedule_restart()
+    return "🔄 Redémarrage en cours… reconnecte le connecteur dans ~10 s."
+
+
+async def _tool_get_home_url(args: dict) -> str:
+    url = await SettingsRepository().get("home_url", "")
+    return f"URL d'accueil : {url}" if url else "Aucune URL d'accueil réglée."
+
+
+async def _tool_set_home_url(args: dict) -> str:
+    url = str(args.get("url") or "").strip()
+    await SettingsRepository().set("home_url", url)
+    return f"✅ URL d'accueil : {url}" if url else "✅ URL d'accueil effacée."
+
+
+HANDLERS.update({
+    "get_notification": _tool_get_notification,
+    "duplicate_notification": _tool_duplicate_notification,
+    "preview_notification": _tool_preview_notification,
+    "duplicate_command": _tool_duplicate_command,
+    "duplicate_monitoring": _tool_duplicate_monitoring,
+    "list_channels": _tool_list_channels,
+    "list_forum_posts": _tool_list_forum_posts,
+    "list_favorite_channels": _tool_list_favorite_channels,
+    "set_favorite_channel": _tool_set_favorite_channel,
+    "delete_favorite_channel": _tool_delete_favorite_channel,
+    "list_threads": _tool_list_threads,
+    "delete_thread": _tool_delete_thread,
+    "get_stats": _tool_get_stats,
+    "purge_history": _tool_purge_history,
+    "get_system_info": _tool_get_system_info,
+    "restart_site": _tool_restart_site,
+    "get_home_url": _tool_get_home_url,
+    "set_home_url": _tool_set_home_url,
 })
 
 
