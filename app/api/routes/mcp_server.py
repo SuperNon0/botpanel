@@ -192,6 +192,65 @@ TOOLS = [
             },
         },
     },
+    {
+        "name": "delete_notification",
+        "description": "Supprime définitivement une notification BotPanel (par son slug).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "slug": {"type": "string", "description": "Slug de la notification à supprimer."}
+            },
+            "required": ["slug"],
+        },
+    },
+    {
+        "name": "update_notification",
+        "description": "Modifie une notification existante (identifiée par son slug). Seuls les "
+        "champs fournis sont changés ; les autres restent inchangés. Peut aussi la renommer (new_slug).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "slug": {"type": "string", "description": "Slug de la notification à modifier."},
+                "new_slug": {"type": "string", "description": "Nouveau slug si tu veux la renommer (a-z0-9_)."},
+                "title": {"type": "string"},
+                "message": {"type": "string"},
+                "channel_id": {"type": "string"},
+                "color": {"type": "string", "description": "Couleur hex, ex. \"#e8c547\"."},
+                "footer": {"type": "string"},
+                "list_group": {"type": "string"},
+                "image_url": {"type": "string"},
+                "icon_url": {"type": "string"},
+                "delete_button": {"type": "boolean"},
+                "snooze_button": {"type": "boolean"},
+                "fields": {
+                    "type": "array",
+                    "description": "Remplace TOUS les champs par cette liste {name, value}.",
+                    "items": {
+                        "type": "object",
+                        "properties": {"name": {"type": "string"}, "value": {"type": "string"}},
+                        "required": ["name", "value"],
+                    },
+                },
+                "buttons": {
+                    "type": "array",
+                    "description": "Remplace TOUS les boutons par cette liste (voir create_notification).",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "label": {"type": "string"},
+                            "style": {"type": "string", "enum": ["primary", "secondary", "success", "danger"]},
+                            "emoji": {"type": "string"},
+                            "ha_service": {"type": "string"},
+                            "ha_entity_id": {"type": "string"},
+                            "ha_data": {"type": "object"},
+                        },
+                        "required": ["label", "ha_service"],
+                    },
+                },
+            },
+            "required": ["slug"],
+        },
+    },
 ]
 
 
@@ -352,10 +411,96 @@ async def _tool_list_history(args: dict) -> str:
     return f"{len(logs)} dernier(s) envoi(s) :\n" + "\n".join(lines)
 
 
+def _fields_from_args(raw) -> list:
+    return [
+        NotificationField(name=f.get("name", ""), value_template=f.get("value", ""), position=i)
+        for i, f in enumerate(raw or [])
+    ]
+
+
+def _buttons_from_args(raw) -> list:
+    out = []
+    for i, b in enumerate(raw or []):
+        data = b.get("ha_data")
+        out.append(
+            NotificationButton(
+                label=b.get("label", ""),
+                style=b.get("style") or "primary",
+                emoji=b.get("emoji") or None,
+                ha_service=b.get("ha_service", ""),
+                ha_entity_id=b.get("ha_entity_id") or None,
+                ha_data_json=(json.dumps(data, ensure_ascii=False) if isinstance(data, dict) else None),
+                position=i,
+            )
+        )
+    return out
+
+
+async def _tool_delete_notification(args: dict) -> str:
+    repo = NotificationRepository()
+    slug = (args.get("slug") or "").strip()
+    existing = await repo.get_by_slug(slug)
+    if existing is None:
+        raise ValueError(f"Notification '{slug}' introuvable.")
+    if not await repo.delete(existing.id):
+        raise RuntimeError("Suppression échouée.")
+    return f"🗑️ Notification '{slug}' supprimée."
+
+
+async def _tool_update_notification(args: dict) -> str:
+    repo = NotificationRepository()
+    slug = (args.get("slug") or "").strip()
+    existing = await repo.get_by_slug(slug)
+    if existing is None:
+        raise ValueError(f"Notification '{slug}' introuvable.")
+    data = existing.model_dump()
+    data.pop("id", None)
+    # On n'écrase que les champs fournis.
+    if "title" in args:
+        data["title"] = args["title"]
+    if "message" in args:
+        data["message"] = args["message"]
+    if args.get("channel_id"):
+        data["channel_id"] = args["channel_id"]
+    if args.get("color") is not None and "color" in args:
+        data["color"] = _parse_color(args["color"], default=data.get("color", 0xFFFF00))
+    if "footer" in args:
+        data["footer"] = args["footer"] or None
+    if "list_group" in args:
+        data["list_group"] = args["list_group"] or None
+    if "image_url" in args:
+        data["image_url"] = args["image_url"] or None
+    if "icon_url" in args:
+        data["icon_url"] = args["icon_url"] or None
+    if "delete_button" in args:
+        data["delete_button"] = bool(args["delete_button"])
+    if "snooze_button" in args:
+        data["snooze_button"] = bool(args["snooze_button"])
+    if "fields" in args:
+        data["fields"] = _fields_from_args(args["fields"])
+    if "buttons" in args:
+        data["buttons"] = _buttons_from_args(args["buttons"])
+    renamed = False
+    if args.get("new_slug"):
+        new_slug = args["new_slug"].strip()
+        if new_slug != slug:
+            if await repo.get_by_slug(new_slug) is not None:
+                raise ValueError(f"Le slug '{new_slug}' existe déjà.")
+            data["slug"] = new_slug
+            renamed = True
+    payload = NotificationIn(**data)
+    if await repo.update(existing.id, payload) is None:
+        raise RuntimeError("Mise à jour échouée.")
+    suffix = f" (renommée '{payload.slug}')" if renamed else ""
+    return f"✅ Notification '{slug}' mise à jour{suffix}."
+
+
 HANDLERS = {
     "list_notifications": _tool_list_notifications,
     "send_notification": _tool_send_notification,
     "create_notification": _tool_create_notification,
+    "update_notification": _tool_update_notification,
+    "delete_notification": _tool_delete_notification,
     "send_quick_message": _tool_send_quick_message,
     "get_state": _tool_get_state,
     "list_history": _tool_list_history,
