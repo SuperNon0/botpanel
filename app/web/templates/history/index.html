@@ -16,6 +16,7 @@
     <option value="snooze">Snooze</option>
     <option value="delete">Suppressions</option>
     <option value="monitoring">Monitoring</option>
+    <option value="command">Commandes /</option>
   </select>
   <select class="form-select" id="filter-limit" style="flex:0 0 140px;">
     <option value="100">100 dernieres</option>
@@ -41,6 +42,7 @@ const KIND_TAG = {
   snooze:     { label: "SNOOZE",     cls: "tag-orange" },
   delete:     { label: "DELETE",     cls: "tag-red" },
   monitoring: { label: "MONITORING", cls: "tag-green" },
+  command:    { label: "COMMANDE",   cls: "tag-orange" },
 };
 
 function fmtDate(s) {
@@ -81,6 +83,7 @@ async function loadLogs() {
         api:            { label: "API",            cls: "tag-muted"  },
         manuel:         { label: "Manuel",         cls: "tag-muted"  },
         test:           { label: "Test",           cls: "tag-muted"  },
+        commande:       { label: "Commande /",     cls: "tag-orange" },
       };
       const src = (l.kind === "send" && l.source && SRC_TAG[l.source])
         ? `&middot; <span class="tag ${SRC_TAG[l.source].cls}">${SRC_TAG[l.source].label}</span>`

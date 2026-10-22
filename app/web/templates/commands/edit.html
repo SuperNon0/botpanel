@@ -9,48 +9,58 @@
 
 <form id="cmd-form">
   <div class="card">
-    <h3>Commande Discord</h3>
+    <h3>La commande</h3>
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">Nom (sans /)</label>
-        <input class="form-input" name="name" required pattern="[a-z0-9_-]{1,32}" placeholder="allumer_salon">
+        <label class="form-label">Nom (tapé après /)</label>
+        <div style="display:flex; align-items:center; gap:0.3rem;">
+          <span style="color:var(--accent); font-size:1.1rem;">/</span>
+          <input class="form-input" name="name" id="f-name" required pattern="[a-z0-9_\-]{1,32}" placeholder="allumer_salon" style="flex:1;">
+        </div>
+        <div class="form-hint">minuscules, chiffres, <code>-</code> et <code>_</code> (32 max). <code>ha</code> et <code>clear</code> sont réservés.</div>
       </div>
       <div class="form-group">
-        <label class="form-label">Activee</label>
-        <label class="form-checkbox"><input type="checkbox" name="enabled" checked> Commande active</label>
+        <label class="form-label">Groupe (rangement sur le site)<button type="button" class="help-dot" data-help="list_group">?</button></label>
+        <input class="form-input" name="list_group" list="group-list" maxlength="64" placeholder="Salon / Chauffage …">
+        <datalist id="group-list"></datalist>
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label">Description (max 100)</label>
-      <input class="form-input" name="description" required maxlength="100">
+      <label class="form-label">Description (affichée dans Discord, 100 max)</label>
+      <input class="form-input" name="description" id="f-desc" required maxlength="100" placeholder="Allume la lumière du salon">
     </div>
+    <label class="form-checkbox"><input type="checkbox" name="enabled" checked> Commande active (visible sur Discord)</label>
   </div>
 
   <div class="card">
-    <h3>Action</h3>
+    <h3>Ce que fait la commande</h3>
     <div class="form-group">
-      <label class="form-label">Type d'action<button type="button" class="help-dot" data-help="command_action">?</button></label>
+      <label class="form-label">Action<button type="button" class="help-dot" data-help="command_action">?</button></label>
       <select class="form-select" name="action_type" id="f-action">
-        <option value="service">Appel service HA</option>
-        <option value="script">Lancer un script</option>
-        <option value="scene">Activer une scene</option>
-        <option value="notification">Envoyer une notification</option>
+        <option value="message">💬 Répondre seulement (afficher des infos HA)</option>
+        <option value="service">⚡ Appeler un service Home Assistant</option>
+        <option value="script">📜 Lancer un script</option>
+        <option value="scene">🎬 Activer une scène</option>
+        <option value="notification">🔔 Envoyer une notification BotPanel</option>
       </select>
     </div>
 
     <div id="block-service">
       <div class="form-row">
-        <div class="form-group">
+        <div class="form-group" id="wrap-service">
           <label class="form-label">Service HA</label>
           <input class="form-input" name="ha_service" id="f-service" placeholder="light.turn_on">
         </div>
         <div class="form-group">
-          <label class="form-label">Entite</label>
-          <input class="form-input" name="ha_entity_id" id="f-entity" placeholder="light.salon">
+          <label class="form-label" id="entity-label">Entité</label>
+          <div style="display:flex; gap:0.3rem;">
+            <input class="form-input" name="ha_entity_id" id="f-entity" placeholder="light.salon" style="flex:1;">
+            <button type="button" class="md-btn" id="entity-pick" title="Choisir une entité">🔍</button>
+          </div>
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Data additionnelle (JSON)</label>
+      <div class="form-group" id="wrap-data">
+        <label class="form-label">Data additionnelle (JSON, optionnel)</label>
         <input class="form-input" name="ha_data_json" placeholder='{"brightness": 255}'>
       </div>
     </div>
@@ -61,18 +71,84 @@
         <select class="form-select" name="notification_slug" id="f-notif-slug">
           <option value="">— choisir une notification —</option>
         </select>
-        <div class="form-hint">Liste de toutes les notifications enregistrées dans BotPanel.</div>
+        <div class="form-hint">Elle part dans son channel habituel, avec ses boutons, images, etc.</div>
       </div>
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">Message de confirmation (ephemere)</label>
-      <input class="form-input" name="response_message" value="OK">
     </div>
   </div>
 
-  <div style="display:flex; gap:0.7rem; justify-content:flex-end;">
+  <div class="card">
+    <h3>Réponse sur Discord<button type="button" class="help-dot" data-help="command_response">?</button></h3>
+    <div class="form-group">
+      <label class="form-label">Qui voit la réponse ?</label>
+      <select class="form-select" id="f-visibility">
+        <option value="private">🔒 Seulement la personne qui tape la commande</option>
+        <option value="public">👥 Tout le salon</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Message de réponse<button type="button" class="help-dot" data-help="placeholders">?</button></label>
+      <div class="md-toolbar">
+        <button type="button" class="md-btn" data-wrap="**" title="Gras"><strong>B</strong></button>
+        <button type="button" class="md-btn" data-wrap="*" title="Italique"><em>I</em></button>
+        <button type="button" class="md-btn" data-wrap="`" title="Code">&lt;/&gt;</button>
+        <button type="button" class="md-btn" id="msg-emoji" title="Inserer un emoji">😀</button>
+        <button type="button" class="md-btn" id="msg-entity" title="Inserer la valeur d'une entite HA">+ entité</button>
+      </div>
+      <textarea class="form-textarea" name="response_message" id="f-message" maxlength="4000" rows="3">✅ C'est fait !</textarea>
+      <div class="form-hint">Les <code>{state:sensor.xxx|--}</code> sont remplacés par la <strong>vraie valeur</strong> au moment de la réponse.</div>
+    </div>
+
+    <label class="form-checkbox"><input type="checkbox" name="response_embed" id="f-embed"> Réponse en carte (titre, couleur, image)</label>
+
+    <div id="embed-opts" style="display:none; margin-top:0.9rem;">
+      <div class="form-group">
+        <label class="form-label">Titre de la carte</label>
+        <input class="form-input" name="response_title" id="f-title" maxlength="256" placeholder="🌡️ Salon">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Couleur</label>
+          <input type="color" name="response_color" id="f-color" value="#e8c547">
+          <div class="swatches" id="color-swatches"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Grande image (URL)</label>
+          <input class="form-input" name="response_image_url" id="f-image" placeholder="https://.../camera.jpg">
+          <div class="form-hint">Accepte aussi les placeholders HA.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>Aperçu</h3>
+      <div style="display:flex; align-items:center; gap:0.6rem;">
+        <span id="resolve-status" class="hint" style="margin:0;"></span>
+        <button type="button" class="btn btn-secondary btn-small" id="btn-refresh-preview"
+                title="Récupérer les vraies valeurs Home Assistant">🔄 Valeurs HA</button>
+      </div>
+    </div>
+    <div class="hint" id="p-visibility" style="margin-bottom:0.4rem;"></div>
+    <div class="embed-preview" id="preview">
+      <div class="embed-title" id="p-title"></div>
+      <div class="embed-desc" id="p-desc"></div>
+      <img id="p-image" alt="" style="display:none; max-width:100%; border-radius:6px; margin:0.5rem 0;">
+      <div class="embed-buttons" id="p-buttons"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Boutons sous la réponse<button type="button" class="help-dot" data-help="buttons">?</button></h3>
+    <p class="hint">Chaque bouton déclenche une action Home Assistant quand on clique dessus (ex : « Éteindre », « Ouvrir le portail »).</p>
+    <div class="buttons-builder" id="btn-builder"></div>
+    <button type="button" class="btn btn-secondary" id="btn-add" style="margin-top: 0.8rem;">+ Ajouter un bouton</button>
+  </div>
+
+  <div style="display:flex; gap:0.7rem; justify-content:flex-end; flex-wrap:wrap;">
     <a href="/commands" class="btn btn-secondary">Annuler</a>
+    <button type="button" class="btn btn-purple" id="btn-test" style="display:none;">Tester (exécuter)</button>
     <button type="submit" class="btn btn-primary">Enregistrer</button>
   </div>
 </form>
@@ -83,23 +159,144 @@
 const CMD_ID = {% if cmd_id %}{{ cmd_id }}{% else %}null{% endif %};
 const form = document.getElementById("cmd-form");
 const actionSel = document.getElementById("f-action");
+const msgEl = document.getElementById("f-message");
+let buttons = [];
 
+// ============================================================
+// Action : champs visibles selon le type
+// ============================================================
 function refreshBlocks() {
   const v = actionSel.value;
-  document.getElementById("block-service").style.display = (v === "notification") ? "none" : "";
-  document.getElementById("block-notif").style.display   = (v === "notification") ? "" : "none";
+  const haAction = ["service", "script", "scene"].includes(v);
+  document.getElementById("block-service").style.display = haAction ? "" : "none";
+  document.getElementById("block-notif").style.display = v === "notification" ? "" : "none";
+  document.getElementById("wrap-service").style.display = v === "service" ? "" : "none";
+  document.getElementById("wrap-data").style.display = v === "scene" ? "none" : "";
+  document.getElementById("entity-label").textContent =
+    v === "script" ? "Script (script.xxx)" : v === "scene" ? "Scène (scene.xxx)" : "Entité";
+  document.getElementById("f-entity").placeholder =
+    v === "script" ? "script.mon_script" : v === "scene" ? "scene.soiree" : "light.salon";
 }
 actionSel.addEventListener("change", refreshBlocks);
-refreshBlocks();
 
-// Autocompletion HA
 attachAutocomplete(document.getElementById("f-service"), "/ha/services",
   it => it.service, it => it.service);
 attachAutocomplete(document.getElementById("f-entity"), "/ha/entities",
   it => it.friendly_name, it => it.entity_id);
+document.getElementById("entity-pick").addEventListener("click", () => {
+  openEntityPicker((eid) => {
+    const inp = document.getElementById("f-entity");
+    inp.value = eid;
+    inp.dispatchEvent(new Event("input", { bubbles: true }));
+  }, "Entité ciblée par l'action.");
+});
 
-// Remplit la liste deroulante avec toutes les notifications de BotPanel,
-// regroupees par groupe (rangement sur le site) si defini.
+// ============================================================
+// Reponse : barre d'outils + options de la carte
+// ============================================================
+document.querySelectorAll(".md-toolbar .md-btn[data-wrap]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const w = btn.dataset.wrap;
+    const s = msgEl.selectionStart, e = msgEl.selectionEnd;
+    const sel = msgEl.value.slice(s, e) || "texte";
+    msgEl.value = msgEl.value.slice(0, s) + w + sel + w + msgEl.value.slice(e);
+    msgEl.focus();
+    msgEl.selectionStart = s + w.length;
+    msgEl.selectionEnd = s + w.length + sel.length;
+    msgEl.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+});
+document.getElementById("msg-emoji").addEventListener("click", () =>
+  openEmojiPicker((e) => insertAtCursor(msgEl, e)));
+document.getElementById("msg-entity").addEventListener("click", () => pickEntityInto(msgEl));
+
+const embedChk = document.getElementById("f-embed");
+function refreshEmbedOpts() {
+  document.getElementById("embed-opts").style.display = embedChk.checked ? "" : "none";
+}
+embedChk.addEventListener("change", refreshEmbedOpts);
+
+// ============================================================
+// Boutons d'action
+// ============================================================
+const btnBuilder = createHaButtonsBuilder(
+  document.getElementById("btn-builder"), () => buttons, () => updatePreview());
+document.getElementById("btn-add").addEventListener("click", () => btnBuilder.add());
+
+// ============================================================
+// Apercu (avec vraies valeurs HA)
+// ============================================================
+let resolved = null;
+
+function updatePreview() {
+  const embed = embedChk.checked;
+  const src = resolved || {
+    title: document.getElementById("f-title").value,
+    message: msgEl.value,
+    image_url: document.getElementById("f-image").value,
+  };
+  const preview = document.getElementById("preview");
+  preview.classList.toggle("plain-msg", !embed);
+  preview.style.borderLeftColor = embed ? document.getElementById("f-color").value : "transparent";
+  document.getElementById("p-title").style.display = embed && src.title ? "" : "none";
+  document.getElementById("p-title").innerHTML = renderDiscordMd(src.title || "");
+  document.getElementById("p-desc").innerHTML = renderDiscordMd(src.message || "") || '<em class="hint">(réponse vide)</em>';
+  const img = document.getElementById("p-image");
+  const url = (src.image_url || "").trim();
+  if (embed && /^https?:\/\//i.test(url)) { img.src = url; img.style.display = ""; }
+  else { img.removeAttribute("src"); img.style.display = "none"; }
+  document.getElementById("p-buttons").innerHTML = previewButtonsHtml(buttons);
+  document.getElementById("p-visibility").textContent =
+    document.getElementById("f-visibility").value === "private"
+      ? "🔒 Visible seulement par toi (message éphémère)"
+      : "👥 Visible par tout le salon";
+}
+
+function buildPayload() {
+  const fd = new FormData(form);
+  return {
+    name: (fd.get("name") || "").trim(),
+    description: (fd.get("description") || "").trim(),
+    action_type: fd.get("action_type"),
+    ha_service: fd.get("ha_service") || null,
+    ha_entity_id: fd.get("ha_entity_id") || null,
+    ha_data_json: fd.get("ha_data_json") || null,
+    notification_slug: fd.get("notification_slug") || null,
+    response_message: fd.get("response_message") || "",
+    response_ephemeral: document.getElementById("f-visibility").value === "private",
+    response_embed: embedChk.checked,
+    response_title: fd.get("response_title") || null,
+    response_color: hexToInt(fd.get("response_color")),
+    response_image_url: fd.get("response_image_url") || null,
+    buttons: cleanHaButtons(buttons),
+    list_group: (fd.get("list_group") || "").trim() || null,
+    enabled: fd.get("enabled") === "on",
+  };
+}
+
+const statusEl = document.getElementById("resolve-status");
+async function refreshResolved() {
+  const p = buildPayload();
+  if (!hasHaPlaceholder(p.response_message, p.response_title, p.response_image_url)) {
+    resolved = null; setResolveStatus(statusEl, "none"); updatePreview(); return;
+  }
+  setResolveStatus(statusEl, "loading");
+  try {
+    // Le nom/la description ne comptent pas pour l'apercu : on met des valeurs sures.
+    const r = await API.post("/commands/preview", { ...p, name: "apercu", description: "apercu" });
+    resolved = r;
+    setResolveStatus(statusEl, r.ha_ok === false ? "err" : "ok");
+  } catch { resolved = null; setResolveStatus(statusEl, "err"); }
+  updatePreview();
+}
+const scheduleResolve = debounce(refreshResolved, 700);
+form.addEventListener("input", () => { resolved = null; updatePreview(); scheduleResolve(); });
+form.addEventListener("change", () => { updatePreview(); scheduleResolve(); });
+document.getElementById("btn-refresh-preview").addEventListener("click", refreshResolved);
+
+// ============================================================
+// Listes (notifications, groupes)
+// ============================================================
 async function loadNotifSlugs() {
   const sel = document.getElementById("f-notif-slug");
   let notifs = [];
@@ -109,9 +306,8 @@ async function loadNotifSlugs() {
     const g = (n.list_group || "").trim() || "Sans groupe";
     (groups[g] = groups[g] || []).push(n);
   }
-  const names = Object.keys(groups).sort((a, b) => a.localeCompare(b));
   let html = '<option value="">— choisir une notification —</option>';
-  for (const g of names) {
+  for (const g of Object.keys(groups).sort((a, b) => a.localeCompare(b))) {
     html += `<optgroup label="${esc(g)}">`;
     for (const n of groups[g].sort((a, b) => (a.title || a.slug).localeCompare(b.title || b.slug))) {
       const label = n.title ? `${n.title} (${n.slug})` : n.slug;
@@ -122,8 +318,7 @@ async function loadNotifSlugs() {
   sel.innerHTML = html;
 }
 
-// Garantit qu'une valeur enregistree reste selectionnable meme si la notif
-// a ete supprimee/renommee depuis (sinon le select l'effacerait silencieusement).
+// Garde selectionnable une notif enregistree mais supprimee/renommee depuis.
 function ensureSlugOption(slug) {
   if (!slug) return;
   const sel = document.getElementById("f-notif-slug");
@@ -135,53 +330,67 @@ function ensureSlugOption(slug) {
   }
 }
 
+async function loadGroups() {
+  try {
+    const cmds = await API.get("/commands");
+    fillDatalist(document.getElementById("group-list"), cmds.map(c => c.list_group));
+  } catch { /* ignore */ }
+}
+
+// ============================================================
+// Chargement / enregistrement
+// ============================================================
 async function loadExisting() {
   if (!CMD_ID) return;
   try {
-    const cmds = await API.get("/commands");
-    const c = cmds.find(x => x.id === CMD_ID);
-    if (!c) throw new Error("Introuvable");
+    const c = await API.get(`/commands/${CMD_ID}`);
     document.getElementById("page-title").textContent = `Modifier /${c.name}`;
+    document.getElementById("btn-test").style.display = "";
     ensureSlugOption(c.notification_slug);
     for (const [key, val] of Object.entries(c)) {
       const el = form.elements[key];
-      if (!el) continue;
+      if (!el || !el.type) continue;
       if (el.type === "checkbox") el.checked = !!val;
+      else if (el.type === "color") el.value = colorToHex(val);
       else el.value = val ?? "";
     }
-    refreshBlocks();
+    document.getElementById("f-visibility").value = c.response_ephemeral ? "private" : "public";
+    buttons = (c.buttons || []).map(b => ({ ...b }));
   } catch (e) { toast(e.message, "error"); }
 }
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const fd = new FormData(form);
-  const payload = {
-    name: fd.get("name"),
-    description: fd.get("description"),
-    action_type: fd.get("action_type"),
-    ha_service: fd.get("ha_service") || null,
-    ha_entity_id: fd.get("ha_entity_id") || null,
-    ha_data_json: fd.get("ha_data_json") || null,
-    notification_slug: fd.get("notification_slug") || null,
-    response_message: fd.get("response_message") || "OK",
-    enabled: fd.get("enabled") === "on",
-  };
+  const payload = buildPayload();
   try {
     if (CMD_ID) await API.put(`/commands/${CMD_ID}`, payload);
     else        await API.post("/commands", payload);
-    toast("Enregistre !");
-    setTimeout(() => { window.location.href = "/commands"; }, 600);
+    toast("Enregistré ! (Discord se met à jour)");
+    setTimeout(() => { window.location.href = "/commands"; }, 700);
   } catch (err) {
     toast(err.message, "error");
   }
 });
 
-// D'abord peupler la liste des notifications, puis charger la commande existante
-// (pour que la valeur enregistree soit bien selectionnable dans le <select>).
+document.getElementById("btn-test").addEventListener("click", async () => {
+  if (!CMD_ID) return;
+  const what = actionSel.value === "message" ? "" : "\nL'action sera VRAIMENT exécutée (version enregistrée).";
+  if (!confirm("Tester la commande ?" + what)) return;
+  try {
+    const r = await API.post(`/commands/${CMD_ID}/test`);
+    toast("✅ OK — réponse : " + (r.message || r.title || "(vide)").slice(0, 120));
+  } catch (err) { toast(err.message, "error"); }
+});
+
 (async () => {
-  await loadNotifSlugs();
+  await Promise.all([loadNotifSlugs(), loadGroups()]);
   await loadExisting();
+  refreshBlocks();
+  refreshEmbedOpts();
+  btnBuilder.render();
+  bindColorPresets(document.getElementById("f-color"), document.getElementById("color-swatches"));
+  updatePreview();
+  refreshResolved();
 })();
 </script>
 {% endblock %}

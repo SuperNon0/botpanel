@@ -3,77 +3,103 @@
 
 {% block content %}
 <div class="page-header">
-  <h2>Monitoring temps reel</h2>
+  <h2>Monitoring temps reel<button type="button" class="help-dot" data-help="monitoring_fields">?</button></h2>
   <span class="card-row-meta" id="block-count">0 bloc</span>
 </div>
 
-<div class="card" style="padding: 0;">
-  <div id="block-list" data-skeleton="3"></div>
-</div>
+<div id="groups-root" data-skeleton="3"></div>
 
 <a href="/monitoring/new" class="fab" title="Nouveau bloc de monitoring">+</a>
 {% endblock %}
 
 {% block scripts %}
 <script>
-function fieldsCount(b) {
-  try {
-    const cfg = JSON.parse(b.config_json || "{}");
-    return (cfg.fields || []).length;
-  } catch { return 0; }
+let _blocks = [];
+
+function cfgOf(b) {
+  try { return JSON.parse(b.config_json || "{}"); } catch { return {}; }
+}
+
+function everyLabel(s) {
+  if (s % 3600 === 0) return `${s / 3600} h`;
+  if (s % 60 === 0) return `${s / 60} min`;
+  return `${s} s`;
+}
+
+function rowHtml(b) {
+  const cfg = cfgOf(b);
+  const nf = (cfg.fields || []).length;
+  const nb = (cfg.buttons || []).length;
+  const icon = b.icon && !/^https?:/i.test(b.icon) ? esc(b.icon) + " " : "";
+  return `
+    <div class="card-row" style="border-left:4px solid ${colorToHex(b.color ?? 0x49A0DF)};">
+      <div>
+        <div>
+          <strong>${icon}${esc(b.name)}</strong>
+          <button type="button" class="tag mini-toggle ${b.enabled ? "tag-green" : "tag-muted"}" data-toggle="${b.id}"
+                  title="Cliquer pour ${b.enabled ? "désactiver" : "activer"}">${b.enabled ? "ACTIF" : "OFF"}</button>
+        </div>
+        <div class="card-row-meta">
+          ${nf} valeur${nf > 1 ? "s" : ""}
+          ${nb ? `&nbsp;&middot;&nbsp;${nb} bouton${nb > 1 ? "s" : ""}` : ""}
+          &nbsp;&middot;&nbsp; toutes les ${everyLabel(b.interval_seconds)}
+          ${b.channel_id ? "&nbsp;&middot;&nbsp; channel #" + esc(b.channel_id) : ""}
+        </div>
+      </div>
+      <div class="row-actions">
+        <button class="btn btn-purple btn-small" data-push="${b.id}" ${b.enabled ? "" : "disabled"} title="Mettre à jour le message Discord maintenant">ACTUALISER</button>
+        <a class="btn btn-edit btn-small" href="/monitoring/${b.id}">EDITER</a>
+        <button class="btn btn-secondary btn-small" data-dup="${b.id}">CLONER</button>
+        <button class="btn btn-danger btn-small" data-del="${b.id}">SUPPR</button>
+      </div>
+    </div>`;
 }
 
 async function loadBlocks() {
-  const list = document.getElementById("block-list");
+  const root = document.getElementById("groups-root");
   const count = document.getElementById("block-count");
   try {
-    const blocks = await API.get("/monitoring");
-    count.textContent = `${blocks.length} bloc${blocks.length > 1 ? "s" : ""}`;
+    _blocks = await API.get("/monitoring");
+    count.textContent = `${_blocks.length} bloc${_blocks.length > 1 ? "s" : ""}`;
 
-    if (blocks.length === 0) {
-      list.innerHTML = emptyBox(ICONS.pulse, "Aucun bloc de monitoring",
-        "Crée un bloc pour surveiller l'état de tes entités Home Assistant.",
-        '<a class="btn btn-primary btn-small" href="/monitoring/new">+ Nouveau bloc</a>');
+    if (_blocks.length === 0) {
+      root.innerHTML = `<div class="card">` + emptyBox(ICONS.pulse, "Aucun bloc de monitoring",
+        "Crée un bloc pour afficher en direct sur Discord les valeurs de tes entités Home Assistant.",
+        '<a class="btn btn-primary btn-small" href="/monitoring/new">+ Nouveau bloc</a>') + `</div>`;
       return;
     }
-
-    list.innerHTML = blocks.map(b => {
-      const colorHex = "#" + (b.color || 0x49A0DF).toString(16).padStart(6, "0");
-      return `
-        <div class="card-row" style="border-left:4px solid ${colorHex};">
-          <div>
-            <div>
-              <strong>${b.icon ? esc(b.icon) + " " : ""}${esc(b.name)}</strong>
-              ${b.enabled ? '<span class="tag tag-green">ACTIF</span>' : '<span class="tag">OFF</span>'}
-            </div>
-            <div class="card-row-meta">
-              ${fieldsCount(b)} champ${fieldsCount(b) > 1 ? "s" : ""}
-              &nbsp;&middot;&nbsp; toutes les ${b.interval_seconds}s
-              ${b.channel_id ? "&nbsp;&middot;&nbsp; channel #" + esc(b.channel_id) : ""}
-            </div>
-          </div>
-          <div class="row-actions">
-            <a class="btn btn-edit btn-small" href="/monitoring/${b.id}">EDITER</a>
-            <button class="btn btn-danger btn-small" data-del="${b.id}">SUPPR</button>
-          </div>
-        </div>
-      `;
-    }).join("");
-
-    list.querySelectorAll("[data-del]").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        if (!confirm("Supprimer ce bloc ?")) return;
-        try {
-          await API.del(`/monitoring/${btn.dataset.del}`);
-          toast("Bloc supprime");
-          loadBlocks();
-        } catch (e) { toast(e.message, "error"); }
-      });
-    });
+    renderGroupedList(root, _blocks, b => b.list_group, rowHtml, "bp_mon_groups_closed");
   } catch (e) {
-    list.innerHTML = `<div class="empty-state">Erreur : ${esc(e.message)}</div>`;
+    root.innerHTML = `<div class="card"><div class="empty-state">Erreur : ${esc(e.message)}</div></div>`;
   }
 }
+
+document.getElementById("groups-root").addEventListener("click", async (e) => {
+  const t = e.target.closest("[data-toggle],[data-push],[data-dup],[data-del]");
+  if (!t) return;
+  try {
+    if (t.dataset.toggle) {
+      const b = _blocks.find(x => x.id === +t.dataset.toggle);
+      if (!b) return;
+      const { id, message_id, ...payload } = b;
+      await API.put(`/monitoring/${id}`, { ...payload, enabled: !b.enabled });
+      toast(b.enabled ? "Bloc désactivé" : "Bloc activé : le message Discord arrive");
+      loadBlocks();
+    } else if (t.dataset.push) {
+      await API.post(`/monitoring/${t.dataset.push}/refresh`);
+      toast("Message Discord mis à jour");
+    } else if (t.dataset.dup) {
+      const copy = await API.post(`/monitoring/${t.dataset.dup}/duplicate`);
+      toast("Bloc cloné (désactivé)");
+      window.location.href = `/monitoring/${copy.id}`;
+    } else if (t.dataset.del) {
+      if (!confirm("Supprimer ce bloc ?")) return;
+      await API.del(`/monitoring/${t.dataset.del}`);
+      toast("Bloc supprimé");
+      loadBlocks();
+    }
+  } catch (err) { toast(err.message, "error"); }
+});
 
 loadBlocks();
 </script>

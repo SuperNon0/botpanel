@@ -78,11 +78,35 @@ window.BP_HELP["command_action"] = {
     '<li><b>script</b> — exécute un script HA (<code>script.&lt;nom&gt;</code>).</li>' +
     '<li><b>scène</b> — active une scène HA.</li>' +
     '<li><b>notification</b> — envoie une notification BotPanel par son slug.</li>' +
+    '<li><b>répondre seulement</b> — aucune action, le bot répond juste (ex. afficher une température).</li>' +
     '</ul>' +
     '<div class="hbox hbox-warn">Les noms <code>ha</code> et <code>clear</code> sont réservés.</div>',
 };
 
+window.BP_HELP["command_response"] = {
+  title: "Réponse d'une commande",
+  html:
+    '<p>Ce que le bot répond quand quelqu\'un tape la commande.</p>' +
+    '<ul>' +
+    '<li><b>Valeurs en direct</b> — <code>{state:sensor.temp_salon|--}</code> est remplacé par la vraie valeur au moment de la réponse (le bouton <b>+ entité</b> l\'insère pour toi).</li>' +
+    '<li><b>Seulement moi / tout le salon</b> — réponse privée (éphémère) ou visible par tous.</li>' +
+    '<li><b>Carte</b> — titre, couleur et grande image (ex. caméra) comme une notification.</li>' +
+    '<li><b>Boutons</b> — ajoute des boutons d\'action HA sous la réponse (ex. « Éteindre »).</li>' +
+    '</ul>' +
+    '<div class="hbox hbox-tip">Type <b>Répondre seulement</b> : parfait pour une commande <code>/temperature</code> qui affiche juste des valeurs.</div>',
+};
+
 /* ---------- Monitoring ---------- */
+window.BP_HELP["monitoring_fields"] = {
+  title: "Valeurs affichées",
+  html:
+    '<ul>' +
+    '<li><b>Une entité</b> — affiche sa valeur. L\'unité HA (°C, W, %…) est ajoutée toute seule si tu laisses « Unité » vide. <b>Arrondi</b> pour éviter les 21.4567.</li>' +
+    '<li><b>Attribut</b> — lit un attribut au lieu de l\'état (ex. <code>humidity</code> d\'une météo).</li>' +
+    '<li><b>Texte libre</b> — combine plusieurs valeurs : <code>{state:sensor.temp|--} °C · {state:sensor.hum|--} %</code>, ou du Jinja HA.</li>' +
+    '</ul>' +
+    '<div class="hbox hbox-info">L\'aperçu montre les <b>vraies valeurs</b> actuelles de Home Assistant.</div>',
+};
 window.BP_HELP["monitoring_interval"] = {
   title: "Intervalle de rafraîchissement",
   html:

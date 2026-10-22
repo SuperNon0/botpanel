@@ -24,6 +24,23 @@ async def list_blocks() -> list[MonitoringBlock]:
     return await repo.list_all()
 
 
+@router.post("/preview")
+async def preview_block(payload: MonitoringBlockIn) -> dict:
+    """Rendu d'un brouillon de bloc avec les VRAIES valeurs Home Assistant.
+
+    Rien n'est envoye sur Discord : sert a l'apercu live de l'editeur.
+    """
+    from app.bot.monitoring import render_block
+    from app.ha import ha_client
+
+    try:
+        ha_ok = bool(await ha_client.ping())
+    except Exception:  # noqa: BLE001
+        ha_ok = False
+    data = await render_block(MonitoringBlock(id=0, **payload.model_dump()))
+    return {"ha_ok": ha_ok, **data}
+
+
 @router.get("/{block_id}", response_model=MonitoringBlock)
 async def get_block(block_id: int) -> MonitoringBlock:
     block = await repo.get_by_id(block_id)
@@ -46,6 +63,37 @@ async def update_block(block_id: int, payload: MonitoringBlockIn) -> MonitoringB
         raise HTTPException(404, "Bloc introuvable")
     await _refresh_task(block_id)
     return block
+
+
+@router.post("/{block_id}/refresh")
+async def refresh_block(block_id: int) -> dict:
+    """Met a jour tout de suite le message Discord du bloc."""
+    from app.bot.client import bot
+    from app.bot.monitoring import refresh_block_now
+
+    block = await repo.get_by_id(block_id)
+    if block is None:
+        raise HTTPException(404, "Bloc introuvable")
+    if not block.enabled:
+        raise HTTPException(400, "Bloc desactive : active-le pour l'envoyer sur Discord")
+    if not bot.is_ready():
+        raise HTTPException(503, "Bot Discord non connecte")
+    if not await refresh_block_now(bot, block_id):
+        raise HTTPException(500, "Mise a jour impossible (voir l'historique)")
+    return {"status": "ok"}
+
+
+@router.post("/{block_id}/duplicate", response_model=MonitoringBlock, status_code=201)
+async def duplicate_block(block_id: int) -> MonitoringBlock:
+    """Duplique un bloc (cree desactive, pour ne pas poster un 2e message tout de suite)."""
+    src = await repo.get_by_id(block_id)
+    if src is None:
+        raise HTTPException(404, "Bloc introuvable")
+    payload = MonitoringBlockIn(
+        **{**src.model_dump(exclude={"id", "message_id"}),
+           "name": f"{src.name} (copie)"[:128], "enabled": False}
+    )
+    return await repo.create(payload)
 
 
 @router.delete("/{block_id}", status_code=204, response_class=Response)

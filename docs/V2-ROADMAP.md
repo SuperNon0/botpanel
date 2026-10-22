@@ -28,6 +28,9 @@
 ## Déjà livré (voir README pour le détail)
 - Intégration **Home Assistant** (composant : boutons, capteurs, action) + clé API.
 - **Aperçu live** de l'éditeur avec vraies valeurs HA + sélecteur d'entités.
+- **Commandes / Monitoring** au niveau des notifications (vraies valeurs, boutons HA,
+  images, groupes, cloner/tester) + **Paramètres en blocs repliables** et presets
+  de couleurs créables depuis les éditeurs.
 - **Source dans l'historique** (Home Assistant / Proxmox / API / Manuel / Test).
 - Intégration **Proxmox / PBS** (webhook natif → notif, variables, couleur auto).
 - **Aide contextuelle** (« ? » → pop-up) partout, en remplacement de la page Aide.

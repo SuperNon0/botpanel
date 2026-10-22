@@ -16,13 +16,13 @@ Hébergé dans un conteneur LXC Proxmox.
 - **Notifications Discord** configurables depuis le site — HA n'a qu'un seul appel à faire (`rest_command.bot_discord` avec `id: <slug>`)
 - **Trois modes d'envoi** par notification : *Direct* (channel texte), *Thread* (fil dans un channel texte, regroupé par groupe), *Forum* (post dans un channel forum Discord)
 - **Boutons interactifs** (persistants, survivent au timeout 15 min et aux redémarrages) : Supprimer, Snooze, boutons custom appelant un service HA
-- **Commandes slash Discord** : deux commandes fixes (`/ha`, `/clear`) + commandes personnalisées entièrement gérées depuis le site (service / script / scène / notification)
-- **Monitoring temps réel** : messages épinglés édités à intervalle configurable (min. 30 s), recréés automatiquement si supprimés côté Discord
+- **Commandes slash Discord** : deux commandes fixes (`/ha`, `/clear`) + commandes personnalisées entièrement gérées depuis le site (répondre seulement / service / script / scène / notification), avec réponse contenant les **vraies valeurs HA**, en carte (titre, couleur, image), privée ou publique, et **boutons d'action HA**
+- **Monitoring temps réel** : messages épinglés édités à intervalle configurable (min. 30 s), recréés automatiquement si supprimés côté Discord, avec **aperçu des vraies valeurs**, unité HA automatique, arrondi, texte libre, images et **boutons d'action HA / « Actualiser »**
 - **Templates dans les champs** : syntaxe BotPanel (`{state:sensor.x}`, `{attr:sensor.x:attr}`, `{unit:sensor.x}`) et Jinja HA natif (`{{ states('...') }}`, `{{ state_attr(...) }}`)
 - **Texte dynamique via l'API** : variables `{var:nom}` (avec valeur par défaut `{var:nom|défaut}`) remplies par n'importe quel projet — voir [docs/API.md](docs/API.md)
 - **Images** : miniature (petite) et **grande image** (affiche), toutes deux compatibles avec les variables — idéal pour une affiche de film/série envoyée dynamiquement (Sonarr, Radarr…)
 - **Autocomplétion live** des entités HA, services HA et channels Discord dans tous les formulaires
-- **Page Paramètres** : presets de couleurs et de channels, liste des forums détectés, gestion des threads/posts actifs, mise à jour et redémarrage depuis l'UI
+- **Page Paramètres** rangée en **blocs repliables** (Général, Couleurs, Channels Discord, Intégrations, Sécurité, Sauvegarde) : presets de couleurs (créables aussi depuis les éditeurs) et channels favoris, liste des forums détectés, gestion des threads/posts actifs, mise à jour et redémarrage depuis l'UI
 - **Page Historique** : logs de tous les envois et clics de boutons, avec **origine de l'envoi** (Home Assistant / Proxmox / API / Manuel / Test), filtre et purge
 - **Intégration Home Assistant native** : composant HA officiel (boutons par notification, action `botpanel.envoyer`, capteurs d'état), sécurisé par une clé API
 - **Intégration Proxmox VE / PBS** : les backups/sync envoient leurs notifs directement à BotPanel (webhook natif), avec variables `{var:...}` et couleur auto selon le statut
@@ -53,8 +53,8 @@ Page principale. Elle liste toutes les notifications enregistrées, **groupées 
 
 Le formulaire d'édition permet de configurer :
 - **Identification** : slug, channel Discord cible, **mode d'envoi** (Direct / Thread / Forum) et nom de groupe/post selon le mode
-- **Embed** : titre, message (Markdown), couleur (sélecteur + presets), icône, footer, horodatage
-- **Boutons** : cases "Supprimer" et "Snooze N min", plus des boutons custom déclenchant un service HA au clic
+- **Embed** : titre, message (Markdown), couleur (sélecteur + **pastilles de presets**, la pastille **＋** enregistre la couleur actuelle comme nouveau preset), icône, footer, horodatage
+- **Boutons** : cases "Supprimer" et "Snooze N min", plus des boutons custom déclenchant un service HA au clic (texte + emoji, couleur, service, entité avec sélecteur 🔍, data JSON en option avancée, ordre ↑/↓)
 - **Champs** : fields Discord affichés en grille dans l'embed, avec templates d'états HA
 
 Un **aperçu live** du rendu Discord est affiché pendant l'édition. Un bouton "Tester" envoie la notification dans Discord sans sauvegarder.
@@ -63,36 +63,42 @@ Un **aperçu live** du rendu Discord est affiché pendant l'édition. Un bouton 
 
 ### Commandes (`/commands`)
 
-Gestion des commandes slash personnalisées. Chaque commande a :
-- un **nom** (identifiant Discord, lettres minuscules/chiffres/tirets, max 32 car.)
-- une **description** affichée dans Discord
-- un **type d'action** : service HA, script, scène, ou notification BotPanel
-- un **message de confirmation** éphémère envoyé à l'utilisateur après exécution
+Gestion des commandes slash personnalisées, **rangées par groupe** (repliables, comme les notifications). Sur chaque ligne : interrupteur **ON/OFF** en un clic, **Tester** (exécute l'action et montre la réponse), **Éditer**, **Cloner** (copie désactivée `<nom>-copie`) et **Supprimer**.
 
-Un compteur de quota affiche le nombre de commandes utilisées sur les 100 autorisées par Discord.
+L'éditeur est organisé en blocs :
+- **La commande** : nom (après `/`), description Discord, **groupe** (rangement sur le site), active ou non
+- **Ce que fait la commande** : *Répondre seulement* (aucune action, ex. `/temperature`), *Service HA*, *Script*, *Scène* ou *Notification BotPanel* (liste déroulante). Sélecteur d'entités 🔍 groupé par domaine
+- **Réponse sur Discord** : visible **seulement par l'auteur** ou **par tout le salon** ; message Markdown où les `{state:...}` / `{attr:...}` / Jinja HA sont remplacés par les **vraies valeurs** au moment de la réponse (bouton **+ entité**) ; option **carte** (titre, couleur avec presets, grande image)
+- **Aperçu live** avec les valeurs HA réelles (voyant 🟢/🔴)
+- **Boutons sous la réponse** : boutons d'action HA (ex. « Éteindre »)
+
+Les utilisations des commandes et les clics sur leurs boutons sont tracés dans l'**Historique** (type « Commandes / »). Un compteur affiche le quota utilisé sur les 100 commandes autorisées par Discord ; les noms `ha` et `clear` sont refusés.
 
 ### Monitoring (`/monitoring`)
 
-Gestion des blocs de monitoring — des messages épinglés qui se mettent à jour automatiquement dans un channel Discord à intervalle régulier.
+Gestion des blocs de monitoring — des messages épinglés qui se mettent à jour automatiquement dans un channel Discord à intervalle régulier. La liste est **rangée par groupe** ; chaque bloc a un interrupteur **ACTIF/OFF**, **Actualiser** (met le message Discord à jour tout de suite), **Éditer**, **Cloner** (copie désactivée) et **Supprimer**.
 
 Chaque bloc expose :
-- un **nom**, une **couleur** et une **icône**
-- le **channel Discord** cible et l'**intervalle de rafraîchissement** (min. 30 s)
-- une liste de **champs** pointant vers des entités HA (état, attribut, suffix, inline)
+- un **nom** (placeholders acceptés), une **icône** (emoji, ou URL → miniature), une **couleur** (pastilles de presets) et un **groupe**
+- le **channel Discord** cible (favoris ★ en tête) et le **rythme** (30 s, 1 min, 5 min… ou valeur libre, min. 30 s)
+- un **texte sous le titre**, une **miniature**, une **grande image** (URLs avec placeholders, ex. caméra), un footer et l'heure de mise à jour
+- des **valeurs affichées**, chacune soit **une entité** (état ou attribut, **unité HA ajoutée automatiquement** si le suffixe est vide, **arrondi** 0/1/2 décimales, entité indisponible → « indisponible »), soit un **texte libre** combinant plusieurs placeholders (`{state:sensor.temp|--} °C · {state:sensor.hum|--} %`)
+- des **boutons** sous le message : actions HA et « 🔄 Actualiser » ; après un clic, le bloc est **re-rendu tout de suite** avec le nouvel état
+
+L'**aperçu** de l'éditeur affiche les **vraies valeurs** actuelles de Home Assistant (endpoint `POST /api/monitoring/preview`, sans rien envoyer sur Discord) — avant, il n'affichait que le nom des entités.
 
 Le bot crée le message épinglé au premier cycle et ne fait que l'éditer ensuite. Si le message est supprimé manuellement sur Discord, il est recréé au cycle suivant.
 
 ### Paramètres (`/settings`)
 
-- **Mise à jour** : affiche la branche et le commit git courants ; un bouton lance un `git pull` + réinstallation des dépendances + redémarrage automatique du service (la page se recharge quand le bot revient)
-- **Couleurs préconfigurées** : palette de couleurs nommées disponibles dans le sélecteur rapide du formulaire notification
-- **Channels Discord préconfigurés** : liste de channels avec leurs IDs, affichés dans la liste déroulante du formulaire ; un tableau des channels détectés par le bot permet de les ajouter en un clic
-- **Channels forum détectés** : liste des channels forum accessibles par le bot, utilisables comme destination en mode *Forum*
-- **Threads / Posts actifs** : liste tous les fils et posts créés automatiquement ; bouton "Réinitialiser" par entrée pour forcer la recréation au prochain envoi
-- **Sauvegarde & migration** : export/import JSON de toute la configuration
-- **Compte & sécurité** : activer/changer/désactiver le mot de passe admin (LAN)
-- **Cloudflare / Accès** : équipe + AUD + bouton **Tester**, et l'option « accès uniquement Cloudflare »
-- **API / Intégration** : clé API (copier / régénérer) pour le composant Home Assistant + diagnostic « l'intégration marche ? »
+La page est rangée en **blocs repliables** (clic sur le titre pour ouvrir/fermer, bouton « Tout ouvrir », l'état est mémorisé dans le navigateur, lien direct possible : `/settings#colors`, `#discord`…) :
+
+- **🏠 Général** : URL d'accueil ; **Mise à jour** (branche/commit git, bouton `git pull` + réinstallation + redémarrage automatique)
+- **🎨 Couleurs** : presets de couleurs nommés, affichés en **pastilles** dans tous les éditeurs ; on peut aussi en créer un directement depuis un éditeur (pastille **＋**)
+- **💬 Channels Discord** : **channels favoris** (nom + ID, proposés en tête ★ dans les éditeurs, ajout en un clic via « ★ Favori » sur un channel détecté), channels texte et forum détectés par le bot, **threads / posts actifs** (bouton « Réinitialiser » pour forcer la recréation)
+- **🔌 Intégrations** : clé API (copier / régénérer) pour le composant Home Assistant + diagnostic, et serveur **MCP** pour Claude
+- **🔒 Compte & sécurité** : mot de passe admin (LAN) et **Cloudflare / Accès** (équipe + AUD + **Tester**, option « accès uniquement Cloudflare »)
+- **💾 Sauvegarde** : export/import JSON de toute la configuration
 
 ### Historique (`/historique`)
 
@@ -120,10 +126,11 @@ Nécessite la permission `Manage Messages` côté utilisateur **et** côté bot.
 
 ### Commandes personnalisées
 
-Créées et gérées depuis `/commands` sur le site. Elles sont synchronisées sur la guild instantanément à chaque modification. Quatre types d'action disponibles :
+Créées et gérées depuis `/commands` sur le site. Elles sont synchronisées sur la guild instantanément à chaque modification. Cinq types d'action disponibles :
 
 | Type | Comportement |
 |------|-------------|
+| `message` | Aucune action : la commande répond seulement (ex. `/temperature` qui affiche `{state:sensor.temp_salon}`) |
 | `service` | Appelle `domain.action` avec entity et data optionnels |
 | `script` | Exécute un script HA (`script.<nom>`) |
 | `scene` | Active une scène HA (`scene.turn_on`) |
@@ -202,10 +209,17 @@ activée), pour ne jamais bloquer tes intégrations.
 | `PUT` | `/api/commands/{id}` | Modifie une commande slash |
 | `DELETE` | `/api/commands/{id}` | Supprime une commande slash |
 | `GET` | `/api/commands/quota` | Quota Discord (max 100) |
+| `GET` | `/api/commands/{id}` | Détail d'une commande |
+| `POST` | `/api/commands/{id}/test` | Exécute l'action de la commande et renvoie sa réponse (valeurs réelles) |
+| `POST` | `/api/commands/{id}/duplicate` | Clone une commande (désactivée) |
+| `POST` | `/api/commands/preview` | Réponse d'un brouillon avec les vraies valeurs HA (rien n'est exécuté) |
 | `GET` | `/api/monitoring` | Liste les blocs de monitoring |
 | `POST` | `/api/monitoring` | Crée un bloc |
 | `PUT` | `/api/monitoring/{id}` | Modifie un bloc |
 | `DELETE` | `/api/monitoring/{id}` | Supprime un bloc |
+| `POST` | `/api/monitoring/preview` | Rendu d'un brouillon de bloc avec les vraies valeurs HA (sans envoi) |
+| `POST` | `/api/monitoring/{id}/refresh` | Met à jour tout de suite le message Discord du bloc |
+| `POST` | `/api/monitoring/{id}/duplicate` | Clone un bloc (désactivé) |
 | `GET` | `/api/ha/entities?domain=light` | Entités HA (autocomplétion, filtrable par domaine) |
 | `GET` | `/api/ha/services` | Services HA (autocomplétion) |
 | `GET` | `/api/ha/ping` | Vérifie la connectivité avec HA |
@@ -214,6 +228,7 @@ activée), pour ne jamais bloquer tes intégrations.
 | `GET` | `/api/discord/forum-posts?channel_id=X` | Posts actifs d'un channel forum |
 | `GET` | `/api/settings/colors` | Presets de couleurs sauvegardés |
 | `PUT` | `/api/settings/colors` | Enregistre les presets de couleurs |
+| `POST` | `/api/settings/colors` | Ajoute un preset de couleur (même nom = remplacé) |
 | `GET` | `/api/settings/channels` | Presets de channels sauvegardés |
 | `PUT` | `/api/settings/channels` | Enregistre les presets de channels |
 | `GET` | `/api/settings/threads` | Liste les threads Discord actifs |

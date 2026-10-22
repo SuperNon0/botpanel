@@ -7,16 +7,21 @@
   <a href="/monitoring" class="btn btn-secondary">Retour</a>
 </div>
 
+<p class="hint" style="margin:-0.3rem 0 1rem;">
+  Un bloc = un message épinglé sur Discord qui se met à jour tout seul avec les <strong>vraies valeurs</strong>
+  de Home Assistant (températures, conso, état des portes…).
+</p>
+
 <form id="block-form">
   <div class="card">
-    <h3>Identification</h3>
+    <h3>Le bloc</h3>
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">Nom du bloc</label>
-        <input class="form-input" name="name" required maxlength="128" id="f-name" placeholder="Meteo, Conso, Temperatures...">
+        <label class="form-label">Nom (titre du message)</label>
+        <input class="form-input" name="name" required maxlength="128" id="f-name" placeholder="Météo, Conso, Températures...">
       </div>
       <div class="form-group">
-        <label class="form-label">Icone (emoji ou URL)</label>
+        <label class="form-label">Icône (emoji ou URL d'image)</label>
         <div style="display:flex; gap:0.4rem;">
           <input class="form-input" name="icon" id="f-icon" placeholder="🌡️ ou https://..." style="flex:1;">
           <button type="button" class="md-btn" id="icon-pick">😀</button>
@@ -25,57 +30,118 @@
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">Couleur</label>
-        <div class="color-row">
-          <input type="color" name="color" id="f-color" value="#49a0df">
-          <select class="form-select" id="color-presets" style="flex:1;">
-            <option value="">— Preset —</option>
-          </select>
-        </div>
-        <div class="form-hint"><a href="/settings">Gerer les presets</a></div>
+        <label class="form-label">Groupe (rangement sur le site)<button type="button" class="help-dot" data-help="list_group">?</button></label>
+        <input class="form-input" name="list_group" list="group-list" maxlength="64" placeholder="Maison / Serveurs …">
+        <datalist id="group-list"></datalist>
       </div>
+      <div class="form-group" style="display:flex; align-items:flex-end;">
+        <label class="form-checkbox"><input type="checkbox" name="enabled"> Bloc actif (envoie / met à jour le message Discord)</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Où et à quel rythme</h3>
+    <div class="form-row">
       <div class="form-group">
         <label class="form-label">Channel Discord</label>
         <select class="form-select" id="channel-select"></select>
         <input class="form-input" name="channel_id" id="f-channel-id" inputmode="numeric"
                placeholder="vide = channel monitoring du .env" style="margin-top:0.4rem;">
       </div>
+      <div class="form-group">
+        <label class="form-label">Mise à jour toutes les<button type="button" class="help-dot" data-help="monitoring_interval">?</button></label>
+        <select class="form-select" id="f-interval-preset">
+          <option value="30">30 secondes</option>
+          <option value="60">1 minute</option>
+          <option value="300">5 minutes</option>
+          <option value="900">15 minutes</option>
+          <option value="1800">30 minutes</option>
+          <option value="3600">1 heure</option>
+          <option value="custom">Autre (en secondes)…</option>
+        </select>
+        <input class="form-input" name="interval_seconds" id="f-interval" type="number" min="30" value="300"
+               style="margin-top:0.4rem; display:none;">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Apparence</h3>
+    <div class="form-group">
+      <label class="form-label">Texte sous le titre (optionnel)<button type="button" class="help-dot" data-help="placeholders">?</button></label>
+      <div class="md-toolbar">
+        <button type="button" class="md-btn" id="desc-emoji" title="Inserer un emoji">😀</button>
+        <button type="button" class="md-btn" id="desc-entity" title="Inserer la valeur d'une entite HA">+ entité</button>
+      </div>
+      <textarea class="form-textarea" id="f-desc" rows="2" maxlength="4000" placeholder="Dernière alerte : {state:sensor.alerte|aucune}"></textarea>
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">Intervalle (secondes)<button type="button" class="help-dot" data-help="monitoring_interval">?</button></label>
-        <input class="form-input" name="interval_seconds" type="number" min="30" value="300">
+        <label class="form-label">Couleur</label>
+        <input type="color" name="color" id="f-color" value="#49a0df">
+        <div class="swatches" id="color-swatches"></div>
       </div>
       <div class="form-group">
         <label class="form-label">Footer</label>
         <input class="form-input" name="footer" id="f-footer" placeholder="Mise a jour">
+        <label class="form-checkbox" style="margin-top:0.5rem;"><input type="checkbox" id="f-ts" checked> Afficher l'heure de mise à jour</label>
       </div>
     </div>
-    <div class="form-group">
-      <label class="form-checkbox">
-        <input type="checkbox" name="enabled"> Bloc actif (envoie/met a jour le message Discord)
-      </label>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Miniature (petite image, URL)</label>
+        <input class="form-input" id="f-thumb" placeholder="https://.../icone.png">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Grande image (URL)</label>
+        <input class="form-input" id="f-image" placeholder="https://.../camera.jpg">
+        <div class="form-hint">Les deux acceptent les placeholders HA (ex. image d'une caméra).</div>
+      </div>
     </div>
   </div>
 
   <div class="card">
-    <h3>Apercu</h3>
+    <div class="card-head">
+      <h3>Aperçu</h3>
+      <div style="display:flex; align-items:center; gap:0.6rem;">
+        <span id="resolve-status" class="hint" style="margin:0;"></span>
+        <button type="button" class="btn btn-secondary btn-small" id="btn-refresh-preview"
+                title="Récupérer les vraies valeurs Home Assistant">🔄 Valeurs HA</button>
+      </div>
+    </div>
     <div class="embed-preview" id="preview">
+      <img id="p-thumb" alt="" style="display:none; float:right; width:64px; height:64px; object-fit:cover; border-radius:6px; margin-left:0.6rem;">
       <div class="embed-title" id="p-title">Titre</div>
-      <div class="embed-fields" id="p-fields" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:0.6rem; margin-top:0.6rem;"></div>
-      <div class="embed-footer" id="p-footer" style="margin-top:0.6rem;"></div>
+      <div class="embed-desc" id="p-desc"></div>
+      <div class="embed-fields" id="p-fields"></div>
+      <img id="p-image" alt="" style="display:none; max-width:100%; border-radius:6px; margin:0.5rem 0;">
+      <div class="embed-footer-row">
+        <span class="embed-footer" id="p-footer"></span>
+        <span class="embed-ts" id="p-ts"></span>
+      </div>
+      <div class="embed-buttons" id="p-buttons"></div>
     </div>
   </div>
 
   <div class="card">
-    <h3>Champs (entites HA suivies)</h3>
-    <p class="hint">Chaque champ affiche la valeur actuelle d'une entite HA. Tu peux preciser un attribut (ex: <code>humidity</code> pour un capteur Netatmo).</p>
+    <h3>Valeurs affichées<button type="button" class="help-dot" data-help="monitoring_fields">?</button></h3>
+    <p class="hint">Chaque ligne affiche la valeur d'une entité HA, ou un texte libre avec plusieurs valeurs (ex. <code>{state:sensor.temp|--} °C · {state:sensor.hum|--} %</code>).</p>
     <div class="buttons-builder" id="fields-builder"></div>
-    <button type="button" class="btn btn-secondary" id="field-add" style="margin-top: 0.8rem;">+ Ajouter un champ</button>
+    <button type="button" class="btn btn-secondary" id="field-add" style="margin-top: 0.8rem;">+ Ajouter une valeur</button>
   </div>
 
-  <div style="display:flex; gap:0.7rem; justify-content:flex-end;">
+  <div class="card">
+    <h3>Boutons sous le message<button type="button" class="help-dot" data-help="buttons">?</button></h3>
+    <label class="form-checkbox" style="margin-bottom:0.8rem;"><input type="checkbox" id="f-refresh-btn"> Bouton « 🔄 Actualiser » (met le bloc à jour tout de suite)</label>
+    <p class="hint">Boutons d'action Home Assistant : après un clic, le bloc se met à jour pour montrer le nouvel état.</p>
+    <div class="buttons-builder" id="btn-builder"></div>
+    <button type="button" class="btn btn-secondary" id="btn-add" style="margin-top: 0.8rem;">+ Ajouter un bouton</button>
+  </div>
+
+  <div style="display:flex; gap:0.7rem; justify-content:flex-end; flex-wrap:wrap;">
     <a href="/monitoring" class="btn btn-secondary">Annuler</a>
+    <button type="button" class="btn btn-purple" id="btn-push" style="display:none;">Mettre à jour Discord maintenant</button>
     <button type="submit" class="btn btn-primary">Enregistrer</button>
   </div>
 </form>
@@ -85,159 +151,278 @@
 <script>
 const BLOCK_ID = {% if block_id %}{{ block_id }}{% else %}null{% endif %};
 const form = document.getElementById("block-form");
-const builder = document.getElementById("fields-builder");
+const fieldsRoot = document.getElementById("fields-builder");
 
 let fields = [];
+let buttons = [];
+
+function newField() {
+  return { label: "", icon: "", entity_id: "", attribute: "", suffix: "", decimals: "", value_template: "", inline: true };
+}
+
+// ============================================================
+// Champs (valeurs affichees)
+// ============================================================
+function fieldMode(f) {
+  return f._mode || ((f.value_template || "").trim() ? "text" : "entity");
+}
 
 function renderFields() {
-  builder.innerHTML = fields.map((f, i) => `
-    <div class="button-row" data-idx="${i}">
-      <div>
-        <label class="form-label">Label</label>
-        <input class="form-input" data-k="label" value="${esc(f.label || '')}" placeholder="Temperature">
-        <label class="form-label" style="margin-top:0.4rem;">Icone (emoji)</label>
-        <div style="display:flex; gap:0.3rem;">
-          <input class="form-input" data-k="icon" value="${esc(f.icon || '')}" placeholder="🌡️" style="flex:1;">
-          <button type="button" class="md-btn" data-emoji-for="${i}">😀</button>
+  fieldsRoot.innerHTML = fields.map((f, i) => {
+    const mode = fieldMode(f);
+    return `
+    <div class="mon-field" data-idx="${i}">
+      <div class="seg">
+        <button type="button" data-mode="entity" class="${mode === "entity" ? "active" : ""}">📊 Une entité</button>
+        <button type="button" data-mode="text" class="${mode === "text" ? "active" : ""}">✏️ Texte libre</button>
+      </div>
+      <div class="mon-field-grid">
+        <div>
+          <label class="form-label">Libellé</label>
+          <div style="display:flex; gap:0.3rem;">
+            <input class="form-input" data-k="icon" value="${esc(f.icon || "")}" placeholder="🌡️" style="width:3.2rem; text-align:center;">
+            <input class="form-input" data-k="label" value="${esc(f.label || "")}" placeholder="Température" style="flex:1;">
+            <button type="button" class="md-btn" data-emoji title="Choisir un emoji">😀</button>
+          </div>
+        </div>
+        ${mode === "entity" ? `
+        <div>
+          <label class="form-label">Entité HA</label>
+          <div style="display:flex; gap:0.3rem;">
+            <input class="form-input ha-entity-input" data-k="entity_id" value="${esc(f.entity_id || "")}" placeholder="sensor.temp_salon" style="flex:1;">
+            <button type="button" class="md-btn" data-pick title="Choisir une entité">🔍</button>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Attribut (optionnel)</label>
+          <input class="form-input" data-k="attribute" value="${esc(f.attribute || "")}" placeholder="humidity">
+        </div>
+        <div>
+          <label class="form-label">Unité / suffixe</label>
+          <input class="form-input" data-k="suffix" value="${esc(f.suffix || "")}" placeholder="auto (unité HA)">
+        </div>
+        <div>
+          <label class="form-label">Arrondi</label>
+          <select class="form-select" data-k="decimals">
+            ${[["", "Tel quel"], ["0", "0 décimale"], ["1", "1 décimale"], ["2", "2 décimales"]].map(([v, l]) =>
+              `<option value="${v}" ${String(f.decimals ?? "") === v ? "selected" : ""}>${l}</option>`).join("")}
+          </select>
+        </div>` : `
+        <div style="grid-column: span 2;">
+          <label class="form-label">Valeur (texte + placeholders HA)</label>
+          <div style="display:flex; gap:0.3rem;">
+            <input class="form-input" data-k="value_template" value="${esc(f.value_template || "")}" placeholder="{state:sensor.temp|--} °C" style="flex:1;">
+            <button type="button" class="md-btn" data-insert title="Insérer une entité">+ entité</button>
+          </div>
+        </div>`}
+        <div style="display:flex; align-items:flex-end;">
+          <label class="form-checkbox"><input type="checkbox" data-k="inline" ${f.inline !== false ? "checked" : ""}> En grille (côte à côte)</label>
         </div>
       </div>
-      <div>
-        <label class="form-label">Entite HA</label>
-        <input class="form-input ha-entity-input" data-k="entity_id" value="${esc(f.entity_id || '')}" placeholder="sensor.temp_salon">
-        <label class="form-label" style="margin-top:0.4rem;">Attribut (optionnel)</label>
-        <input class="form-input" data-k="attribute" value="${esc(f.attribute || '')}" placeholder="humidity">
+      <div class="ha-btn-tools">
+        <button type="button" class="md-btn" data-up ${i === 0 ? "disabled" : ""} title="Monter">↑</button>
+        <button type="button" class="md-btn" data-down ${i === fields.length - 1 ? "disabled" : ""} title="Descendre">↓</button>
+        <button type="button" class="btn btn-danger btn-small" data-remove>Retirer</button>
       </div>
-      <div>
-        <label class="form-label">Suffixe</label>
-        <input class="form-input" data-k="suffix" value="${esc(f.suffix || '')}" placeholder="°C">
-        <label class="form-checkbox" style="margin-top:0.6rem;">
-          <input type="checkbox" data-k="inline" ${f.inline !== false ? "checked" : ""}> En grille (inline)
-        </label>
-      </div>
-      <button type="button" class="btn btn-danger btn-small" data-remove="${i}">X</button>
-    </div>
-  `).join("");
+    </div>`;
+  }).join("") || `<div class="hint" style="margin:0;">Aucune valeur pour l'instant.</div>`;
 
-  builder.querySelectorAll(".button-row").forEach(row => {
+  fieldsRoot.querySelectorAll(".mon-field").forEach(row => {
     const idx = +row.dataset.idx;
+    const f = fields[idx];
     row.querySelectorAll("[data-k]").forEach(inp => {
       const sync = () => {
-        const v = inp.type === "checkbox" ? inp.checked : inp.value;
-        fields[idx][inp.dataset.k] = v;
-        updatePreview();
+        f[inp.dataset.k] = inp.type === "checkbox" ? inp.checked : inp.value;
+        changed();
       };
       inp.addEventListener("input", sync);
       inp.addEventListener("change", sync);
     });
+    row.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click", () => {
+      f._mode = b.dataset.mode;
+      // Passage entite -> texte : on pre-remplit avec l'entite choisie.
+      if (f._mode === "text" && !f.value_template && f.entity_id) {
+        f.value_template = `{state:${f.entity_id}|--}` + (f.suffix ? " " + f.suffix : "");
+      }
+      if (f._mode === "entity") f.value_template = "";
+      renderFields(); changed();
+    }));
+    row.querySelector("[data-emoji]").addEventListener("click", () =>
+      openEmojiPicker((e) => {
+        const inp = row.querySelector('[data-k="icon"]');
+        inp.value = e;
+        inp.dispatchEvent(new Event("input", { bubbles: true }));
+      }));
+    const pick = row.querySelector("[data-pick]");
+    if (pick) pick.addEventListener("click", () =>
+      openEntityPicker(async (eid) => {
+        f.entity_id = eid;
+        // Libelle vide : on reprend le nom HA de l'entite.
+        if (!f.label) {
+          const ent = (await loadEntities()).find(e => e.entity_id === eid);
+          if (ent && ent.friendly_name) f.label = ent.friendly_name;
+        }
+        renderFields(); changed();
+      }, "Entité dont la valeur sera affichée."));
+    const ins = row.querySelector("[data-insert]");
+    if (ins) ins.addEventListener("click", () => pickEntityInto(row.querySelector('[data-k="value_template"]')));
+    const move = (d) => { const [it] = fields.splice(idx, 1); fields.splice(idx + d, 0, it); renderFields(); changed(); };
+    row.querySelector("[data-up]").addEventListener("click", () => move(-1));
+    row.querySelector("[data-down]").addEventListener("click", () => move(1));
+    row.querySelector("[data-remove]").addEventListener("click", () => { fields.splice(idx, 1); renderFields(); changed(); });
+    const ent = row.querySelector(".ha-entity-input");
+    if (ent) attachAutocomplete(ent, "/ha/entities", it => it.friendly_name, it => it.entity_id);
   });
-  builder.querySelectorAll("[data-remove]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      fields.splice(+btn.dataset.remove, 1);
-      renderFields();
-      updatePreview();
-    });
-  });
-
-  builder.querySelectorAll(".ha-entity-input").forEach(inp =>
-    attachAutocomplete(inp, "/ha/entities",
-      it => it.friendly_name, it => it.entity_id));
-
-  // Bouton emoji par field (cible le champ data-k="icon" du meme bloc)
-  builder.querySelectorAll("[data-emoji-for]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const idx = +btn.dataset.emojiFor;
-      const inp = builder.querySelector(`[data-idx="${idx}"] [data-k="icon"]`);
-      openEmojiPicker((e) => insertAtCursor(inp, e));
-    });
-  });
-
-  updatePreview();
 }
 
 document.getElementById("field-add").addEventListener("click", () => {
-  fields.push({ label: "", icon: "", entity_id: "", attribute: "", suffix: "", inline: true });
-  renderFields();
+  fields.push(newField());
+  renderFields(); changed();
 });
 
-// --- Apercu live ---
+// ============================================================
+// Boutons
+// ============================================================
+const btnBuilder = createHaButtonsBuilder(document.getElementById("btn-builder"), () => buttons, () => changed());
+document.getElementById("btn-add").addEventListener("click", () => btnBuilder.add());
+
+// ============================================================
+// Intervalle (raccourcis)
+// ============================================================
+const intPreset = document.getElementById("f-interval-preset");
+const intInput = document.getElementById("f-interval");
+function syncIntervalPreset() {
+  const v = String(parseInt(intInput.value || "300", 10));
+  const known = [...intPreset.options].some(o => o.value === v);
+  intPreset.value = known ? v : "custom";
+  intInput.style.display = known ? "none" : "";
+}
+intPreset.addEventListener("change", () => {
+  if (intPreset.value === "custom") { intInput.style.display = ""; intInput.focus(); }
+  else { intInput.value = intPreset.value; intInput.style.display = "none"; }
+});
+
+// ============================================================
+// Payload + apercu avec les VRAIES valeurs HA
+// ============================================================
+function buildPayload() {
+  const fd = new FormData(form);
+  const config = {
+    description: document.getElementById("f-desc").value || "",
+    thumbnail_url: document.getElementById("f-thumb").value.trim(),
+    image_url: document.getElementById("f-image").value.trim(),
+    show_timestamp: document.getElementById("f-ts").checked,
+    refresh_button: document.getElementById("f-refresh-btn").checked,
+    buttons: cleanHaButtons(buttons),
+    fields: fields.map(f => {
+      const text = fieldMode(f) === "text";
+      return {
+        label: f.label || "",
+        icon: f.icon || "",
+        entity_id: text ? "" : (f.entity_id || "").trim(),
+        attribute: text ? null : ((f.attribute || "").trim() || null),
+        suffix: text ? "" : (f.suffix || ""),
+        decimals: text || f.decimals === "" || f.decimals == null ? null : parseInt(f.decimals, 10),
+        value_template: text ? (f.value_template || "") : "",
+        inline: f.inline !== false,
+      };
+    }),
+  };
+  return {
+    name: (fd.get("name") || "").trim() || "Bloc",
+    icon: fd.get("icon") || null,
+    color: hexToInt(fd.get("color")),
+    enabled: fd.get("enabled") === "on",
+    channel_id: (fd.get("channel_id") || "").trim() || null,
+    interval_seconds: Math.max(30, parseInt(fd.get("interval_seconds") || "300", 10) || 300),
+    footer: fd.get("footer") || null,
+    list_group: (fd.get("list_group") || "").trim() || null,
+    config_json: JSON.stringify(config),
+  };
+}
+
+let rendered = null;      // dernier rendu serveur (valeurs HA reelles)
+let lastRendered = null;  // garde les dernieres valeurs pendant la frappe
+
+// Rendu local de secours (avant / sans reponse du serveur).
+function localRender(p) {
+  const cfg = JSON.parse(p.config_json);
+  const icon = (p.icon || "").trim();
+  const isUrl = /^https?:\/\//i.test(icon);
+  return {
+    title: (icon && !isUrl ? icon + "  " : "") + p.name,
+    description: cfg.description,
+    fields: cfg.fields.map((f, i) => {
+      const prev = lastRendered && lastRendered.fields && lastRendered.fields[i];
+      return {
+        name: (f.icon ? f.icon + " " : "") + (f.label || f.entity_id || "Champ"),
+        value: prev ? prev.value : (f.value_template || (f.entity_id ? `⏳ ${f.entity_id}` : "—")),
+        inline: f.inline,
+      };
+    }),
+    footer: p.footer || "Mise a jour",
+    show_timestamp: cfg.show_timestamp,
+    thumbnail_url: cfg.thumbnail_url || (isUrl ? icon : ""),
+    image_url: cfg.image_url,
+    buttons: cfg.buttons,
+    refresh_button: cfg.refresh_button,
+  };
+}
+
 function updatePreview() {
-  const title = document.getElementById("f-name").value || "Titre";
-  const icon = document.getElementById("f-icon").value;
-  document.getElementById("p-title").textContent = (icon ? icon + "  " : "") + title;
-  document.getElementById("p-footer").textContent = document.getElementById("f-footer").value || "Mise a jour";
+  const p = buildPayload();
+  const r = rendered || localRender(p);
   document.getElementById("preview").style.borderLeftColor = document.getElementById("f-color").value;
-
-  document.getElementById("p-fields").innerHTML = fields.map(f => {
-    const label = (f.icon ? f.icon + " " : "") + (f.label || "Field");
-    const v = f.entity_id ? `<em>${esc(f.entity_id)}</em> ${esc(f.suffix || "")}` : "—";
-    return `<div><div class="card-row-meta">${esc(label)}</div><div><strong>${v}</strong></div></div>`;
-  }).join("");
+  document.getElementById("p-title").innerHTML = renderDiscordMd(r.title || "Titre");
+  document.getElementById("p-desc").innerHTML = renderDiscordMd(r.description || "");
+  document.getElementById("p-fields").innerHTML = (r.fields || []).map(f => `
+    <div class="embed-field ${f.inline !== false ? "inline" : ""}">
+      <div class="embed-field-name">${renderDiscordMd(f.name || "")}</div>
+      <div class="embed-field-val">${renderDiscordMd(f.value || "")}</div>
+    </div>`).join("") || (r.description ? "" : '<em class="hint">Aucune valeur configurée.</em>');
+  document.getElementById("p-footer").textContent = r.footer || "";
+  document.getElementById("p-ts").textContent = r.show_timestamp ? " · " + formatTsFr(new Date()) : "";
+  const setImg = (id, url) => {
+    const img = document.getElementById(id);
+    if (url && /^https?:\/\//i.test(url)) { img.src = url; img.style.display = ""; }
+    else { img.removeAttribute("src"); img.style.display = "none"; }
+  };
+  setImg("p-thumb", r.thumbnail_url);
+  setImg("p-image", r.image_url);
+  document.getElementById("p-buttons").innerHTML =
+    previewButtonsHtml(r.buttons, r.refresh_button ? ["🔄 Actualiser"] : []);
 }
 
-["f-name", "f-icon", "f-footer", "f-color"].forEach(id =>
-  document.getElementById(id).addEventListener("input", updatePreview));
-
-// Emoji picker pour l'icone du bloc
-document.getElementById("icon-pick").addEventListener("click", () => {
-  openEmojiPicker((e) => insertAtCursor(document.getElementById("f-icon"), e));
-});
-
-// --- Channels Discord (presets + bot) ---
-async function bindChannelSelect() {
-  const sel = document.getElementById("channel-select");
-  const idIn = document.getElementById("f-channel-id");
-  const [presets, botCh] = await Promise.all([
-    API.get("/settings/channels").catch(() => []),
-    API.get("/discord/channels").catch(() => []),
-  ]);
-  const opts = ['<option value="">— canal monitoring du .env —</option>'];
-  if (presets.length) {
-    opts.push('<optgroup label="Preconfigures">');
-    presets.forEach(p => opts.push(
-      `<option value="${esc(p.channel_id)}">${esc(p.name)} (${esc(p.channel_id)})</option>`
-    ));
-    opts.push('</optgroup>');
-  }
-  if (botCh.length) {
-    opts.push('<optgroup label="Detectes par le bot">');
-    botCh.forEach(c => opts.push(
-      `<option value="${esc(c.id)}"># ${esc(c.name)}${c.category ? " — " + esc(c.category) : ""}</option>`
-    ));
-    opts.push('</optgroup>');
-  }
-  sel.innerHTML = opts.join("");
-  sel.addEventListener("change", () => {
-    if (sel.value) idIn.value = sel.value;
-  });
-  if (idIn.value) sel.value = idIn.value;
+const statusEl = document.getElementById("resolve-status");
+async function refreshRendered() {
+  setResolveStatus(statusEl, "loading");
+  try {
+    rendered = await API.post("/monitoring/preview", buildPayload());
+    lastRendered = rendered;
+    setResolveStatus(statusEl, rendered.ha_ok === false ? "err" : "ok");
+  } catch { rendered = null; setResolveStatus(statusEl, "err"); }
+  updatePreview();
 }
+const scheduleRender = debounce(refreshRendered, 700);
+function changed() { rendered = null; updatePreview(); scheduleRender(); }
+form.addEventListener("input", (e) => { if (!e.target.closest(".mon-field, .ha-btn-row")) changed(); });
+form.addEventListener("change", (e) => { if (!e.target.closest(".mon-field, .ha-btn-row")) changed(); });
+document.getElementById("btn-refresh-preview").addEventListener("click", refreshRendered);
 
-// --- Couleur : presets ---
-async function bindColorPresets() {
-  const sel = document.getElementById("color-presets");
-  const colorIn = document.getElementById("f-color");
-  let presets = [];
-  try { presets = await API.get("/settings/colors"); } catch { presets = []; }
-  presets.forEach(p => {
-    const hex = "#" + (p.color & 0xFFFFFF).toString(16).padStart(6, "0");
-    const opt = document.createElement("option");
-    opt.value = hex;
-    opt.textContent = `${p.name} (${hex})`;
-    sel.appendChild(opt);
-  });
-  sel.addEventListener("change", () => {
-    if (sel.value) {
-      colorIn.value = sel.value;
-      colorIn.dispatchEvent(new Event("input", { bubbles: true }));
-    }
-  });
-}
+// Emoji / entites dans les champs de l'apparence
+document.getElementById("icon-pick").addEventListener("click", () =>
+  openEmojiPicker((e) => insertAtCursor(document.getElementById("f-icon"), e)));
+document.getElementById("desc-emoji").addEventListener("click", () =>
+  openEmojiPicker((e) => insertAtCursor(document.getElementById("f-desc"), e)));
+document.getElementById("desc-entity").addEventListener("click", () =>
+  pickEntityInto(document.getElementById("f-desc")));
 
-// --- Chargement si edition ---
+// ============================================================
+// Chargement / enregistrement
+// ============================================================
 async function loadExisting() {
   if (!BLOCK_ID) {
-    renderFields();
-    updatePreview();
+    fields = [newField()];
     return;
   }
   try {
@@ -245,66 +430,63 @@ async function loadExisting() {
     document.getElementById("page-title").textContent = `Modifier — ${b.name}`;
     form.elements["name"].value = b.name || "";
     form.elements["icon"].value = b.icon || "";
-    form.elements["color"].value = "#" + (b.color || 0x49a0df).toString(16).padStart(6, "0");
+    form.elements["color"].value = colorToHex(b.color ?? 0x49a0df);
     form.elements["channel_id"].value = b.channel_id || "";
     form.elements["interval_seconds"].value = b.interval_seconds || 300;
     form.elements["footer"].value = b.footer || "";
+    form.elements["list_group"].value = b.list_group || "";
     form.elements["enabled"].checked = !!b.enabled;
-    try {
-      const cfg = JSON.parse(b.config_json || "{}");
-      fields = cfg.fields || [];
-    } catch { fields = []; }
-    renderFields();
-    updatePreview();
-    // Pre-selectionne le channel dans le dropdown
+    let cfg = {};
+    try { cfg = JSON.parse(b.config_json || "{}"); } catch { cfg = {}; }
+    fields = (cfg.fields || []).map(f => ({ ...newField(), ...f, decimals: f.decimals ?? "" }));
+    buttons = (cfg.buttons || []).map(x => ({ ...x }));
+    document.getElementById("f-desc").value = cfg.description || "";
+    document.getElementById("f-thumb").value = cfg.thumbnail_url || "";
+    document.getElementById("f-image").value = cfg.image_url || "";
+    document.getElementById("f-ts").checked = cfg.show_timestamp !== false;
+    document.getElementById("f-refresh-btn").checked = !!cfg.refresh_button;
     const sel = document.getElementById("channel-select");
-    if (sel && b.channel_id) sel.value = b.channel_id;
+    if (b.channel_id) sel.value = b.channel_id;
+    document.getElementById("btn-push").style.display = b.enabled ? "" : "none";
   } catch (e) {
     toast("Erreur chargement : " + e.message, "error");
   }
 }
 
-// --- Submit ---
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const fd = new FormData(form);
-  const config = {
-    fields: fields.map(f => ({
-      label: f.label || "",
-      icon: f.icon || "",
-      entity_id: f.entity_id || "",
-      attribute: f.attribute || null,
-      suffix: f.suffix || "",
-      inline: f.inline !== false,
-    })),
-  };
-  const payload = {
-    name: fd.get("name"),
-    icon: fd.get("icon") || null,
-    color: parseInt(fd.get("color").replace("#", ""), 16),
-    enabled: fd.get("enabled") === "on",
-    channel_id: fd.get("channel_id") || null,
-    interval_seconds: parseInt(fd.get("interval_seconds") || "300", 10),
-    footer: fd.get("footer") || null,
-    config_json: JSON.stringify(config),
-  };
+  const payload = buildPayload();
   try {
-    if (BLOCK_ID) {
-      await API.put(`/monitoring/${BLOCK_ID}`, payload);
-    } else {
-      await API.post("/monitoring", payload);
-    }
-    toast("Enregistre !");
-    setTimeout(() => { window.location.href = "/monitoring"; }, 600);
+    if (BLOCK_ID) await API.put(`/monitoring/${BLOCK_ID}`, payload);
+    else          await API.post("/monitoring", payload);
+    toast(payload.enabled ? "Enregistré ! Le message Discord se met à jour." : "Enregistré (bloc inactif).");
+    setTimeout(() => { window.location.href = "/monitoring"; }, 700);
   } catch (err) {
     toast(err.message, "error");
   }
 });
 
-// Boot : on attend les selects pour que loadExisting puisse les pre-selectionner
+document.getElementById("btn-push").addEventListener("click", async () => {
+  try {
+    await API.post(`/monitoring/${BLOCK_ID}/refresh`);
+    toast("Message Discord mis à jour (version enregistrée)");
+  } catch (err) { toast(err.message, "error"); }
+});
+
 (async () => {
-  await Promise.all([bindChannelSelect(), bindColorPresets()]);
+  const [, blocks] = await Promise.all([
+    bindChannelSelect(document.getElementById("channel-select"), document.getElementById("f-channel-id"),
+      "— channel monitoring du .env —"),
+    API.get("/monitoring").catch(() => []),
+  ]);
+  fillDatalist(document.getElementById("group-list"), blocks.map(b => b.list_group));
   await loadExisting();
+  syncIntervalPreset();
+  renderFields();
+  btnBuilder.render();
+  bindColorPresets(document.getElementById("f-color"), document.getElementById("color-swatches"));
+  updatePreview();
+  refreshRendered();
 })();
 </script>
 {% endblock %}
