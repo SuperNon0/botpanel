@@ -103,6 +103,20 @@ Puis redémarre Claude Desktop.
 | `list_colors` | Liste les couleurs préconfigurées (nom + hex) |
 | `set_color` | Crée une couleur préconfigurée, ou la modifie si le nom existe (peut la renommer) |
 | `delete_color` | Supprime une couleur préconfigurée |
+| `get_notification` | Détail complet d'une notification (par slug) |
+| `duplicate_notification` | Duplique une notification (slug `new_slug`, sinon `<slug>_copy`) |
+| `preview_notification` | Aperçu d'une notification avec les vraies valeurs HA, **sans l'envoyer** |
+| `duplicate_command` | Duplique une commande (copie `<nom>-copie`, créée désactivée) |
+| `duplicate_monitoring` | Duplique un bloc (copie créée inactive) |
+| `list_channels` | Liste les salons Discord (texte, ou `kind=forum`) avec leur id |
+| `list_forum_posts` | Liste les posts actifs d'un salon forum |
+| `list_favorite_channels` / `set_favorite_channel` / `delete_favorite_channel` | Gère les salons favoris |
+| `list_threads` / `delete_thread` | Liste les fils Discord des groupes / en oublie un (le prochain envoi recrée un fil) |
+| `get_stats` | Statistiques du tableau de bord (jour, semaine, 7 derniers jours) |
+| `purge_history` | Supprime l'historique de plus de N jours — **n'agit QUE si `confirm="OUI"`** |
+| `get_system_info` | Version (commit), branche et dossier du site |
+| `restart_site` | Redémarre le service — **n'agit QUE si `confirm="OUI"`** |
+| `get_home_url` / `set_home_url` | Lit / change l'URL d'accueil des Paramètres |
 | `check_update` | Vérifie si une mise à jour du code est disponible (git) — lecture seule |
 | `update_site` | **Sauvegarde le code** puis met à jour + redémarre — **n'agit QUE si `confirm="OUI"`** |
 | `rollback_site` | Revient à la dernière sauvegarde + redémarre — **n'agit QUE si `confirm="OUI"`** |
@@ -120,6 +134,9 @@ Dans la pratique : Claude **demande toujours** ton accord, puis, sur ton feu ver
 
 > Les erreurs serveur lues par `list_errors` sont gardées **en mémoire** (200
 > dernières, niveau WARNING et plus) : elles repartent de zéro à chaque redémarrage.
+
+> Volontairement **non exposés** au MCP : mot de passe, réglages Cloudflare,
+> régénération de la clé API (Claude se couperait l'accès) et import de sauvegarde.
 
 ## Sécurité
 - Le serveur MCP est une **route machine** (`/mcp`) : **jamais** derrière le login
