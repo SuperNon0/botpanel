@@ -1283,3 +1283,12 @@ input[type="color"] {
   border-radius: 50%;
   overflow: hidden;
 }
+
+/* Champ (souvent secret) + boutons sur une ligne */
+.secret-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.secret-row .form-input { flex: 1; min-width: 200px; font-size: 0.8rem; }

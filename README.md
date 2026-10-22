@@ -91,12 +91,12 @@ Le bot crée le message épinglé au premier cycle et ne fait que l'éditer ensu
 
 ### Paramètres (`/settings`)
 
-La page est rangée en **blocs repliables** (clic sur le titre pour ouvrir/fermer, bouton « Tout ouvrir », l'état est mémorisé dans le navigateur, lien direct possible : `/settings#colors`, `#discord`…) :
+Chaque réglage n'affiche qu'**une phrase courte** ; les explications détaillées sont derrière le bouton **« ? »**. La page est rangée en **blocs repliables** (clic sur le titre pour ouvrir/fermer, bouton « Tout ouvrir », l'état est mémorisé dans le navigateur, lien direct possible : `/settings#colors`, `#discord`…) :
 
 - **🏠 Général** : URL d'accueil ; **Mise à jour** (branche/commit git, bouton `git pull` + réinstallation + redémarrage automatique)
 - **🎨 Couleurs** : presets de couleurs nommés, affichés en **pastilles** dans tous les éditeurs ; on peut aussi en créer un directement depuis un éditeur (pastille **＋**)
 - **💬 Channels Discord** : **channels favoris** (nom + ID, proposés en tête ★ dans les éditeurs, ajout en un clic via « ★ Favori » sur un channel détecté), channels texte et forum détectés par le bot, **threads / posts actifs** (bouton « Réinitialiser » pour forcer la recréation)
-- **🔌 Intégrations** : clé API (copier / régénérer) pour le composant Home Assistant + diagnostic, et serveur **MCP** pour Claude
+- **🔌 Intégrations** : **clé API unique** (HA, Proxmox, Claude) **masquée par défaut** (bouton 👁 Afficher, Copier sans l'afficher, Régénérer), diagnostic du module Home Assistant, et URLs du serveur **MCP** pour Claude (l'URL contenant la clé est masquée aussi)
 - **🔒 Compte & sécurité** : mot de passe admin (LAN) et **Cloudflare / Accès** (équipe + AUD + **Tester**, option « accès uniquement Cloudflare »)
 - **💾 Sauvegarde** : export/import JSON de toute la configuration
 

@@ -116,42 +116,98 @@ window.BP_HELP["monitoring_interval"] = {
 
 /* ---------- Paramètres ---------- */
 window.BP_HELP["integration_key"] = {
-  title: "Clé API (intégration)",
+  title: "Clé API",
   html:
-    '<p>Cette clé sert au <b>module Home Assistant</b> et aux <b>webhooks Proxmox</b> pour se connecter à BotPanel en toute sécurité (en-tête <code>X-API-Key</code>).</p>' +
-    '<div class="hbox hbox-tip"><b>Home Assistant</b> : copie cette clé lors de l\'ajout de l\'intégration BotPanel (URL + clé).<br><b>Proxmox</b> : mets-la dans l\'en-tête du webhook.</div>' +
-    '<div class="hbox hbox-warn"><b>Régénérer</b> invalide l\'ancienne clé : il faudra la remettre à jour côté HA / Proxmox.</div>' +
-    '<div class="hbox hbox-info">Les webhooks existants (<code>/api/notify</code>) continuent de fonctionner <b>sans</b> cette clé.</div>',
+    '<p>Clé secrète qui permet au <b>module Home Assistant</b>, aux <b>webhooks Proxmox</b> et à <b>Claude (MCP)</b> de se connecter à BotPanel (en-tête <code>X-API-Key</code>).</p>' +
+    '<div class="hbox hbox-tip"><b>Home Assistant</b> : colle-la à l\'ajout de l\'intégration BotPanel (URL + clé).<br><b>Proxmox</b> : dans l\'en-tête du webhook.<br><b>Claude</b> : dans le connecteur (voir le « ? » du bloc Claude).</div>' +
+    '<div class="hbox hbox-info">Masquée par défaut : <b>👁 Afficher</b> pour la voir, <b>Copier</b> pour la copier sans l\'afficher.</div>' +
+    '<div class="hbox hbox-warn"><b>Régénérer</b> invalide l\'ancienne clé : il faudra la remettre partout (HA, Proxmox, Claude).</div>' +
+    '<div class="hbox hbox-info">Les webhooks simples (<code>/api/notify</code>) fonctionnent <b>sans</b> cette clé.</div>',
+};
+
+window.BP_HELP["ha_integration"] = {
+  title: "Intégration Home Assistant",
+  html:
+    '<p>Le <b>module BotPanel pour Home Assistant</b> ajoute des boutons, des capteurs et une action pour envoyer tes notifications depuis HA.</p>' +
+    '<ul><li><b>HA joignable</b> : BotPanel arrive à parler à Home Assistant.</li>' +
+    '<li><b>Module connecté</b> : dernière fois que le module HA a contacté BotPanel (vert = il y a moins de 5 min).</li></ul>' +
+    '<div class="hbox hbox-tip">Installation : dossier <code>custom_components/botpanel/</code> du dépôt (compatible HACS), puis ajoute l\'intégration avec l\'URL de BotPanel + la <b>Clé API</b>.</div>',
+};
+
+window.BP_HELP["home_url"] = {
+  title: "URL d'accueil",
+  html:
+    '<p>Depuis la page d\'<b>accueil</b>, un clic sur le logo t\'envoie vers cette adresse (ex. ton Home Assistant, ton NAS…).</p>' +
+    '<div class="hbox hbox-info">Depuis les autres pages, le logo ramène toujours à l\'accueil.</div>',
+};
+
+window.BP_HELP["update"] = {
+  title: "Mise à jour",
+  html:
+    '<p>Récupère la dernière version (<code>git pull</code>), réinstalle les dépendances puis redémarre le service. La page se recharge toute seule au retour du bot.</p>' +
+    '<div class="hbox hbox-tip">Aussi possible depuis Claude avec les outils MCP <code>check_update</code> / <code>update_site</code> (avec point de retour arrière).</div>',
+};
+
+window.BP_HELP["color_presets"] = {
+  title: "Couleurs préconfigurées",
+  html:
+    '<p>Ces couleurs apparaissent en <b>pastilles</b> dans les éditeurs (notifications, commandes, monitoring) : un clic applique la couleur.</p>' +
+    '<div class="hbox hbox-tip">Donne-leur un nom parlant (<i>Alerte porte</i>, <i>Info confort</i>). Tu peux aussi en créer une depuis un éditeur avec la pastille <b>＋</b>.</div>',
+};
+
+window.BP_HELP["fav_channels"] = {
+  title: "Channels favoris",
+  html:
+    '<p>Tes channels les plus utilisés, avec un nom parlant. Ils apparaissent <b>en tête (★)</b> dans la liste des channels de chaque éditeur.</p>' +
+    '<div class="hbox hbox-tip">Le plus simple : bouton <b>★ Favori</b> sur un channel de la liste « détectés ». Sinon, ajoute un ID à la main (clic droit sur le salon → Copier l\'identifiant).</div>',
+};
+
+window.BP_HELP["forums"] = {
+  title: "Channels forum",
+  html:
+    '<p>Channels de type <b>Forum</b> vus par le bot : utilisables comme destination en mode <b>Forum</b> d\'une notification (un post par groupe).</p>' +
+    '<div class="hbox hbox-warn">Le bot doit avoir la permission <b>Send Messages in Threads</b> sur ces channels.</div>',
+};
+
+window.BP_HELP["threads"] = {
+  title: "Fils et posts actifs",
+  html:
+    '<p>Quand une notification est en mode <b>Thread</b> ou <b>Forum</b>, elle est rangée dans un fil (ou post) portant le nom de son groupe. La liste montre ceux que BotPanel a créés.</p>' +
+    '<div class="hbox hbox-tip"><b>Réinitialiser</b> force la création d\'un nouveau fil au prochain envoi — utile si tu l\'as supprimé à la main sur Discord.</div>',
 };
 
 window.BP_HELP["cf_access"] = {
-  title: "Cloudflare / Accès",
+  title: "Cloudflare Access",
   html:
-    '<p>Permet de te connecter <b>sans mot de passe</b> quand tu passes par <b>Cloudflare Access</b> (ton e-mail Google est déjà vérifié).</p>' +
-    '<ul><li><b>Équipe</b> : le nom seul (ex. <code>super-nono</code>).</li>' +
+    '<p>Permet de te connecter <b>sans mot de passe</b> quand tu passes par <b>Cloudflare Access</b> (ton e-mail est déjà vérifié).</p>' +
+    '<ul><li><b>Équipe</b> : le nom seul (ex. <code>super-nono</code>), pas l\'URL complète.</li>' +
     '<li><b>AUD</b> : le « Application Audience Tag » de ton app Access.</li></ul>' +
     '<div class="hbox hbox-ok">BotPanel <b>vérifie le badge signé</b> (JWT) : impossible de se faire passer pour Cloudflare en local.</div>' +
-    '<div class="hbox hbox-warn">« Accès uniquement Cloudflare » = tout accès direct (sans badge) est refusé. À n\'activer que si l\'origine est injoignable hors Cloudflare.</div>',
+    '<div class="hbox hbox-warn"><b>Accès local décoché</b> = uniquement via Cloudflare : tout accès direct est refusé (403). Ne le décoche que si le serveur est injoignable hors Cloudflare, sinon tu risques de te bloquer dehors.</div>' +
+    '<p class="help-label">Résultat du bouton « Tester »</p>' +
+    '<ul><li><b>non testé</b> : aucun badge reçu (tu n\'es pas passé par Cloudflare).</li>' +
+    '<li>Erreur <b>audience</b> : l\'AUD ne correspond pas à l\'app Access.</li>' +
+    '<li>Erreur <b>…cloudflareaccess.com…</b> : mets le <b>nom seul</b> dans Équipe.</li></ul>',
 };
 
 window.BP_HELP["password"] = {
-  title: "Compte & sécurité (mot de passe)",
+  title: "Mot de passe",
   html:
-    '<p>Protection <b>optionnelle</b> par mot de passe (compte unique <code>admin</code>) pour l\'accès local.</p>' +
-    '<ul><li><b>Activer / changer / désactiver</b> ici même.</li>' +
+    '<p>Protection <b>optionnelle</b> par mot de passe (compte unique <code>admin</code>) pour l\'accès local. Sans protection, le panel est ouvert à tout ton réseau.</p>' +
+    '<ul><li><b>Activer / changer / désactiver</b> ici même (6 caractères minimum).</li>' +
     '<li><b>Mot de passe oublié</b> : sur le serveur →</li></ul>' +
     _cb("Réinitialisation (serveur)", "sudo bash /opt/botpanel/deploy/reset_admin.sh \"nouveau-mot-de-passe\"") +
-    '<div class="hbox hbox-info">Les routes machine (<code>/api/notify</code>) restent toujours ouvertes.</div>',
+    '<div class="hbox hbox-info">Les routes machine (<code>/api/notify</code>, webhooks) restent toujours ouvertes.</div>',
 };
 
 window.BP_HELP["backup"] = {
   title: "Sauvegarde & migration",
   html:
     '<ul>' +
-    '<li><b>Exporter</b> : télécharge un JSON de toute ta configuration (notifs, commandes, monitoring, presets).</li>' +
-    '<li><b>Importer</b> : recharge ce fichier sur une nouvelle instance.</li>' +
+    '<li><b>Exporter</b> : télécharge un fichier JSON avec toute ta configuration (notifications, commandes, monitoring, couleurs, channels…).</li>' +
+    '<li><b>Importer</b> : recharge ce fichier, pour restaurer une sauvegarde ou passer sur une nouvelle instance de BotPanel.</li>' +
     '</ul>' +
-    '<div class="hbox hbox-warn">L\'import <b>remplace</b> la configuration existante (l\'historique et les états Discord ne sont pas touchés).</div>',
+    '<div class="hbox hbox-warn">L\'import <b>remplace</b> toute la configuration actuelle. L\'historique et les états Discord ne sont ni exportés ni touchés.</div>',
 };
 
 /* ---------- Setup (assistant) ---------- */
@@ -200,9 +256,9 @@ window.BP_HELP["mcp"] = {
     '<p>Le <b>serveur MCP</b> connecte BotPanel à <b>Claude</b> (claude.ai, app Claude ou Claude Desktop). Une fois branché, <b>Claude peut agir sur BotPanel</b> : lister, déclencher et créer des notifications, envoyer un message ponctuel, lire l\'état et l\'historique.</p>' +
     '<div class="hbox hbox-tip"><b>Exemple :</b> « Claude, crée une notif qui prévient quand la porte du garage s\'ouvre » → Claude lit l\'entité dans Home Assistant <b>et</b> crée la notif dans BotPanel, en direct.</div>' +
     '<p class="help-label">1) L\'URL et la clé</p>' +
-    '<p>L\'<b>URL</b> et la clé sont affichées dans la carte au-dessus. La clé = ta <b>clé API BotPanel</b> (la même que Home Assistant / Proxmox). Deux façons de la présenter :</p>' +
+    '<p>L\'<b>URL</b> est affichée dans le bloc. La clé = la <b>Clé API</b> du bloc du dessus (la même que Home Assistant / Proxmox, masquée par défaut : bouton 👁 Afficher). Deux façons de la présenter :</p>' +
     '<ul>' +
-    '<li><b>En-tête</b> <code>Authorization: Bearer &lt;clé&gt;</code> (recommandé)</li>' +
+    '<li><b>En-tête</b> <code>Authorization: Bearer &lt;clé&gt;</code> ou <code>X-API-Key: &lt;clé&gt;</code> (recommandé)</li>' +
     '<li><b>Dans l\'URL</b> : <code>.../mcp/&lt;clé&gt;</code> (si le client ne gère pas les en-têtes — la clé apparaît alors dans les logs)</li>' +
     '</ul>' +
     '<p class="help-label">2) Connexion depuis claude.ai / app Claude</p>' +
