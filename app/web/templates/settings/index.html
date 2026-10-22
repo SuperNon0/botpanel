@@ -7,8 +7,6 @@
   <button type="button" class="btn btn-secondary btn-small" id="sec-toggle-all">Tout ouvrir</button>
 </div>
 
-<p class="hint" style="margin:-0.3rem 0 1rem;">Clique sur un bloc pour l'ouvrir ou le refermer.</p>
-
 <details class="card group-card settings-section" data-sec="general">
   <summary>
     <span class="group-arrow">&#9656;</span>
@@ -18,23 +16,16 @@
   </summary>
   <div class="sec-body">
 <div class="sub-block">
-  <h3>URL d'accueil</h3>
-  <p class="hint">
-    Quand tu cliques sur le logo depuis la page d'accueil, tu es redirige vers cette URL.
-    Depuis n'importe quelle autre page, le logo ramene toujours sur la page d'accueil.
-    Exemple : ton interface Home Assistant, un lien rapide vers ton NAS, etc.
-  </p>
-  <div class="form-group">
-    <label class="form-label">URL de destination</label>
+  <h3>URL d'accueil<button type="button" class="help-dot" data-help="home_url">?</button></h3>
+  <p class="hint">Où mène le logo depuis l'accueil.</p>
+  <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
     <input class="form-input" id="home-url-input" type="url"
-           placeholder="http://192.168.1.x:8123" style="max-width:420px;">
-  </div>
-  <div style="display:flex; gap:0.7rem; justify-content:flex-end; margin-top:1rem;">
+           placeholder="http://192.168.1.x:8123" style="flex:1; min-width:220px; max-width:420px;">
     <button type="button" class="btn btn-primary" id="home-url-save">Enregistrer</button>
   </div>
 </div>
 <div class="sub-block" id="update-card">
-  <h3>Mise a jour</h3>
+  <h3>Mise a jour<button type="button" class="help-dot" data-help="update">?</button></h3>
   <div id="update-info" class="hint">Chargement des infos...</div>
   <div id="update-progress-wrap" style="display:none; margin-top:0.8rem;">
     <div class="progress-bar"><div class="progress-bar-inner" id="update-progress"></div></div>
@@ -59,12 +50,8 @@
   </summary>
   <div class="sec-body">
 <div class="sub-block">
-  <h3>Couleurs préconfigurées</h3>
-  <p class="hint">
-    Elles apparaissent en <strong>pastilles</strong> dans les éditeurs (notifications, commandes, monitoring).
-    Donne-leur un nom parlant (ex : <em>Alerte porte</em>, <em>Info confort</em>). Tu peux aussi en créer
-    directement depuis un éditeur avec la pastille <strong>＋</strong>.
-  </p>
+  <h3>Couleurs préconfigurées<button type="button" class="help-dot" data-help="color_presets">?</button></h3>
+  <p class="hint">Tes couleurs, proposées en pastilles dans les éditeurs.</p>
   <div id="colors-builder" class="color-presets-grid"></div>
   <div style="display:flex; gap:0.7rem; justify-content:space-between; flex-wrap:wrap; margin-top:1rem;">
     <button type="button" class="btn btn-secondary" id="color-add">+ Ajouter une couleur</button>
@@ -83,11 +70,8 @@
   </summary>
   <div class="sec-body">
 <div class="sub-block">
-  <h3>Channels favoris</h3>
-  <p class="hint">
-    Tes channels les plus utilisés, avec un nom parlant : ils apparaissent en tête (★) dans la liste
-    des channels de chaque éditeur. Ajoute-les en un clic depuis la liste « détectés » ci-dessous.
-  </p>
+  <h3>Channels favoris<button type="button" class="help-dot" data-help="fav_channels">?</button></h3>
+  <p class="hint">Proposés en premier (★) dans les éditeurs.</p>
   <div id="fav-channels" class="buttons-builder"></div>
   <div style="display:flex; gap:0.7rem; justify-content:space-between; flex-wrap:wrap; margin-top:1rem;">
     <button type="button" class="btn btn-secondary" id="fav-add">+ Ajouter un ID à la main</button>
@@ -95,26 +79,18 @@
   </div>
 </div>
 <div class="sub-block">
-  <h3>Channels Discord detectes par le bot</h3>
-  <p class="hint">Channels texte accessibles par le bot sur ton serveur Discord.</p>
+  <h3>Channels détectés par le bot</h3>
+  <p class="hint">Clique « ★ Favori » pour en ajouter un.</p>
   <div id="bot-channels" class="buttons-builder"></div>
 </div>
 <div class="sub-block">
-  <h3>Channels forum detectes par le bot</h3>
-  <p class="hint">
-    Ces channels peuvent etre utilises comme destination dans le mode <em>Forum</em>
-    d'une notification. Le bot doit avoir la permission <strong>Send Messages in Threads</strong>
-    sur ces channels.
-  </p>
+  <h3>Channels forum détectés<button type="button" class="help-dot" data-help="forums">?</button></h3>
+  <p class="hint">Utilisables en mode Forum.</p>
   <div id="bot-forums" class="buttons-builder"><div class="empty-state">Chargement...</div></div>
 </div>
 <div class="sub-block">
-  <h3>Threads Discord actifs</h3>
-  <p class="hint">
-    Quand une notification a un <em>groupe</em>, elle est envoyee dans un thread Discord portant ce nom.
-    Ce tableau liste les threads crees. Supprimer une entree force la recreation du thread au prochain envoi
-    (utile si le thread a ete supprime manuellement sur Discord).
-  </p>
+  <h3>Fils et posts actifs<button type="button" class="help-dot" data-help="threads">?</button></h3>
+  <p class="hint">Créés automatiquement par les notifications.</p>
   <div id="threads-list"><div class="empty-state">Chargement...</div></div>
 </div>
   </div>
@@ -125,68 +101,40 @@
     <span class="group-arrow">&#9656;</span>
     <span class="sec-ico">🔌</span>
     <span class="group-name">Intégrations</span>
-    <span class="sec-sub">Home Assistant · MCP Claude</span>
+    <span class="sec-sub">clé API · Home Assistant · Claude</span>
   </summary>
   <div class="sec-body">
 <div class="sub-block" id="integration-card">
-  <h3>API / Intégration Home Assistant</h3>
-  <p class="hint">
-    Clé secrète utilisée par le <strong>module BotPanel dans Home Assistant</strong> pour se connecter
-    (boutons, action, capteurs). À coller une fois dans Home Assistant. Les webhooks existants
-    (<code>/api/notify</code>) continuent de fonctionner <strong>sans</strong> cette clé.
-  </p>
-
-  <div class="form-group">
-    <label class="form-label">Clé API<button type="button" class="help-dot" data-help="integration_key">?</button></label>
-    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-      <input class="form-input" id="int-key" readonly style="flex:1; min-width:220px; font-size:0.8rem;">
-      <button type="button" class="btn btn-secondary btn-small" id="int-copy">Copier</button>
-      <button type="button" class="btn btn-danger btn-small" id="int-regen">Régénérer</button>
-    </div>
-    <div class="form-hint">⚠️ Régénérer invalide l'ancienne clé : il faudra la remettre à jour dans Home Assistant.</div>
+  <h3>Clé API<button type="button" class="help-dot" data-help="integration_key">?</button></h3>
+  <p class="hint">Une seule clé pour Home Assistant, Proxmox et Claude.</p>
+  <div class="secret-row">
+    <input class="form-input" id="int-key" type="password" readonly autocomplete="off">
+    <button type="button" class="btn btn-secondary btn-small" data-reveal="int-key">👁 Afficher</button>
+    <button type="button" class="btn btn-secondary btn-small" id="int-copy">Copier</button>
+    <button type="button" class="btn btn-danger btn-small" id="int-regen">Régénérer</button>
   </div>
-
-  <h4 style="margin:1.2rem 0 0.5rem;">L'intégration marche&nbsp;?</h4>
+</div>
+<div class="sub-block">
+  <h3>Home Assistant<button type="button" class="help-dot" data-help="ha_integration">?</button></h3>
   <div id="int-diag" class="cf-result"><div class="hint">Chargement…</div></div>
-  <p class="hint" style="margin-top:0.6rem;">
-    Le <strong>guide d'installation</strong> du module Home Assistant est fourni dans le dépôt
-    (<code>custom_components/botpanel/</code>, compatible HACS).
-  </p>
 </div>
 <div class="sub-block" id="mcp-card">
-  <h3>Serveur MCP (piloter BotPanel depuis Claude)<button type="button" class="help-dot" data-help="mcp">?</button></h3>
-  <p class="hint">
-    Connecte BotPanel à <strong>Claude</strong> (claude.ai / app / Desktop) : Claude pourra
-    <strong>lister, déclencher et créer des notifications</strong>, envoyer un message ponctuel
-    et lire l'état/l'historique. Même clé que ci-dessus.
-  </p>
-  <div class="form-hint" style="margin:-0.3rem 0 0.6rem;">⚠️ Site derrière Cloudflare : il faut <strong>ouvrir le chemin <code>/mcp</code></strong> dans Cloudflare Access (policy « Bypass »). Clique le « ? » pour les étapes.</div>
-
+  <h3>Claude (serveur MCP)<button type="button" class="help-dot" data-help="mcp">?</button></h3>
+  <p class="hint">Pilote BotPanel depuis Claude.</p>
   <div class="form-group">
-    <label class="form-label">Clé API (à mettre dans l'en-tête du connecteur)</label>
-    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-      <input class="form-input" id="mcp-key" readonly style="flex:1; min-width:220px; font-size:0.8rem;">
-      <button type="button" class="btn btn-secondary btn-small" id="mcp-key-copy">Copier la clé</button>
-    </div>
-    <div class="form-hint">En-tête à ajouter dans Claude — <strong>Nom</strong> : <code>X-API-Key</code> · <strong>Valeur</strong> : la clé ci-dessus. <em>(ou Nom <code>Authorization</code>, Valeur <code>Bearer &lt;clé&gt;</code>)</em></div>
-  </div>
-
-  <div class="form-group">
-    <label class="form-label">URL du serveur MCP</label>
-    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-      <input class="form-input" id="mcp-url" readonly style="flex:1; min-width:220px; font-size:0.8rem;">
+    <label class="form-label">URL du serveur</label>
+    <div class="secret-row">
+      <input class="form-input" id="mcp-url" readonly>
       <button type="button" class="btn btn-secondary btn-small" id="mcp-url-copy">Copier</button>
     </div>
-    <div class="form-hint">À coller dans Claude avec l'en-tête <code>X-API-Key</code> = la clé.</div>
   </div>
-
   <div class="form-group">
-    <label class="form-label">URL avec la clé incluse (si le client ne gère pas les en-têtes)</label>
-    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-      <input class="form-input" id="mcp-url-key" readonly style="flex:1; min-width:220px; font-size:0.8rem;">
+    <label class="form-label">URL avec la clé incluse</label>
+    <div class="secret-row">
+      <input class="form-input" id="mcp-url-key" type="password" readonly autocomplete="off">
+      <button type="button" class="btn btn-secondary btn-small" data-reveal="mcp-url-key">👁 Afficher</button>
       <button type="button" class="btn btn-secondary btn-small" id="mcp-urlkey-copy">Copier</button>
     </div>
-    <div class="form-hint">⚠️ Pratique mais la clé apparaît dans les logs : préfère l'en-tête si possible. Clique le « ? » pour les étapes de connexion.</div>
   </div>
 </div>
   </div>
@@ -201,17 +149,15 @@
   </summary>
   <div class="sec-body">
 <div class="sub-block" id="auth-card">
-  <h3>Compte &amp; sécurité<button type="button" class="help-dot" data-help="password">?</button></h3>
+  <h3>Mot de passe<button type="button" class="help-dot" data-help="password">?</button></h3>
   <p class="hint" id="auth-status">Chargement…</p>
 
   <!-- Activer (aucun mot de passe encore) -->
   <div id="auth-enable" style="display:none;">
-    <div class="form-group">
-      <label class="form-label">Mot de passe admin (min. 6 caractères)</label>
-      <input class="form-input" id="ae-pass" type="password" autocomplete="new-password">
-      <div class="form-hint">Compte unique : <code>admin</code>. La connexion se fera avec ce mot de passe.</div>
+    <div class="secret-row">
+      <input class="form-input" id="ae-pass" type="password" autocomplete="new-password" placeholder="Mot de passe (6 min.)">
+      <button type="button" class="btn btn-primary" id="ae-btn">Activer la protection</button>
     </div>
-    <button type="button" class="btn btn-primary" id="ae-btn">Activer la protection</button>
   </div>
 
   <!-- Changer / désactiver (mot de passe déjà défini) -->
@@ -222,7 +168,7 @@
         <input class="form-input" id="am-current" type="password" autocomplete="current-password">
       </div>
       <div class="form-group">
-        <label class="form-label">Nouveau mot de passe (min. 6)</label>
+        <label class="form-label">Nouveau mot de passe (6 min.)</label>
         <input class="form-input" id="am-new" type="password" autocomplete="new-password">
       </div>
     </div>
@@ -230,44 +176,32 @@
       <button type="button" class="btn btn-primary" id="am-change">Changer le mot de passe</button>
       <button type="button" class="btn btn-danger" id="am-disable">Désactiver la protection</button>
     </div>
-    <p class="hint" style="margin-top:0.8rem;">
-      💡 En cas d'oubli du mot de passe, utilise le script <code>deploy/reset_admin.sh</code> sur le serveur.
-    </p>
   </div>
 </div>
 <div class="sub-block" id="cf-card">
-  <h3>Cloudflare / Accès<button type="button" class="help-dot" data-help="cf_access">?</button></h3>
-
-  <div class="form-group">
-    <label class="form-label">Équipe (nom seul, ex. super-nono)</label>
-    <input class="form-input" id="cf-team" placeholder="super-nono">
-  </div>
-  <div class="form-group">
-    <label class="form-label">AUD (Application Audience tag)</label>
-    <input class="form-input" id="cf-aud" placeholder="a1b2c3…">
+  <h3>Cloudflare Access<button type="button" class="help-dot" data-help="cf_access">?</button></h3>
+  <p class="hint">Connexion automatique quand tu passes par Cloudflare.</p>
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Équipe (nom seul)</label>
+      <input class="form-input" id="cf-team" placeholder="super-nono">
+    </div>
+    <div class="form-group">
+      <label class="form-label">AUD</label>
+      <input class="form-input" id="cf-aud" placeholder="a1b2c3…">
+    </div>
   </div>
   <label class="form-checkbox" style="margin-bottom:0.6rem;">
-    <input type="checkbox" id="cf-verify" checked> Vérifier le JWT Cloudflare (recommandé en production)
+    <input type="checkbox" id="cf-verify" checked> Vérifier le badge Cloudflare (recommandé)
   </label>
   <label class="form-checkbox" style="margin-bottom:0.8rem;">
-    <input type="checkbox" id="cf-allow-local" checked> Autoriser l'accès local (mot de passe LAN / secours)
+    <input type="checkbox" id="cf-allow-local" checked> Autoriser aussi l'accès local (mot de passe)
   </label>
-  <p class="hint" style="margin:-0.4rem 0 0.8rem;">
-    ⚠️ Décoché = accès <strong>uniquement via Cloudflare</strong> : tout accès direct (sans badge) est
-    refusé (403). Ne le décoche que si l'origine est bien injoignable hors Cloudflare, sinon tu risques
-    de te verrouiller dehors.
-  </p>
   <div style="display:flex; gap:0.7rem; flex-wrap:wrap;">
     <button type="button" class="btn btn-secondary" id="cf-test">Tester</button>
     <button type="button" class="btn btn-primary" id="cf-save">Enregistrer</button>
   </div>
-
-  <label class="form-label" style="display:block; margin:1.3rem 0 0.6rem;">Résultat du test</label>
-  <div id="cf-result" class="cf-result"><div class="hint">Clique sur « Tester » pour vérifier la connexion.</div></div>
-  <p class="hint" style="margin-top:0.6rem;">
-    « non testé » = aucun badge reçu (tu n'es pas derrière Cloudflare). Erreur « audience » → l'AUD ne
-    correspond pas à l'app Access. Erreur « …cloudflareaccess.com… » → mets le <strong>nom seul</strong> dans Équipe.
-  </p>
+  <div id="cf-result" class="cf-result" style="margin-top:1rem;"></div>
 </div>
   </div>
 </details>
@@ -282,23 +216,15 @@
   <div class="sec-body">
 <div class="sub-block" id="backup-card">
   <h3>Sauvegarde &amp; migration<button type="button" class="help-dot" data-help="backup">?</button></h3>
-  <p class="hint">
-    Exporte toutes tes données (notifications, commandes, monitoring, paramètres) dans un fichier JSON,
-    pour les sauvegarder ou les <strong>importer sur une nouvelle instance</strong> de BotPanel.
-    L'historique et les états Discord ne sont pas inclus.
-  </p>
+  <p class="hint">Toute ta configuration dans un fichier.</p>
   <div style="display:flex; gap:0.7rem; flex-wrap:wrap; align-items:center;">
-    <a class="btn btn-primary" href="/api/backup/export">Exporter les données</a>
-    <button type="button" class="btn btn-secondary" id="import-btn">Importer un fichier…</button>
+    <a class="btn btn-primary" href="/api/backup/export">Exporter</a>
+    <button type="button" class="btn btn-secondary" id="import-btn">Importer…</button>
     <input type="file" id="import-file" accept="application/json,.json" style="display:none;">
   </div>
-  <p class="hint" style="margin-top:0.7rem; color:#f59e0b;">
-    ⚠️ L'import <strong>remplace</strong> toutes les données de configuration existantes. À utiliser sur une nouvelle instance ou pour restaurer une sauvegarde.
-  </p>
 </div>
   </div>
 </details>
-
 {% endblock %}
 
 {% block scripts %}
@@ -570,7 +496,7 @@ async function loadThreads() {
   try {
     const threads = await API.get("/settings/threads");
     if (!threads.length) {
-      root.innerHTML = `<div class="empty-state">Aucun thread actif. Les threads sont crees automatiquement quand une notification avec un groupe est envoyee.</div>`;
+      root.innerHTML = `<div class="empty-state">Aucun fil pour l'instant.</div>`;
       return;
     }
     root.innerHTML = threads.map(t => `
@@ -672,7 +598,7 @@ async function loadAuth() {
     enable.style.display = "none";
     manage.style.display = "";
   } else {
-    status.innerHTML = `Protection <strong style="color:#f59e0b;">désactivée</strong> — le panel est ouvert (pense à Cloudflare ou au réseau local).`;
+    status.innerHTML = `Protection <strong style="color:#f59e0b;">désactivée</strong> : le panel est ouvert.`;
     enable.style.display = "";
     manage.style.display = "none";
   }
@@ -805,6 +731,14 @@ function bindSections() {
   if (target) target.scrollIntoView({ block: "start" });
 }
 
+// Champs secrets (cle API) : masques par defaut, bouton Afficher/Masquer.
+document.querySelectorAll("[data-reveal]").forEach(btn => btn.addEventListener("click", () => {
+  const inp = document.getElementById(btn.dataset.reveal);
+  const show = inp.type === "password";
+  inp.type = show ? "text" : "password";
+  btn.textContent = show ? "🙈 Masquer" : "👁 Afficher";
+}));
+
 bindSections();
 loadHomeUrl();
 loadSystemInfo();
@@ -858,9 +792,14 @@ function fillMcpUrls(key) {
   if (k) k.value = key || "";
 }
 async function copyField(id, label) {
-  const v = document.getElementById(id).value;
-  try { await navigator.clipboard.writeText(v); toast((label || "Valeur") + " copié."); }
-  catch { const el = document.getElementById(id); el.select(); document.execCommand("copy"); toast((label || "Valeur") + " copié."); }
+  const el = document.getElementById(id);
+  try { await navigator.clipboard.writeText(el.value); }
+  catch {
+    // Repli : un champ masque (password) ne se copie pas, on l'affiche le temps de la copie.
+    const type = el.type;
+    el.type = "text"; el.select(); document.execCommand("copy"); el.type = type;
+  }
+  toast((label || "Valeur") + " copié.");
 }
 function bindMcp() {
   const a = document.getElementById("mcp-url-copy");
@@ -871,16 +810,13 @@ function bindMcp() {
   if (k) k.addEventListener("click", () => copyField("mcp-key", "Clé"));
 }
 function bindIntegration() {
-  document.getElementById("int-copy").addEventListener("click", async () => {
-    const v = document.getElementById("int-key").value;
-    try { await navigator.clipboard.writeText(v); toast("Clé copiée."); }
-    catch { const el = document.getElementById("int-key"); el.select(); document.execCommand("copy"); toast("Clé copiée."); }
-  });
+  document.getElementById("int-copy").addEventListener("click", () => copyField("int-key", "Clé"));
   document.getElementById("int-regen").addEventListener("click", async () => {
     if (!confirm("Régénérer la clé ? L'ancienne cessera de fonctionner (à remettre à jour dans Home Assistant).")) return;
     try {
       const d = await API.post("/settings/integration/regenerate", {});
       document.getElementById("int-key").value = d.api_key || "";
+      fillMcpUrls(d.api_key || "");
       toast("Nouvelle clé générée.");
     } catch (e) { toast(e.message, "error"); }
   });
