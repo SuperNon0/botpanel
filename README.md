@@ -420,16 +420,23 @@ Depuis **Paramètres → Sauvegarde & migration** :
 
 ## Sécurité et accès
 
+### Mise à jour de sécurité (PR 43)
+
+- **Home Assistant** conserve son URL, sa clé `X-API-Key`, ses notifications `/api/notify` et ses commandes personnalisées. Après le redémarrage, vérifie une notification depuis Home Assistant.
+- **Discord `/ha`** exige les droits administrateur du serveur Discord et une liste de services dans `DISCORD_HA_ALLOWED_SERVICES`. Une liste vide désactive les appels de cette commande.
+- **Cloudflare uniquement** exige un JWT valide. Vérifie l’équipe, l’AUD et le résultat du bouton **Tester** avant la mise à jour si ce mode est déjà actif.
+- **Mot de passe** : tout changement révoque les anciennes sessions locales. **Discord indisponible** : le panneau et son API restent ouverts pour diagnostiquer le problème. Les envois Discord reprennent lorsque le bot est reconnecté.
+
 BotPanel intègre une **authentification à deux portes** (voir [docs/CONNEXION.md](docs/CONNEXION.md)). Elle est **additive** : inerte tant que rien n'est configuré (panel ouvert en LAN), activable quand tu veux.
 
 - **En local (LAN)** : mot de passe admin — **un seul champ, aucun identifiant** (Paramètres → Compte & sécurité). Réinitialisable sur le serveur (`deploy/reset_admin.sh`).
-- **Via Cloudflare Access** : connexion automatique **sans mot de passe** — BotPanel **vérifie le badge signé** (JWT **RS256 + `aud` + `iss`**), donc **pas d'usurpation possible** en local (l'en-tête `Cf-Access-Authenticated-User-Email` seul n'est jamais cru). Configurable dans **Paramètres → Cloudflare / Accès** (équipe, AUD, bouton **Tester**).
+- **Via Cloudflare Access** : connexion automatique **sans mot de passe** — BotPanel **vérifie le badge signé** (JWT **RS256 + `aud` + `iss`**), en mode vérifié (l’en-tête e-mail seul est réservé au mode local sans vérification). Configurable dans **Paramètres → Cloudflare / Accès** (équipe, AUD, bouton **Tester**).
 - **Mode « Cloudflare uniquement »** (`ALLOW_LOCAL_LOGIN=false`, ou la case dans les réglages) : tout accès direct **sans badge** est **refusé (403)**, même en POST. Pour l’activer dans les réglages, ouvre BotPanel via Cloudflare et vérifie que le bouton Tester valide le JWT avec l’équipe et l’AUD configurés.
 - **Routes machine** (`/api/notify`, webhooks) : **toujours ouvertes** (HA / Proxmox jamais bloqués), protégées par le réseau.
 - **Première install** : `ADMIN_PASSWORD` (et `CF_ACCESS_*` / `ALLOW_LOCAL_LOGIN`) dans `.env` sont **amorcés une fois** au démarrage — le mot de passe est **hashé** (PBKDF2). Ensuite, tout se gère dans les Paramètres.
 - Ne publie **jamais** ton fichier `.env` (déjà ignoré par `.gitignore`).
 
-> Le noyau de vérification du badge (`app/cloudflare_access.py`) et le thème d'interface sont **partagés à l'identique** avec les autres sites (socle `Site-base`), pour une sécurité et un look cohérents sur toute la flotte.
+> Le module de vérification du badge de BotPanel reprend la logique de Site-base et valide strictement le nom d’équipe avant de récupérer les clés publiques.
 
 ## Intégration Home Assistant (composant natif)
 
