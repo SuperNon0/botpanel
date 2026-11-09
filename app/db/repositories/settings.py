@@ -35,9 +35,12 @@ class SettingsRepository:
                 return default
 
     async def set(self, key: str, value: Any) -> None:
-        payload = json.dumps(value, ensure_ascii=False)
+        await self.set_many({key: value})
+
+    async def set_many(self, values: dict[str, Any]) -> None:
+        rows = [(key, json.dumps(value, ensure_ascii=False)) for key, value in values.items()]
         async with get_connection() as db:
-            await db.execute(
+            await db.executemany(
                 """
                 INSERT INTO settings (key, value_json, updated_at)
                 VALUES (?, ?, datetime('now'))
@@ -45,7 +48,7 @@ class SettingsRepository:
                     value_json = excluded.value_json,
                     updated_at = datetime('now')
                 """,
-                (key, payload),
+                rows,
             )
             await db.commit()
 

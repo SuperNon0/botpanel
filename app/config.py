@@ -36,6 +36,9 @@ class Settings(BaseSettings):
         0, description="Channel pour les messages de monitoring"
     )
 
+    # Commande Discord /ha : les notifications et l’intégration HA sont indépendantes.
+    discord_ha_allowed_services: str = ""  # Services domain.action séparés par des virgules.
+
     # --- Home Assistant ---
     ha_base_url: str = Field("", description="URL locale de HA, ex http://IP:8123")
     ha_token: str = Field("", description="Token longue duree HA")

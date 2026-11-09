@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import signal
+from contextlib import nullcontext
 
 import uvicorn
 
@@ -41,7 +42,7 @@ async def _run_api() -> None:
     )
     server = uvicorn.Server(config)
     # Desactive la gestion des signaux par uvicorn (on la fait depuis main).
-    server.install_signal_handlers = lambda: None  # type: ignore[method-assign]
+    server.capture_signals = nullcontext  # type: ignore[method-assign]
     await server.serve()
 
 
@@ -68,30 +69,36 @@ async def _main() -> None:
             # Windows ne supporte pas add_signal_handler
             pass
 
-    # Le bot Discord ne demarre que si la configuration est complete.
-    # Sinon, seul le site tourne (mode configuration) pour afficher /setup.
-    tasks: list[asyncio.Task] = [asyncio.create_task(_run_api(), name="api")]
-    if settings.is_configured:
-        tasks.append(asyncio.create_task(start_bot(), name="bot"))
-    else:
-        logger.warning(
-            "Configuration incomplete — demarrage en MODE CONFIGURATION. "
-            "Ouvre http://<IP>:%s/setup pour configurer BotPanel.",
-            settings.api_port,
-        )
+    async def run_bot() -> None:
+        try:
+            await start_bot()
+        except Exception:
+            logger.exception("Discord indisponible : le panneau et l’API restent accessibles.")
 
-    done, pending = await asyncio.wait(
-        [*tasks, asyncio.create_task(stop_event.wait())],
-        return_when=asyncio.FIRST_COMPLETED,
-    )
+    api_task = asyncio.create_task(_run_api(), name="api")
+    stop_task = asyncio.create_task(stop_event.wait(), name="stop")
+    bot_task = asyncio.create_task(run_bot(), name="bot") if settings.is_configured else None
+    if bot_task is None:
+        logger.warning("Configuration incomplète : assistant disponible sur /setup.")
 
-    # Arret propre
-    logger.info("Arret des services...")
-    await stop_bot()
-    await ha_client.close()
-    for task in pending:
-        task.cancel()
-    await asyncio.gather(*pending, return_exceptions=True)
+    try:
+        done, _ = await asyncio.wait([api_task, stop_task], return_when=asyncio.FIRST_COMPLETED)
+        if api_task in done:
+            await api_task
+            if not stop_event.is_set():
+                raise RuntimeError("Le serveur HTTP s’est arrêté de façon inattendue.")
+    finally:
+        logger.info("Arrêt des services…")
+        tasks = [api_task, stop_task]
+        if bot_task is not None:
+            tasks.append(bot_task)
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        try:
+            await stop_bot()
+        finally:
+            await ha_client.close()
 
 
 def main() -> None:

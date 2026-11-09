@@ -115,7 +115,9 @@ Journal de toutes les activités du bot : envois de notifications, clics sur les
 
 ## Commandes slash Discord
 
-### `/ha` — appel libre de service HA
+### `/ha` — services HA autorisés
+
+Réservé aux administrateurs du serveur Discord configuré. Pour autoriser des services, ajoute par exemple `DISCORD_HA_ALLOWED_SERVICES=light.turn_on,light.turn_off` dans le `.env` puis redémarre BotPanel. Une liste vide interdit les appels via `/ha`. L’intégration Home Assistant, les notifications et les commandes personnalisées gardent leur configuration.
 
 Permet d'appeler n'importe quel service Home Assistant directement depuis Discord.
 
@@ -422,7 +424,7 @@ BotPanel intègre une **authentification à deux portes** (voir [docs/CONNEXION.
 
 - **En local (LAN)** : mot de passe admin — **un seul champ, aucun identifiant** (Paramètres → Compte & sécurité). Réinitialisable sur le serveur (`deploy/reset_admin.sh`).
 - **Via Cloudflare Access** : connexion automatique **sans mot de passe** — BotPanel **vérifie le badge signé** (JWT **RS256 + `aud` + `iss`**), donc **pas d'usurpation possible** en local (l'en-tête `Cf-Access-Authenticated-User-Email` seul n'est jamais cru). Configurable dans **Paramètres → Cloudflare / Accès** (équipe, AUD, bouton **Tester**).
-- **Mode « Cloudflare uniquement »** (`ALLOW_LOCAL_LOGIN=false`, ou la case dans les réglages) : tout accès direct **sans badge** est **refusé (403)**, même en POST. À n'activer que si l'origine est injoignable hors Cloudflare (tunnel `cloudflared` / pare-feu IP Cloudflare), sinon risque de verrouillage.
+- **Mode « Cloudflare uniquement »** (`ALLOW_LOCAL_LOGIN=false`, ou la case dans les réglages) : tout accès direct **sans badge** est **refusé (403)**, même en POST. Pour l’activer dans les réglages, ouvre BotPanel via Cloudflare et vérifie que le bouton Tester valide le JWT avec l’équipe et l’AUD configurés.
 - **Routes machine** (`/api/notify`, webhooks) : **toujours ouvertes** (HA / Proxmox jamais bloqués), protégées par le réseau.
 - **Première install** : `ADMIN_PASSWORD` (et `CF_ACCESS_*` / `ALLOW_LOCAL_LOGIN`) dans `.env` sont **amorcés une fois** au démarrage — le mot de passe est **hashé** (PBKDF2). Ensuite, tout se gère dans les Paramètres.
 - Ne publie **jamais** ton fichier `.env` (déjà ignoré par `.gitignore`).
