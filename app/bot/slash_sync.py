@@ -202,11 +202,24 @@ def _rank(value: str, query: str) -> int:
     return 2
 
 
+def _can_use_generic_ha(interaction: discord.Interaction) -> bool:
+    return (interaction.guild_id == settings.discord_guild_id
+            and isinstance(interaction.user, discord.Member)
+            and interaction.user.guild_permissions.administrator)
+
+
+def _allowed_ha_services() -> set[str]:
+    return {value.strip() for value in settings.discord_ha_allowed_services.split(",") if value.strip()}
+
+
 async def _ha_service_autocomplete(
     interaction: discord.Interaction, current: str
 ) -> list[app_commands.Choice[str]]:
+    if not _can_use_generic_ha(interaction):
+        return []
+    allowed = _allowed_ha_services()
     try:
-        services = await ha_client.list_services_flat()
+        services = [s for s in await ha_client.list_services_flat() if s["service"] in allowed]
     except Exception:  # noqa: BLE001
         return []
 
@@ -241,6 +254,8 @@ async def _ha_service_autocomplete(
 async def _ha_entity_autocomplete(
     interaction: discord.Interaction, current: str
 ) -> list[app_commands.Choice[str]]:
+    if not _can_use_generic_ha(interaction) or getattr(interaction.namespace, "service", None) not in _allowed_ha_services():
+        return []
     try:
         entities = await ha_client.list_entity_ids()
     except Exception:  # noqa: BLE001
@@ -282,7 +297,8 @@ def _build_generic_ha_command() -> app_commands.Command:
     """Factory : retourne une nouvelle instance de la commande /ha a chaque appel
     (necessaire pour pouvoir la re-ajouter a un tree apres clear_commands)."""
 
-    @app_commands.command(name="ha", description="Appelle n'importe quel service Home Assistant")
+    @app_commands.command(name="ha", description="Appelle un service Home Assistant autorisé")
+    @app_commands.default_permissions(administrator=True)
     @app_commands.describe(
         service="Service HA (ex: light.turn_on)",
         entity="Entity ID cible (optionnel)",
@@ -298,11 +314,11 @@ def _build_generic_ha_command() -> app_commands.Command:
         entity: str | None = None,
         data: str | None = None,
     ) -> None:
-        if "." not in service:
-            await interaction.response.send_message(
-                f"❌ Service invalide : `{service}` (attendu : `domain.action`)",
-                ephemeral=True,
-            )
+        if not _can_use_generic_ha(interaction):
+            await interaction.response.send_message("Commande réservée aux administrateurs du serveur.", ephemeral=True)
+            return
+        if "." not in service or service not in _allowed_ha_services():
+            await interaction.response.send_message("Service Home Assistant non autorisé pour /ha.", ephemeral=True)
             return
         domain, srv = service.split(".", 1)
 
@@ -315,6 +331,9 @@ def _build_generic_ha_command() -> app_commands.Command:
                     f"❌ JSON invalide : {exc}", ephemeral=True
                 )
                 return
+        if not isinstance(payload, dict):
+            await interaction.response.send_message("Le JSON doit être un objet.", ephemeral=True)
+            return
         if entity:
             payload["entity_id"] = entity
 

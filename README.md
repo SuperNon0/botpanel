@@ -115,7 +115,9 @@ Journal de toutes les activités du bot : envois de notifications, clics sur les
 
 ## Commandes slash Discord
 
-### `/ha` — appel libre de service HA
+### `/ha` — services HA autorisés
+
+Réservé aux administrateurs du serveur Discord configuré. Pour autoriser des services, ajoute par exemple `DISCORD_HA_ALLOWED_SERVICES=light.turn_on,light.turn_off` dans le `.env` puis redémarre BotPanel. Une liste vide interdit les appels via `/ha`. L’intégration Home Assistant, les notifications et les commandes personnalisées gardent leur configuration.
 
 Permet d'appeler n'importe quel service Home Assistant directement depuis Discord.
 
@@ -418,16 +420,23 @@ Depuis **Paramètres → Sauvegarde & migration** :
 
 ## Sécurité et accès
 
+### Mise à jour de sécurité (PR 43)
+
+- **Home Assistant** conserve son URL, sa clé `X-API-Key`, ses notifications `/api/notify` et ses commandes personnalisées. Après le redémarrage, vérifie une notification depuis Home Assistant.
+- **Discord `/ha`** exige les droits administrateur du serveur Discord et une liste de services dans `DISCORD_HA_ALLOWED_SERVICES`. Une liste vide désactive les appels de cette commande.
+- **Cloudflare uniquement** exige un JWT valide. Vérifie l’équipe, l’AUD et le résultat du bouton **Tester** avant la mise à jour si ce mode est déjà actif.
+- **Mot de passe** : tout changement révoque les anciennes sessions locales. **Discord indisponible** : le panneau et son API restent ouverts pour diagnostiquer le problème. Les envois Discord reprennent lorsque le bot est reconnecté.
+
 BotPanel intègre une **authentification à deux portes** (voir [docs/CONNEXION.md](docs/CONNEXION.md)). Elle est **additive** : inerte tant que rien n'est configuré (panel ouvert en LAN), activable quand tu veux.
 
 - **En local (LAN)** : mot de passe admin — **un seul champ, aucun identifiant** (Paramètres → Compte & sécurité). Réinitialisable sur le serveur (`deploy/reset_admin.sh`).
-- **Via Cloudflare Access** : connexion automatique **sans mot de passe** — BotPanel **vérifie le badge signé** (JWT **RS256 + `aud` + `iss`**), donc **pas d'usurpation possible** en local (l'en-tête `Cf-Access-Authenticated-User-Email` seul n'est jamais cru). Configurable dans **Paramètres → Cloudflare / Accès** (équipe, AUD, bouton **Tester**).
-- **Mode « Cloudflare uniquement »** (`ALLOW_LOCAL_LOGIN=false`, ou la case dans les réglages) : tout accès direct **sans badge** est **refusé (403)**, même en POST. À n'activer que si l'origine est injoignable hors Cloudflare (tunnel `cloudflared` / pare-feu IP Cloudflare), sinon risque de verrouillage.
+- **Via Cloudflare Access** : connexion automatique **sans mot de passe** — BotPanel **vérifie le badge signé** (JWT **RS256 + `aud` + `iss`**), en mode vérifié (l’en-tête e-mail seul est réservé au mode local sans vérification). Configurable dans **Paramètres → Cloudflare / Accès** (équipe, AUD, bouton **Tester**).
+- **Mode « Cloudflare uniquement »** (`ALLOW_LOCAL_LOGIN=false`, ou la case dans les réglages) : tout accès direct **sans badge** est **refusé (403)**, même en POST. Pour l’activer dans les réglages, ouvre BotPanel via Cloudflare et vérifie que le bouton Tester valide le JWT avec l’équipe et l’AUD configurés.
 - **Routes machine** (`/api/notify`, webhooks) : **toujours ouvertes** (HA / Proxmox jamais bloqués), protégées par le réseau.
 - **Première install** : `ADMIN_PASSWORD` (et `CF_ACCESS_*` / `ALLOW_LOCAL_LOGIN`) dans `.env` sont **amorcés une fois** au démarrage — le mot de passe est **hashé** (PBKDF2). Ensuite, tout se gère dans les Paramètres.
 - Ne publie **jamais** ton fichier `.env` (déjà ignoré par `.gitignore`).
 
-> Le noyau de vérification du badge (`app/cloudflare_access.py`) et le thème d'interface sont **partagés à l'identique** avec les autres sites (socle `Site-base`), pour une sécurité et un look cohérents sur toute la flotte.
+> Le module de vérification du badge de BotPanel reprend la logique de Site-base et valide strictement le nom d’équipe avant de récupérer les clés publiques.
 
 ## Intégration Home Assistant (composant natif)
 

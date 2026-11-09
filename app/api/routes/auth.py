@@ -86,35 +86,49 @@ async def me(request: Request) -> dict:
 # ----------------------------------------------------------------------
 # Cloudflare Access — config (UI) + test
 # ----------------------------------------------------------------------
+async def _require_admin_access(request: Request) -> None:
+    """Respecte le mode local ouvert, le mot de passe et le mode Cloudflare seul."""
+    cfg = await cf_config()
+    if cfg["allow_local"]:
+        if not (await auth_state())["enabled"] or await current_user(request):
+            return
+    if await cf_access_email(request, require_verified=True):
+        return
+    raise HTTPException(401, "Connexion administrateur requise.")
+
+
 @router.get("/cf-config")
-async def get_cf_config() -> dict:
-    """Renvoie la config Cloudflare effective (equipe, aud, verif)."""
+async def get_cf_config(request: Request) -> dict:
+    await _require_admin_access(request)
     return await cf_config()
 
 
 @router.post("/cf-config")
 async def save_cf_config(payload: CfConfigPayload, request: Request) -> dict:
-    """Enregistre la config Cloudflare (equipe/AUD/verif) depuis les Parametres."""
-    state = await auth_state()
-    if state["enabled"] and await is_authenticated(request) is None:
-        raise HTTPException(401, "Connexion requise.")
-    repo = SettingsRepository()
-    await repo.set("cf_team", normalize_team(payload.team))
-    await repo.set("cf_aud", (payload.aud or "").strip())
-    await repo.set("cf_verify", bool(payload.verify))
-    await repo.set("cf_allow_local", bool(payload.allow_local))
-    logger.info(
-        "Config Cloudflare enregistree (team=%s, verify=%s, allow_local=%s)",
-        normalize_team(payload.team), payload.verify, payload.allow_local,
-    )
+    await _require_admin_access(request)
+    team = normalize_team(payload.team)
+    aud = payload.aud.strip()
+    if payload.team.strip() and not team:
+        raise HTTPException(422, "Nom d’équipe Cloudflare invalide.")
+    if not payload.allow_local:
+        if not payload.verify or not team or not aud:
+            raise HTTPException(422, "Le mode Cloudflare uniquement exige un JWT vérifié, une équipe et un AUD.")
+        diagnostic = await cf_diagnostic(request, team=team, aud=aud)
+        if not diagnostic["jwt_email"]:
+            raise HTTPException(422, "Connecte-toi via Cloudflare et valide le badge avant de couper l’accès local.")
+    await SettingsRepository().set_many({
+        "cf_team": team, "cf_aud": aud, "cf_verify": payload.verify, "cf_allow_local": payload.allow_local,
+    })
+    logger.info("Config Cloudflare enregistrée (team=%s, verify=%s, allow_local=%s)", team, payload.verify, payload.allow_local)
     return {"status": "ok"}
 
 
 @router.post("/cf-test")
 async def cf_test(payload: CfTestPayload, request: Request) -> dict:
-    """Teste en direct la connexion Cloudflare pour les valeurs saisies (bouton Tester)."""
+    await _require_admin_access(request)
+    if payload.team.strip() and not normalize_team(payload.team):
+        raise HTTPException(422, "Nom d’équipe Cloudflare invalide.")
     return await cf_diagnostic(request, team=payload.team, aud=payload.aud)
-
 
 @router.post("/login")
 async def login(payload: LoginPayload, request: Request, response: Response) -> dict:
@@ -128,8 +142,9 @@ async def login(payload: LoginPayload, request: Request, response: Response) -> 
     if payload.username != state["username"] or not verify_password(payload.password, state["password_hash"]):
         raise HTTPException(401, "Identifiants incorrects.")
 
-    repo = AuthRepository()
-    secret = await repo.get_or_create_secret()
+    secret = state["secret"] or await AuthRepository().get_or_create_secret(state["password_hash"])
+    if secret is None:
+        raise HTTPException(401, "Identifiants incorrects.")
     token = create_session_token(state["username"], secret)
     _set_cookie(response, request, token)
     logger.info("Connexion admin reussie (%s)", state["username"])
@@ -149,21 +164,16 @@ async def set_password(payload: PasswordPayload, request: Request, response: Res
     - Si la protection est desactivee : definit le 1er mot de passe (l'active).
     - Si elle est activee : exige le mot de passe actuel + une session valide.
     """
+    await _require_admin_access(request)
     state = await auth_state()
     repo = AuthRepository()
 
     if state["enabled"]:
-        user = await current_user(request)
-        if user is None:
-            raise HTTPException(401, "Connexion requise pour changer le mot de passe.")
         if not verify_password(payload.current_password, state["password_hash"]):
             raise HTTPException(403, "Mot de passe actuel incorrect.")
 
     username = (payload.username or "admin").strip() or "admin"
-    await repo.set_password(hash_password(payload.new_password), username=username)
-
-    # (Re)genere une session valide pour l'utilisateur courant
-    secret = await repo.get_or_create_secret()
+    secret = await repo.set_password(hash_password(payload.new_password), username=username)
     token = create_session_token(username, secret)
     _set_cookie(response, request, token)
     logger.info("Mot de passe admin mis a jour (%s)", username)
@@ -173,12 +183,10 @@ async def set_password(payload: PasswordPayload, request: Request, response: Res
 @router.post("/disable")
 async def disable(payload: DisablePayload, request: Request, response: Response) -> dict:
     """Desactive la protection (panel ouvert). Exige le mot de passe actuel."""
+    await _require_admin_access(request)
     state = await auth_state()
     if not state["enabled"]:
         return {"status": "ok", "enabled": False}
-    user = await current_user(request)
-    if user is None:
-        raise HTTPException(401, "Connexion requise.")
     if not verify_password(payload.current_password, state["password_hash"]):
         raise HTTPException(403, "Mot de passe incorrect.")
     repo = AuthRepository()

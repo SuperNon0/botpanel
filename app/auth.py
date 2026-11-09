@@ -21,7 +21,7 @@ from typing import Optional
 from app.config import settings as app_settings
 from app.db.repositories import AuthRepository, SettingsRepository
 
-# La verif du badge est deleguee au module PARTAGE (identique au site-base).
+# La verif du badge est deleguee au module PARTAGE.
 from app import cloudflare_access as _cfa
 # PyJWT est optionnel au demarrage : on n'exige la lib que si la verif est active.
 _jwt = _cfa.jwt
@@ -123,17 +123,12 @@ async def current_user(request) -> Optional[str]:
 # FALSIFIABLE en local : on ne s'y fie jamais quand la verif est active.
 #
 # La verif elle-meme est deleguee au module PARTAGE `app.cloudflare_access`
-# (identique au site-base). Ici on ne gere que la CONFIG (UI prioritaire) et
+#. Ici on ne gere que la CONFIG (UI prioritaire) et
 # l'execution hors event-loop (`asyncio.to_thread`, car la recuperation des cles
 # Cloudflare est bloquante).
 
 
-def normalize_team(team: str) -> str:
-    """Garde le NOM d'equipe seul (ex. 'super-nono'), quelle que soit la saisie."""
-    t = (team or "").strip().lower()
-    t = t.removeprefix("https://").removeprefix("http://").strip("/")
-    t = t.removesuffix(".cloudflareaccess.com")
-    return t.strip("/")
+normalize_team = _cfa.normalize_team
 
 
 async def cf_config() -> dict:
@@ -169,7 +164,7 @@ def _cf_token(request) -> Optional[str]:
             or request.cookies.get("CF_Authorization"))
 
 
-async def cf_access_email(request) -> Optional[str]:
+async def cf_access_email(request, *, require_verified: bool = False) -> Optional[str]:
     """E-mail Cloudflare VERIFIE pour la requete, sinon None.
 
     - verify=True (defaut) : valide le JWT (signature + aud + iss). Un en-tete
@@ -179,7 +174,7 @@ async def cf_access_email(request) -> Optional[str]:
     La verif (bloquante) est deleguee au module partage via `asyncio.to_thread`.
     """
     cfg = await cf_config()
-    if not cfg["verify"]:
+    if not cfg["verify"] and cfg["allow_local"] and not require_verified:
         header_email = request.headers.get("cf-access-authenticated-user-email")
         return header_email.strip().lower() if header_email else None
     if _jwt is None or not cfg["team"] or not cfg["aud"] or not _cf_token(request):
@@ -243,7 +238,7 @@ async def is_authenticated(request) -> Optional[dict]:
         email = None
     if email:
         return {"method": "cloudflare", "email": email, "username": None}
-    user = await current_user(request)
+    user = await current_user(request) if (await cf_config())["allow_local"] else None
     if user:
         return {"method": "password", "email": None, "username": user}
     return None

@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 # Chemins toujours accessibles, meme en mode configuration (sinon on ne pourrait
 # pas afficher /setup, servir le CSS, ni verifier l'etat du service).
-_SETUP_ALLOWED_PREFIXES = ("/setup", "/api/setup", "/static", "/health", "/api/system")
+_SETUP_ALLOWED_PREFIXES = ("/login", "/setup", "/api/setup", "/static", "/health", "/api/system")
 
 # Chemins toujours accessibles meme quand la protection par mot de passe est active :
 # - la page de connexion et son API
@@ -115,40 +115,39 @@ async def _auth_guard(request, call_next):
             return await call_next(request)
         return JSONResponse({"detail": "Cle API invalide ou absente."}, status_code=401)
 
-    if settings.is_configured:
-        if not any(path.startswith(p) for p in _AUTH_PUBLIC_PREFIXES):
-            cfg = await cf_config()
-            state = await auth_state()
-            local_disabled = not cfg["allow_local"]
-            # On ne filtre que s'il y a quelque chose a faire respecter :
-            #   - un mot de passe est actif, OU
-            #   - l'entree locale est desactivee (mode Cloudflare uniquement).
-            if state["enabled"] or local_disabled:
-                # Porte 1 : badge Cloudflare verifie ?
+    if not any(path.startswith(p) for p in _AUTH_PUBLIC_PREFIXES):
+        cfg = await cf_config()
+        state = await auth_state()
+        local_disabled = not cfg["allow_local"]
+        # On ne filtre que s'il y a quelque chose a faire respecter :
+        #   - un mot de passe est actif, OU
+        #   - l'entree locale est desactivee (mode Cloudflare uniquement).
+        if state["enabled"] or local_disabled:
+            # Porte 1 : badge Cloudflare verifie ?
+            cf_ok = False
+            try:
+                if await cf_access_email(request):
+                    cf_ok = True
+            except Exception:  # noqa: BLE001
                 cf_ok = False
-                try:
-                    if await cf_access_email(request):
-                        cf_ok = True
-                except Exception:  # noqa: BLE001
-                    cf_ok = False
 
-                if not cf_ok:
-                    if local_disabled:
-                        # Cloudflare uniquement : acces direct refuse (403).
-                        return _blocked_response(request)
-                    # Porte 2 : session mot de passe (LAN), si un mot de passe est actif.
-                    authed = True
-                    if state["enabled"]:
-                        token = request.cookies.get(COOKIE_NAME)
-                        authed = bool(
-                            token and state["secret"]
-                            and verify_session_token(token, state["secret"])
-                        )
-                    if not authed:
-                        accept = request.headers.get("accept", "")
-                        if request.method == "GET" and "text/html" in accept:
-                            return RedirectResponse("/login")
-                        return JSONResponse({"detail": "Non authentifie"}, status_code=401)
+            if not cf_ok:
+                if local_disabled:
+                    # Cloudflare uniquement : acces direct refuse (403).
+                    return _blocked_response(request)
+                # Porte 2 : session mot de passe (LAN), si un mot de passe est actif.
+                authed = True
+                if state["enabled"]:
+                    token = request.cookies.get(COOKIE_NAME)
+                    authed = bool(
+                        token and state["secret"]
+                        and verify_session_token(token, state["secret"])
+                    )
+                if not authed:
+                    accept = request.headers.get("accept", "")
+                    if request.method == "GET" and "text/html" in accept:
+                        return RedirectResponse("/login")
+                    return JSONResponse({"detail": "Non authentifie"}, status_code=401)
     return await call_next(request)
 
 

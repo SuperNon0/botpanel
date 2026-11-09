@@ -1,8 +1,6 @@
 """Verification du badge Cloudflare Access — port FastAPI / Starlette.
 
-⚠️ MODULE PARTAGE : repris A L'IDENTIQUE de la logique testee du site-base
-(socle-lite/ports/fastapi/cloudflare_access.py). Meme algorithme, memes garanties.
-Le garder identique d'un site a l'autre permet de le synchroniser facilement.
+Vérification JWT Cloudflare Access et validation stricte du nom d’équipe.
 
 Dependances : PyJWT[crypto].
 
@@ -11,6 +9,8 @@ seul : on verifie le JWT `Cf-Access-Jwt-Assertion` (RS256) + `aud` + `iss`.
 Et rendre l'origine injoignable hors Cloudflare (tunnel / pare-feu IP Cloudflare).
 """
 from __future__ import annotations
+
+import re
 
 try:
     import jwt
@@ -23,11 +23,12 @@ except Exception:  # PyJWT optionnel tant que la verif n'est pas active
 _jwk_clients: dict = {}
 
 
-def _normalize_team(raw: str) -> str:
-    t = (raw or "").strip().lower()
-    t = t.replace("https://", "").replace("http://", "").strip("/")
-    return t.replace(".cloudflareaccess.com", "")
-
+def normalize_team(raw: str) -> str:
+    """Accepte un nom DNS ou une URL Cloudflare Access sans chemin."""
+    value = (raw or "").strip().lower()
+    value = value.removeprefix("https://").removeprefix("http://").removesuffix("/")
+    value = value.removesuffix(".cloudflareaccess.com")
+    return value if re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", value) else ""
 
 def _get_jwk_client(team: str):
     if not team or PyJWKClient is None:
@@ -57,7 +58,7 @@ def cf_access_email(request, *, team: str, aud: str, verify: bool = True):
     if not token:
         return None
 
-    team = _normalize_team(team)
+    team = normalize_team(team)
     aud = (aud or "").strip()
     client = _get_jwk_client(team)
     if client is None or not aud or not team:
@@ -87,7 +88,7 @@ def cf_access_email_verbose(request, *, team: str, aud: str):
              or request.cookies.get("CF_Authorization"))
     if not token:
         return None
-    team = _normalize_team(team)
+    team = normalize_team(team)
     aud = (aud or "").strip()
     client = _get_jwk_client(team)
     if client is None or not aud or not team:

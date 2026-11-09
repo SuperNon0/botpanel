@@ -37,34 +37,31 @@ class AuthRepository:
                 "session_secret": row["session_secret"] if row else None,
             }
 
-    async def get_or_create_secret(self) -> str:
-        """Renvoie le secret de session, en le generant au besoin."""
-        data = await self.get()
-        if data["session_secret"]:
-            return data["session_secret"]
+    async def get_or_create_secret(self, password_hash: str) -> Optional[str]:
+        """Amorce une ancienne ligne sans secret sans rétablir une session révoquée."""
+        async with get_connection() as db:
+            cursor = await db.execute(
+                "UPDATE admin_auth SET session_secret = COALESCE(session_secret, ?) "
+                "WHERE id = 1 AND password_hash = ? RETURNING session_secret",
+                (secrets.token_hex(32), password_hash),
+            )
+            row = await cursor.fetchone()
+            await cursor.close()
+            await db.commit()
+            return row["session_secret"] if row else None
+
+    async def set_password(self, password_hash: str, username: Optional[str] = None) -> str:
+        """Change le mot de passe et révoque toutes les anciennes sessions."""
         secret = secrets.token_hex(32)
         async with get_connection() as db:
+            await self._ensure_row(db)
             await db.execute(
-                "UPDATE admin_auth SET session_secret = ? WHERE id = 1", (secret,)
+                "UPDATE admin_auth SET password_hash = ?, username = COALESCE(?, username), "
+                "session_secret = ?, updated_at = datetime('now') WHERE id = 1",
+                (password_hash, username, secret),
             )
             await db.commit()
         return secret
-
-    async def set_password(self, password_hash: str, username: Optional[str] = None) -> None:
-        """Definit (ou change) le hash du mot de passe admin — active la protection."""
-        async with get_connection() as db:
-            await self._ensure_row(db)
-            if username:
-                await db.execute(
-                    "UPDATE admin_auth SET password_hash = ?, username = ?, updated_at = datetime('now') WHERE id = 1",
-                    (password_hash, username),
-                )
-            else:
-                await db.execute(
-                    "UPDATE admin_auth SET password_hash = ?, updated_at = datetime('now') WHERE id = 1",
-                    (password_hash,),
-                )
-            await db.commit()
 
     async def clear_password(self) -> None:
         """Supprime le mot de passe (desactive la protection) et regenere le secret
