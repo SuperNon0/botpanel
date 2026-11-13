@@ -10,29 +10,29 @@
 <!-- Navigation par thèmes -->
 <div class="help-nav">
   <a class="help-nav-card" href="#demarrage">
-    <span class="help-nav-emoji">🚀</span>
+    <span class="help-nav-emoji"><svg class="i s22" aria-hidden="true"><use href="/static/encre/icones.svg#i-zap"/></svg></span>
     <span class="help-nav-t">Démarrage</span>
     <span class="help-nav-d">Créer le bot, connecter Home Assistant</span>
   </a>
   <a class="help-nav-card" href="#utilisation">
-    <span class="help-nav-emoji">🔔</span>
+    <span class="help-nav-emoji"><svg class="i s22" aria-hidden="true"><use href="/static/encre/icones.svg#i-bell"/></svg></span>
     <span class="help-nav-t">Utilisation</span>
     <span class="help-nav-d">Notifications, commandes, monitoring</span>
   </a>
   <a class="help-nav-card" href="#api">
-    <span class="help-nav-emoji">🔌</span>
+    <span class="help-nav-emoji"><svg class="i s22" aria-hidden="true"><use href="/static/encre/icones.svg#i-plug"/></svg></span>
     <span class="help-nav-t">API</span>
     <span class="help-nav-d">Déclencher une notif depuis un projet</span>
   </a>
   <a class="help-nav-card" href="#admin">
-    <span class="help-nav-emoji">⚙️</span>
+    <span class="help-nav-emoji"><svg class="i s22" aria-hidden="true"><use href="/static/encre/icones.svg#i-gear"/></svg></span>
     <span class="help-nav-t">Administration</span>
     <span class="help-nav-d">Paramètres, sauvegarde, sécurité</span>
   </a>
 </div>
 
 <!-- ================= DÉMARRAGE ================= -->
-<h3 class="help-cat" id="demarrage">🚀 Démarrage</h3>
+<h3 class="help-cat" id="demarrage">Démarrage</h3>
 
 <details class="card help-card">
   <summary><span class="help-arrow">&#9656;</span> Créer son bot Discord</summary>
@@ -44,7 +44,7 @@
       <li>Dans <strong>Bot Permissions</strong> : <em>Send Messages, Embed Links, Manage Messages, Read Message History, Create Public Threads, Send Messages in Threads, Manage Threads</em>.</li>
       <li>Copie l'URL générée en bas, ouvre-la, choisis ton serveur → <strong>Autoriser</strong>.</li>
     </ol>
-    <p class="help-note">💡 Aucun <em>intent privilégié</em> n'est nécessaire — laisse-les désactivés.</p>
+    <p class="help-note">Aucun <em>intent privilégié</em> n'est nécessaire — laisse-les désactivés.</p>
   </div>
 </details>
 
@@ -86,7 +86,7 @@
 </details>
 
 <!-- ================= UTILISATION ================= -->
-<h3 class="help-cat" id="utilisation">🔔 Utilisation</h3>
+<h3 class="help-cat" id="utilisation">Utilisation</h3>
 
 <details class="card help-card">
   <summary><span class="help-arrow">&#9656;</span> Créer une notification</summary>
@@ -120,7 +120,7 @@
     {% raw %}
     <p>Syntaxe Jinja HA aussi supportée : <code>{{ states('sensor.temp') }}</code>, <code>{% if ... %}…{% endif %}</code>.</p>
     {% endraw %}
-    <p class="help-note">👉 Pour des valeurs envoyées par un <strong>projet externe</strong> (pas HA), vois la section <a href="#api">API</a> et les variables <code>{var:...}</code>.</p>
+    <p class="help-note">Pour des valeurs envoyées par un <strong>projet externe</strong> (pas HA), vois la section <a href="#api">API</a> et les variables <code>{var:...}</code>.</p>
   </div>
 </details>
 
@@ -149,7 +149,7 @@
 </details>
 
 <!-- ================= API (mise en avant) ================= -->
-<h3 class="help-cat" id="api">🔌 Envoyer une notif depuis un projet (API)</h3>
+<h3 class="help-cat" id="api">Envoyer une notif depuis un projet (API)</h3>
 
 <div class="card help-api">
   <p class="help-api-lead">
@@ -168,7 +168,7 @@
     </div>
     <div class="help-3-step">
       <span class="help-3-num">3</span>
-      <div><strong>Ça part sur Discord</strong> ✨<br><span class="help-dim">BotPanel gère toute la mise en forme.</span></div>
+      <div><strong>Ça part sur Discord</strong><br><span class="help-dim">BotPanel gère toute la mise en forme.</span></div>
     </div>
   </div>
 
@@ -192,13 +192,13 @@ Message : Durée : {var:duree} · Taille : {var:taille|inconnue}</pre>
     <li><code>{var:nom|défaut}</code> → la valeur, ou <code>défaut</code> si oubliée</li>
   </ul>
 
-  <p class="help-note">🔓 Cette route reste <strong>toujours accessible</strong>, même avec la protection par mot de passe :
+  <p class="help-note">Cette route reste <strong>toujours accessible</strong>, même avec la protection par mot de passe :
      tes projets ne sont jamais bloqués.<br>
-     📄 Fichier complet à donner à un développeur (exemples Python, Node.js, PHP, Bash) : <code>docs/API.md</code>.</p>
+     Fichier complet à donner à un développeur (exemples Python, Node.js, PHP, Bash) : <code>docs/API.md</code>.</p>
 </div>
 
 <!-- ================= ADMINISTRATION ================= -->
-<h3 class="help-cat" id="admin">⚙️ Administration</h3>
+<h3 class="help-cat" id="admin">Administration</h3>
 
 <details class="card help-card">
   <summary><span class="help-arrow">&#9656;</span> Paramètres, mise à jour &amp; redémarrage</summary>
@@ -218,7 +218,7 @@ Message : Durée : {var:duree} · Taille : {var:taille|inconnue}</pre>
     <p>Dans <a href="/settings">Paramètres → Sauvegarde &amp; migration</a> :</p>
     <ul>
       <li><strong>Exporter</strong> : télécharge un fichier JSON de toutes tes données (notifs, commandes, monitoring, presets).</li>
-      <li><strong>Importer</strong> : recharge ce fichier sur une nouvelle instance. ⚠️ Remplace les données existantes.</li>
+      <li><strong>Importer</strong> : recharge ce fichier sur une nouvelle instance. Remplace les données existantes.</li>
     </ul>
   </div>
 </details>
@@ -241,69 +241,39 @@ Message : Durée : {var:duree} · Taille : {var:taille|inconnue}</pre>
 {% block scripts %}
 <style>
   /* Navigation par thèmes */
-  .help-nav {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 0.8rem;
-    margin-bottom: 1.6rem;
-  }
+  .help-nav { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 12px; margin-bottom: 24px; }
   .help-nav-card {
-    display: block;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 1rem 1.1rem;
-    text-decoration: none;
-    color: var(--text);
-    transition: border-color .15s ease, transform .15s ease;
+    display: block; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg);
+    padding: 14px; color: var(--text); transition: border-color .15s, transform .12s var(--ease);
   }
-  .help-nav-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-  .help-nav-emoji { font-size: 1.4rem; display: block; margin-bottom: 0.35rem; }
-  .help-nav-t { font-weight: 500; display: block; }
-  .help-nav-d { color: var(--text-dim, #8a8c9e); font-size: 0.8rem; display: block; margin-top: 0.2rem; }
+  .help-nav-card:hover { border-color: var(--acc-line); }
+  .help-nav-card:active { transform: scale(.98); }
+  .help-nav-emoji { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: var(--acc-dim); color: var(--accent); margin-bottom: 8px; }
+  .help-nav-t { font-weight: 600; display: block; }
+  .help-nav-d { color: var(--muted); font-size: 13px; display: block; margin-top: 2px; }
 
   /* Titres de catégorie */
-  .help-cat {
-    margin: 2rem 0 0.8rem;
-    padding-bottom: 0.4rem;
-    border-bottom: 1px solid var(--border);
-    scroll-margin-top: 1rem;
-    font-size: 1.15rem;
-  }
+  .help-cat { margin: 28px 0 12px; scroll-margin-top: 80px; font-size: calc(21px * var(--t-scale)); }
 
-  /* Accordéons plus compacts */
-  .help-card > summary { cursor: pointer; font-weight: 500; }
-  .help-steps { margin: 0.3rem 0 0.6rem 1.1rem; padding: 0; }
-  .help-steps li { margin-bottom: 0.35rem; }
-  .help-note {
-    background: rgba(255,255,255,0.04);
-    border-radius: 8px; padding: 0.6rem 0.8rem; font-size: 0.88rem;
-  }
-  .help-dim { color: var(--text-dim, #8a8c9e); }
+  /* Accordéons */
+  .help-steps { margin: 4px 0 10px 20px; padding: 0; }
+  .help-steps li { margin-bottom: 5px; }
+  .help-note { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+  .help-dim { color: var(--muted); }
   .help-code {
-    background: #12131a; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;
-    padding: 0.8rem 1rem; overflow-x: auto; font-size: 0.82rem; line-height: 1.5; margin: 0.5rem 0;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px; color: var(--text);
+    padding: 12px 14px; overflow-x: auto; font: 500 12.5px/1.6 var(--f-mono); margin: 8px 0;
   }
 
   /* Bloc API mis en avant */
   .help-api { border-left: 3px solid var(--accent); }
-  .help-api-lead { font-size: 1rem; margin-top: 0; }
-  .help-3 {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 0.8rem; margin: 1rem 0 1.4rem;
-  }
-  .help-3-step {
-    display: flex; gap: 0.7rem; align-items: flex-start;
-    background: rgba(255,255,255,0.03); border-radius: 10px; padding: 0.8rem;
-  }
+  .help-api-lead { font-size: 15px; margin-top: 0; }
+  .help-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); gap: 12px; margin: 14px 0 20px; }
+  .help-3-step { display: flex; gap: 10px; align-items: flex-start; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
   .help-3-num {
-    flex: none; width: 26px; height: 26px; border-radius: 50%;
-    background: var(--accent); color: #1a1a1a; font-weight: 600;
-    display: grid; place-items: center; font-size: 0.85rem;
+    flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--ink);
+    font: 600 13px/1 var(--f-mono); display: grid; place-items: center;
   }
-  .help-result {
-    background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.25);
-    border-radius: 8px; padding: 0.7rem 0.9rem; font-size: 0.9rem;
-  }
+  .help-result { background: var(--ok-dim); border: 1px solid color-mix(in srgb, var(--ok) 40%, transparent); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
 </style>
 {% endblock %}

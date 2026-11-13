@@ -28,8 +28,8 @@ _MANIFEST = {
     "scope": "/",
     "display": "standalone",
     "orientation": "portrait",
-    "background_color": "#0e0f11",
-    "theme_color": "#0e0f11",
+    "background_color": "#0b0f17",
+    "theme_color": "#0b0f17",
     "icons": [
         {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
         {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
@@ -40,7 +40,7 @@ _MANIFEST = {
 # Service worker : network-first, cache de repli hors-ligne. Ne met JAMAIS en
 # cache les appels /api/ (donnees live / webhooks machines).
 _SERVICE_WORKER = """\
-const CACHE = 'botpanel-v1';
+const CACHE = 'botpanel-v2';  // suit la version du site (design « encre »)
 self.addEventListener('install', (e) => { self.skipWaiting(); });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((ks) =>

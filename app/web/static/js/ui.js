@@ -1,14 +1,9 @@
 // Helpers UI : toast, autocomplete
 
 function toast(message, kind = "ok") {
-  const el = document.getElementById("toast");
-  if (!el) return;
-  el.textContent = message;
-  el.className = "toast show" + (kind === "error" ? " error" : "");
-  clearTimeout(window.__toastTimer);
-  window.__toastTimer = setTimeout(() => {
-    el.className = "toast" + (kind === "error" ? " error" : "");
-  }, 2500);
+  // Messages du design « encre » (posés au-dessus de la barre flottante).
+  const go = () => window.Encre && Encre.toast(String(message ?? ""), { erreur: kind === "error" });
+  if (window.Encre) go(); else document.addEventListener("DOMContentLoaded", go, { once: true });
 }
 
 function esc(s) {
@@ -18,11 +13,12 @@ function esc(s) {
 }
 
 // Icônes (SVG inline) pour les états vides
+const _ic = (nom) => `<svg class="i" aria-hidden="true"><use href="/static/encre/icones.svg#i-${nom}"/></svg>`;
 const ICONS = {
-  bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
-  slash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>',
-  pulse: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>',
-  clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>'
+  bell: _ic("bell"),
+  slash: _ic("hash"),
+  pulse: _ic("signal"),
+  clock: _ic("clock")
 };
 
 // Construit un état vide illustré (icône + titre + sous-texte + éventuel CTA)

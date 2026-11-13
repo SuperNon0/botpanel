@@ -1,85 +1,93 @@
+{#- Design « encre » : menu de gauche (ordinateur), barre du haut + barre
+    d'onglets flottante en verre (téléphone, tablette). Voir design-encre/. -#}
+{%- set S = "/static/encre/icones.svg" -%}
+{%- macro ic(nom, cls="") -%}<svg class="i{{ ' ' ~ cls if cls }}" aria-hidden="true"><use href="{{ S }}#i-{{ nom }}"/></svg>{%- endmacro -%}
+{%- set pages_nav = [
+  ("dashboard", "/dashboard", "home", "Accueil", "Accueil"),
+  ("notifications", "/notifications", "bell", "Notifications", "Notifs"),
+  ("commands", "/commands", "hash", "Commandes", "Commandes"),
+  ("monitoring", "/monitoring", "signal", "Monitoring", "Suivi"),
+  ("historique", "/historique", "clock", "Historique", "Historique"),
+  ("settings", "/settings", "gear", "Paramètres", "Réglages"),
+  ("aide", "/aide", "help", "Aide", "Aide"),
+] -%}
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-accent-defaut="lavande" data-encre-sprite="{{ S }}">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="color-scheme" content="dark">
+  {% include "_encre_head.html" %}
   <title>{% block title %}BotPanel{% endblock %}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-  <link rel="stylesheet" href="/static/css/style.css?v=11">
-  <link rel="stylesheet" href="/static/css/animations.css?v=1">
-  <link rel="stylesheet" href="/static/css/help.css?v=1">
-  <link rel="stylesheet" href="/static/css/atelier.css?v=1">
   <!-- PWA (installable sur écran d'accueil) -->
-  <meta name="theme-color" content="#0e0f11">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="botpanel">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 </head>
-<body>
+<body data-page="{{ active_page }}">
 
-<header class="header">
-  <a href="/dashboard" id="logo-link" class="logo" style="text-decoration:none; display:inline-flex; align-items:center; gap:0.5rem;">
-    <svg viewBox="0 0 100 100" width="26" height="26" aria-hidden="true" style="flex:none;">
-      <g stroke="currentColor" stroke-opacity="0.32" stroke-width="7" stroke-linecap="round" fill="none">
-        <line x1="26" y1="34" x2="74" y2="34"/>
-        <line x1="26" y1="50" x2="74" y2="50"/>
-        <line x1="26" y1="66" x2="74" y2="66"/>
-      </g>
-      <circle cx="58" cy="34" r="8.5" fill="#e8c547"/>
-      <circle cx="38" cy="50" r="8.5" fill="#8b5cf6"/>
-      <circle cx="62" cy="66" r="8.5" fill="#4ade80"/>
-    </svg>
-    <span><span class="bot">bot</span><span class="panel">panel</span></span>
-  </a>
-  <div class="header-right">
-    <span id="user-box" style="display:none; align-items:center; gap:0.6rem;">
-      <span id="user-name" style="opacity:.75;"></span>
-      <a href="#" id="logout-link" title="Se déconnecter" style="text-decoration:none;">Déconnexion</a>
-    </span>
+<div class="app">
+  <!-- Menu de gauche : ordinateur (1000 px et plus). -->
+  <aside class="side" aria-label="Menu principal">
+    <div class="ligne">
+      <a class="brand" href="/dashboard" data-logo-link>{% include "_logo.html" %}<span class="wm">bot<b>panel</b></span></a>
+    </div>
+    <button class="side-search" type="button" data-encre-recherche>{{ ic("search", "s18") }}Rechercher…<span class="kbd">Ctrl K</span></button>
+    <nav aria-label="Pages">
+      {% for key, href, icon, label, short in pages_nav %}
+      <a class="side-it" href="{{ href }}" data-page="{{ key }}">{{ ic(icon) }}<span class="nom">{{ label }}</span></a>
+      {% endfor %}
+    </nav>
+    <div class="side-foot" data-user-box hidden>
+      <div class="side-compte">
+        <span class="av" aria-hidden="true" data-user-initial>?</span>
+        <span data-user-name></span>
+        <button type="button" class="ib form-deco" data-logout title="Se déconnecter" aria-label="Se déconnecter">{{ ic("logout", "s18") }}</button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <!-- Barre du haut : téléphone et tablette. -->
+    <header class="top">
+      <a class="brand" href="/dashboard" data-logo-link>{% include "_logo.html" %}<span class="wm">bot<b>panel</b></span></a>
+      <span class="esp"></span>
+      <button class="ib" type="button" data-encre-recherche aria-label="Rechercher">{{ ic("search") }}</button>
+    </header>
+
+    <main class="pages">
+      {% block content %}{% endblock %}
+    </main>
   </div>
-</header>
+</div>
 
-<nav class="nav" aria-label="Menu principal">
-  <a href="/dashboard" class="{% if active_page == 'dashboard' %}active{% endif %}"{% if active_page == 'dashboard' %} aria-current="page"{% endif %}>
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span class="nav-full">Accueil</span><span class="nav-short">Accueil</span>
-  </a>
-  <a href="/notifications" class="{% if active_page == 'notifications' %}active{% endif %}"{% if active_page == 'notifications' %} aria-current="page"{% endif %}>
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg><span class="nav-full">Notifications</span><span class="nav-short">Notifs</span>
-  </a>
-  <a href="/commands" class="{% if active_page == 'commands' %}active{% endif %}"{% if active_page == 'commands' %} aria-current="page"{% endif %}>
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="m14.5 7.5-5 9"/></svg><span class="nav-full">Commandes</span><span class="nav-short">Cmd /</span>
-  </a>
-  <a href="/monitoring" class="{% if active_page == 'monitoring' %}active{% endif %}"{% if active_page == 'monitoring' %} aria-current="page"{% endif %}>
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span class="nav-full">Monitoring</span><span class="nav-short">Suivi</span>
-  </a>
-  <a href="/historique" class="{% if active_page == 'historique' %}active{% endif %}"{% if active_page == 'historique' %} aria-current="page"{% endif %}>
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="nav-full">Historique</span><span class="nav-short">Histo.</span>
-  </a>
-  <a href="/settings" class="{% if active_page == 'settings' %}active{% endif %}"{% if active_page == 'settings' %} aria-current="page"{% endif %}>
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span class="nav-full">Paramètres</span><span class="nav-short">Réglages</span>
-  </a>
+<!-- Barre d'onglets flottante en verre : téléphone et tablette. -->
+<nav class="tabbar" aria-label="Navigation">
+  {% for key, href, icon, label, short in pages_nav[:4] %}
+  <a class="tab" href="{{ href }}" data-page="{{ key }}"><span class="ti">{{ ic(icon, "s22") }}</span>{{ short }}</a>
+  {% endfor %}
+  <button class="tab" type="button" data-encre-plus="encre-plus" aria-haspopup="dialog"><span class="ti">{{ ic("dots", "s22") }}</span>Plus</button>
 </nav>
 
-<main>
-  {% block content %}{% endblock %}
-</main>
-
-<div id="toast" class="toast">Ok</div>
+<!-- Contenu de la feuille « Plus » : grandes tuiles, puis des lignes. -->
+<template id="encre-plus">
+  <div class="q-tuiles plus-t">
+    {% for key, href, icon, label, short in pages_nav[4:] %}
+    <a class="qt{{ ' on' if active_page == key }}" href="{{ href }}">{{ ic(icon, "s22") }}{{ label }}</a>
+    {% endfor %}
+    <a class="qt" href="/settings#apparence">{{ ic("palette", "s22") }}Apparence</a>
+  </div>
+  <button type="button" class="q-ext" data-encre-recherche>{{ ic("search") }}<span>Rechercher</span></button>
+  <button type="button" class="q-ext dn" data-logout data-user-box hidden>{{ ic("logout") }}<span>Se déconnecter</span></button>
+</template>
 
 <script src="/static/js/api.js"></script>
-<script src="/static/js/ui.js"></script>
+<script src="/static/js/ui.js?v=2"></script>
 <script src="/static/js/emoji.js"></script>
 <script src="/static/js/anim.js"></script>
-<script src="/static/js/editor.js?v=1"></script>
+<script src="/static/js/editor.js?v=2"></script>
 <script src="/static/js/help-content.js?v=5"></script>
-<script src="/static/js/help.js?v=2"></script>
-<script src="/static/js/ux.js?v=1"></script>
+<script src="/static/js/help.js?v=3"></script>
+<script src="/static/js/ux.js?v=2"></script>
 <script>
   // PWA : enregistre le service worker (installable + repli hors-ligne).
   if ("serviceWorker" in navigator) {
@@ -89,39 +97,60 @@
   }
 </script>
 <script>
+// Recherche rapide (Ctrl K, ⌘ K, la loupe) : les pages du panel.
+document.addEventListener("DOMContentLoaded", () => {
+  if (!window.Encre) return;
+  Encre.recherche.placeholder = "Une page, un réglage…";
+  Encre.recherche.raccourcis = [
+    {% for key, href, icon, label, short in pages_nav %}
+    { titre: {{ label|tojson }}, icone: {{ icon|tojson }}, href: {{ href|tojson }} },
+    {% endfor %}
+    { titre: "Nouvelle notification", icone: "plus", mots: "créer ajouter", href: "/notifications/new" },
+    { titre: "Nouvelle commande", icone: "plus", mots: "créer ajouter slash", href: "/commands/new" },
+    { titre: "Nouveau bloc de monitoring", icone: "plus", mots: "créer ajouter suivi", href: "/monitoring/new" },
+    { titre: "Apparence", sous: "Couleur d'accent, thème", icone: "palette", mots: "couleur theme clair sombre", href: "/settings#apparence" },
+  ];
+});
+
 (async function() {
   const onDashboard = window.location.pathname === "/dashboard";
-  const link = document.getElementById("logo-link");
   if (onDashboard) {
     try {
       const r = await API.get("/settings/home-url");
-      if (r.url) link.href = r.url;
+      if (r.url) document.querySelectorAll("[data-logo-link]").forEach((a) => { a.href = r.url; });
     } catch { /* garde /dashboard si erreur */ }
   }
 })();
 
-// Profil / deconnexion (affiche seulement si la protection est active et connecte)
+// Profil / déconnexion (affiché seulement si la protection est active et connecté)
 (async function() {
   try {
     const me = await API.get("/auth/me");
     if (me.enabled && me.authenticated) {
-      const box = document.getElementById("user-box");
       const isCf = me.method === "cloudflare";
-      document.getElementById("user-name").textContent = isCf ? (me.email || "cloudflare") : (me.username || "admin");
-      box.style.display = "inline-flex";
-      document.getElementById("logout-link").addEventListener("click", async (e) => {
-        e.preventDefault();
-        if (isCf) {
-          // Session geree par Cloudflare : on se deconnecte cote Cloudflare.
-          window.location.href = "/cdn-cgi/access/logout";
-          return;
-        }
-        try { await API.post("/auth/logout"); } catch {}
-        window.location.href = "/login";
-      });
+      const name = isCf ? (me.email || "cloudflare") : (me.username || "admin");
+      window.__bpUser = { name, isCf };
+      document.querySelectorAll("[data-user-name]").forEach((el) => { el.textContent = name; });
+      document.querySelectorAll("[data-user-initial]").forEach((el) => { el.textContent = name.charAt(0).toUpperCase(); });
+      document.querySelectorAll("[data-user-box]").forEach((el) => { el.hidden = false; });
+      // La feuille « Plus » est copiée depuis le <template> : on y montre aussi la déconnexion.
+      const tpl = document.getElementById("encre-plus");
+      if (tpl) tpl.content.querySelectorAll("[data-user-box]").forEach((el) => { el.hidden = false; });
     }
-  } catch { /* pas d'auth : rien a afficher */ }
+  } catch { /* pas d'auth : rien à afficher */ }
 })();
+
+document.addEventListener("click", async (e) => {
+  if (!e.target.closest("[data-logout]") || !window.__bpUser) return;
+  e.preventDefault();
+  if (window.__bpUser.isCf) {
+    // Session gérée par Cloudflare : on se déconnecte côté Cloudflare.
+    window.location.href = "/cdn-cgi/access/logout";
+    return;
+  }
+  try { await API.post("/auth/logout"); } catch {}
+  window.location.href = "/login";
+});
 </script>
 {% block scripts %}{% endblock %}
 

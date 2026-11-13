@@ -1,11 +1,13 @@
-/* BotPanel — aide contextuelle : petits « ? » qui ouvrent une pop-up.
+/* BotPanel — aide contextuelle : petits « ? » qui ouvrent une feuille d'aide.
 
    Usage dans un template :
      <button type="button" class="help-dot" data-help="slug">?</button>
    Le contenu est défini dans help-content.js (objet global BP_HELP).
 
-   La pop-up supporte du HTML riche (couleurs, blocs de code avec bouton Copier).
-   Aucune dépendance ; se dégrade sans bruit si une clé est absente. */
+   La feuille vient du design « encre » (Encre.feuille) : elle monte du bas sur
+   téléphone, s'ouvre au centre sur ordinateur, et le bouton retour du
+   téléphone la referme. Elle accepte du HTML riche (encadrés, blocs de code
+   avec bouton Copier). Se dégrade sans bruit si une clé est absente. */
 (function () {
   "use strict";
 
@@ -15,41 +17,32 @@
     });
   }
 
-  var overlay = null;
+  var ouverte = null;
 
-  function ensureOverlay() {
-    if (overlay) return overlay;
-    overlay = document.createElement("div");
-    overlay.className = "help-overlay";
-    overlay.innerHTML =
-      '<div class="help-modal" role="dialog" aria-modal="true">' +
-      '  <button type="button" class="help-close" aria-label="Fermer">&times;</button>' +
-      '  <h3 class="help-title"></h3>' +
-      '  <div class="help-body"></div>' +
-      "</div>";
-    document.body.appendChild(overlay);
-    overlay.addEventListener("click", function (e) {
-      if (e.target === overlay) closeHelp();
+  function showHtml(title, html) {
+    if (!window.Encre) return;
+    if (ouverte && !ouverte.ferme) ouverte.fermer();
+    ouverte = Encre.feuille({
+      titre: esc(title || "Aide"),
+      html: '<div class="help-body">' + (html || "") + "</div>",
+      classe: "bp-aide",
     });
-    overlay.querySelector(".help-close").addEventListener("click", closeHelp);
-    overlay.addEventListener("click", function (e) {
-      var btn = e.target.closest(".copy-btn");
-      if (!btn) return;
-      var holder = btn.closest(".code-block") || btn.parentNode;
-      var pre = holder ? holder.querySelector("pre, code") : null;
-      var text = btn.getAttribute("data-copy") || (pre ? pre.textContent : "");
-      copyText(text, btn);
-    });
-    document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") closeHelp();
-    });
-    return overlay;
+  }
+
+  function openHelp(key) {
+    var entry = (window.BP_HELP || {})[key];
+    if (!entry) entry = { title: "Aide", html: "<p>Aucune explication disponible.</p>" };
+    showHtml(entry.title || "Aide", entry.html || "");
+  }
+
+  function closeHelp() {
+    if (ouverte && !ouverte.ferme) ouverte.fermer();
   }
 
   function copyText(text, btn) {
     var old = btn.textContent;
     var done = function () {
-      btn.textContent = "Copié ✓";
+      btn.textContent = "Copié";
       btn.classList.add("copied");
       setTimeout(function () { btn.textContent = old; btn.classList.remove("copied"); }, 1600);
     };
@@ -67,36 +60,20 @@
     } catch (e) { /* ignore */ }
   }
 
-  function openHelp(key) {
-    var entry = (window.BP_HELP || {})[key];
-    if (!entry) entry = { title: "Aide", html: "<p>Aucune explication disponible.</p>" };
-    var ov = ensureOverlay();
-    ov.querySelector(".help-title").innerHTML = esc(entry.title || "Aide");
-    ov.querySelector(".help-body").innerHTML = entry.html || "";
-    ov.classList.add("open");
-    document.body.classList.add("help-lock");
-  }
-
-  function closeHelp() {
-    if (!overlay) return;
-    overlay.classList.remove("open");
-    document.body.classList.remove("help-lock");
-  }
-
   document.addEventListener("click", function (e) {
     var dot = e.target.closest(".help-dot");
-    if (!dot) return;
-    e.preventDefault();
-    openHelp(dot.getAttribute("data-help"));
+    if (dot) {
+      e.preventDefault();
+      openHelp(dot.getAttribute("data-help"));
+      return;
+    }
+    // Bouton « Copier » d'un bloc de code dans une feuille d'aide.
+    var btn = e.target.closest(".bp-aide .copy-btn");
+    if (!btn) return;
+    var holder = btn.closest(".code-block") || btn.parentNode;
+    var pre = holder ? holder.querySelector("pre, code") : null;
+    copyText(btn.getAttribute("data-copy") || (pre ? pre.textContent : ""), btn);
   });
-
-  function showHtml(title, html) {
-    var ov = ensureOverlay();
-    ov.querySelector(".help-title").innerHTML = esc(title || "Aide");
-    ov.querySelector(".help-body").innerHTML = html || "";
-    ov.classList.add("open");
-    document.body.classList.add("help-lock");
-  }
 
   // open(key) : contenu depuis BP_HELP. show(title, html) : contenu ad hoc.
   window.BPHelp = { open: openHelp, close: closeHelp, show: showHtml };

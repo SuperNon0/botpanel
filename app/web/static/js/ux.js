@@ -1,4 +1,4 @@
-// Confort d'utilisation (thème Atelier) :
+// Confort d'utilisation (design « encre ») :
 //  - confirmBox()      : fenêtre de confirmation au style du site
 //  - menu « ⋯ »        : .row-menu > .row-menu-btn + .row-menu-list
 //  - recherche         : <div class="list-search"><input data-search="#groups-root"></div>
@@ -7,47 +7,16 @@
 //    (appeler markSaved() après un enregistrement réussi).
 
 // ---------- Confirmation ----------
-// Remplace confirm() : renvoie une Promise<boolean>.
+// Remplace confirm() : renvoie une Promise<boolean>. Utilise la confirmation
+// intégrée du design « encre » (feuille du bas sur téléphone, fenêtre au centre
+// sur ordinateur ; le bouton retour du téléphone la referme).
 // opts : { title, ok, cancel, danger }
 function confirmBox(message, opts = {}) {
   const danger = opts.danger ?? /supprim|régénér|regener|désactiv|remplac|réinitialis|reinitialis/i.test(message);
-  return new Promise(resolve => {
-    const prevFocus = document.activeElement;
-    const ov = document.createElement("div");
-    ov.className = "confirm-overlay";
-    ov.innerHTML = `
-      <div class="confirm-box" role="alertdialog" aria-modal="true" aria-labelledby="cf-title" aria-describedby="cf-msg">
-        <h3 id="cf-title">${esc(opts.title || (danger ? "Tu confirmes ?" : "Confirmer"))}</h3>
-        <p id="cf-msg">${esc(message)}</p>
-        <div class="confirm-actions">
-          <button type="button" class="btn btn-secondary" data-r="0">${esc(opts.cancel || "Annuler")}</button>
-          <button type="button" class="btn ${danger ? "btn-danger" : "btn-primary"}" data-r="1">${esc(opts.ok || (danger ? "Oui, continuer" : "OK"))}</button>
-        </div>
-      </div>`;
-    const close = (val) => {
-      document.removeEventListener("keydown", onKey, true);
-      ov.remove();
-      if (prevFocus && prevFocus.focus) prevFocus.focus();
-      resolve(val);
-    };
-    const onKey = (e) => {
-      if (e.key === "Escape") { e.preventDefault(); close(false); }
-      if (e.key === "Tab") {
-        // garde le focus dans la fenêtre
-        const btns = [...ov.querySelectorAll("button")];
-        const i = btns.indexOf(document.activeElement);
-        e.preventDefault();
-        btns[(i + (e.shiftKey ? -1 : 1) + btns.length) % btns.length].focus();
-      }
-    };
-    ov.addEventListener("click", (e) => {
-      if (e.target === ov) return close(false);
-      const b = e.target.closest("[data-r]");
-      if (b) close(b.dataset.r === "1");
-    });
-    document.addEventListener("keydown", onKey, true);
-    document.body.appendChild(ov);
-    ov.querySelector(danger ? '[data-r="0"]' : '[data-r="1"]').focus();
+  return Encre.confirmer(message, {
+    titre: opts.title || (danger ? "Tu confirmes ?" : "Confirmer"),
+    ok: opts.ok || (danger ? "Oui, continuer" : "OK"),
+    danger,
   });
 }
 
@@ -131,7 +100,8 @@ document.addEventListener("keydown", (e) => {
   if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.target.closest("input, textarea, select, [contenteditable]")) return;
   const s = document.querySelector("input[data-search]");
-  if (s) { e.preventDefault(); s.focus(); }
+  // Sur une liste, « / » va dans sa recherche (sinon : recherche rapide « encre »).
+  if (s) { e.preventDefault(); e.stopPropagation(); s.focus(); }
 });
 
 // ---------- Ctrl/Cmd+S + modifications non enregistrées ----------
@@ -163,7 +133,7 @@ if (editForm) {
   document.addEventListener("keydown", (e) => {
     if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "s") {
       e.preventDefault();
-      if (document.querySelector(".confirm-overlay, .help-overlay.open, .ent-modal.open")) return;
+      if (document.querySelector(".feuille, .palette, .ent-modal.open")) return;
       editForm.requestSubmit();
     }
   });

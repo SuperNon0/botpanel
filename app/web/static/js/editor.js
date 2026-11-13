@@ -51,11 +51,12 @@ function hasHaPlaceholder(...parts) {
 // Voyant d'etat de l'apercu (valeurs HA en direct / HA injoignable)
 function setResolveStatus(el, kind) {
   if (!el) return;
-  el.textContent =
-    kind === "ok"      ? "🟢 valeurs Home Assistant en direct" :
-    kind === "loading" ? "⏳ récupération…" :
-    kind === "err"     ? "🔴 Home Assistant injoignable" :
-                         "⚪ aucune entité HA";
+  const [cls, txt] =
+    kind === "ok"      ? ["ok", "valeurs Home Assistant en direct"] :
+    kind === "loading" ? ["wait", "récupération…"] :
+    kind === "err"     ? ["err", "Home Assistant injoignable"] :
+                         ["off", "aucune entité HA"];
+  el.innerHTML = `<span class="bp-dot ${cls}" aria-hidden="true"></span>${txt}`;
 }
 
 // Lance `fn` apres `ms` sans nouvel appel (frappe clavier).
@@ -288,7 +289,7 @@ async function bindColorPresets(colorInput, container) {
     const sw = e.target.closest(".swatch");
     if (!sw) return;
     if (sw.dataset.add !== undefined) {
-      const name = (prompt("Nom du nouveau preset de couleur (ex : Alerte porte) :") || "").trim();
+      const name = ((await Encre.demander("Nouveau preset de couleur", { label: "Nom", placeholder: "Ex. : Alerte porte", ok: "Enregistrer" })) || "").trim();
       if (!name) return;
       try {
         presets = await API.post("/settings/colors", { name: name.slice(0, 64), color: hexToInt(colorInput.value) });
@@ -379,7 +380,7 @@ function createHaButtonsBuilder(container, getList, onChange) {
             <label class="form-label">Entité</label>
             <div style="display:flex; gap:0.3rem;">
               <input class="form-input ha-entity-input" data-bk="ha_entity_id" value="${esc(b.ha_entity_id || "")}" placeholder="light.salon" style="flex:1;">
-              <button type="button" class="md-btn" data-bpick title="Choisir une entité">🔍</button>
+              <button type="button" class="md-btn" data-bpick title="Choisir une entité" aria-label="Choisir une entité"><svg class="i s16" aria-hidden="true"><use href="/static/encre/icones.svg#i-search"/></svg></button>
             </div>
           </div>
         </div>

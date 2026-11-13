@@ -45,4 +45,7 @@ pour toute contribution.
 
 ## Stack (rappel)
 FastAPI + uvicorn + discord.py dans une même boucle asyncio ; SQLite/aiosqlite ;
-templates Jinja2 ; thème « RecipeLog » (accent doré `#e8c547`, DM Serif + DM Mono).
+templates Jinja2 ; design « encre » (kit dans `design-encre/`, servi depuis
+`app/web/static/encre/` ; couche panel `static/css/botpanel.css`). Couleurs
+uniquement via les jetons de `encre.css`, jamais d'`alert/confirm/prompt`
+(utiliser `Encre.toast` / `confirmBox` / `Encre.demander`).
