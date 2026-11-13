@@ -7,10 +7,39 @@
   <button type="button" class="btn btn-secondary btn-small" id="sec-toggle-all">Tout ouvrir</button>
 </div>
 
+<details class="card group-card settings-section" data-sec="apparence">
+  <summary>
+    <span class="group-arrow">&#9656;</span>
+    <span class="sec-ico"><svg class="i" aria-hidden="true"><use href="/static/encre/icones.svg#i-sparkle"/></svg></span>
+    <span class="group-name">Apparence</span>
+    <span class="sec-sub">couleur · thème</span>
+  </summary>
+  <div class="sec-body">
+<div class="sub-block">
+  <h3>Couleur d'accent</h3>
+  <p class="hint">Reste sur cet appareil.</p>
+  <!-- encre.js allume la bonne pastille et enregistre le choix. -->
+  <div class="pastilles" data-encre-accent role="radiogroup" aria-label="Couleur d'accent">
+    <button type="button" class="past" data-v="or" role="radio"><i></i>Or</button>
+    <button type="button" class="past" data-v="ambre" role="radio"><i></i>Ambre</button>
+    <button type="button" class="past" data-v="corail" role="radio"><i></i>Corail</button>
+    <button type="button" class="past" data-v="menthe" role="radio"><i></i>Menthe</button>
+    <button type="button" class="past" data-v="lavande" role="radio"><i></i>Lavande</button>
+  </div>
+</div>
+<div class="sub-block">
+  <h3>Thème</h3>
+  <div class="seg" data-encre-theme role="group" aria-label="Thème">
+    <button type="button" data-v="auto">Automatique</button><button type="button" data-v="clair">Clair</button><button type="button" data-v="sombre">Sombre</button>
+  </div>
+</div>
+  </div>
+</details>
+
 <details class="card group-card settings-section" data-sec="general">
   <summary>
     <span class="group-arrow">&#9656;</span>
-    <span class="sec-ico">🏠</span>
+    <span class="sec-ico"><svg class="i" aria-hidden="true"><use href="/static/encre/icones.svg#i-home"/></svg></span>
     <span class="group-name">Général</span>
     <span class="sec-sub">accueil · mise à jour</span>
   </summary>
@@ -44,7 +73,7 @@
 <details class="card group-card settings-section" data-sec="colors">
   <summary>
     <span class="group-arrow">&#9656;</span>
-    <span class="sec-ico">🎨</span>
+    <span class="sec-ico"><svg class="i" aria-hidden="true"><use href="/static/encre/icones.svg#i-palette"/></svg></span>
     <span class="group-name">Couleurs</span>
     <span class="sec-sub">presets</span>
   </summary>
@@ -64,7 +93,7 @@
 <details class="card group-card settings-section" data-sec="discord">
   <summary>
     <span class="group-arrow">&#9656;</span>
-    <span class="sec-ico">💬</span>
+    <span class="sec-ico"><svg class="i" aria-hidden="true"><use href="/static/encre/icones.svg#i-chat"/></svg></span>
     <span class="group-name">Channels Discord</span>
     <span class="sec-sub">favoris · détectés · forums · fils</span>
   </summary>
@@ -99,7 +128,7 @@
 <details class="card group-card settings-section" data-sec="integrations">
   <summary>
     <span class="group-arrow">&#9656;</span>
-    <span class="sec-ico">🔌</span>
+    <span class="sec-ico"><svg class="i" aria-hidden="true"><use href="/static/encre/icones.svg#i-plug"/></svg></span>
     <span class="group-name">Intégrations</span>
     <span class="sec-sub">clé API · Home Assistant · Claude</span>
   </summary>
@@ -109,7 +138,7 @@
   <p class="hint">Une seule clé pour Home Assistant, Proxmox et Claude.</p>
   <div class="secret-row">
     <input class="form-input" id="int-key" type="password" readonly autocomplete="off">
-    <button type="button" class="btn btn-secondary btn-small" data-reveal="int-key">👁 Afficher</button>
+    <button type="button" class="btn btn-secondary btn-small" data-reveal="int-key">Afficher</button>
     <button type="button" class="btn btn-secondary btn-small" id="int-copy">Copier</button>
     <button type="button" class="btn btn-danger btn-small" id="int-regen">Régénérer</button>
   </div>
@@ -132,7 +161,7 @@
     <label class="form-label">URL avec la clé incluse</label>
     <div class="secret-row">
       <input class="form-input" id="mcp-url-key" type="password" readonly autocomplete="off">
-      <button type="button" class="btn btn-secondary btn-small" data-reveal="mcp-url-key">👁 Afficher</button>
+      <button type="button" class="btn btn-secondary btn-small" data-reveal="mcp-url-key">Afficher</button>
       <button type="button" class="btn btn-secondary btn-small" id="mcp-urlkey-copy">Copier</button>
     </div>
   </div>
@@ -143,7 +172,7 @@
 <details class="card group-card settings-section" data-sec="security">
   <summary>
     <span class="group-arrow">&#9656;</span>
-    <span class="sec-ico">🔒</span>
+    <span class="sec-ico"><svg class="i" aria-hidden="true"><use href="/static/encre/icones.svg#i-lock"/></svg></span>
     <span class="group-name">Compte &amp; sécurité</span>
     <span class="sec-sub">mot de passe · Cloudflare</span>
   </summary>
@@ -209,7 +238,7 @@
 <details class="card group-card settings-section" data-sec="backup">
   <summary>
     <span class="group-arrow">&#9656;</span>
-    <span class="sec-ico">💾</span>
+    <span class="sec-ico"><svg class="i" aria-hidden="true"><use href="/static/encre/icones.svg#i-download"/></svg></span>
     <span class="group-name">Sauvegarde</span>
     <span class="sec-sub">export · import</span>
   </summary>
@@ -591,14 +620,14 @@ async function loadAuth() {
   try { me = await API.get("/auth/me"); } catch { status.textContent = "Indisponible."; return; }
   if (me.enabled) {
     let via;
-    if (me.method === "cloudflare") via = `via <strong style="color:#e8c547;">Cloudflare</strong> — <code>${esc(me.email || "")}</code>`;
+    if (me.method === "cloudflare") via = `via <strong style="color:var(--accent);">Cloudflare</strong> — <code>${esc(me.email || "")}</code>`;
     else if (me.method === "password") via = `via <strong>mot de passe</strong> (<code>${esc(me.username || "admin")}</code>)`;
     else via = "non connecté";
-    status.innerHTML = `Protection <strong style="color:#4ade80;">activée</strong> — connecté ${via}.`;
+    status.innerHTML = `Protection <strong style="color:var(--ok);">activée</strong> — connecté ${via}.`;
     enable.style.display = "none";
     manage.style.display = "";
   } else {
-    status.innerHTML = `Protection <strong style="color:#f59e0b;">désactivée</strong> : le panel est ouvert.`;
+    status.innerHTML = `Protection <strong style="color:var(--warn);">désactivée</strong> : le panel est ouvert.`;
     enable.style.display = "";
     manage.style.display = "none";
   }
@@ -729,6 +758,11 @@ function bindSections() {
   save();
   const target = secs.find(d => d.dataset.sec === hash);
   if (target) target.scrollIntoView({ block: "start" });
+  // Lien vers une section depuis cette même page (menu « Plus », recherche).
+  window.addEventListener("hashchange", () => {
+    const d = secs.find(x => x.dataset.sec === location.hash.slice(1));
+    if (d) { d.open = true; save(); d.scrollIntoView({ block: "start" }); }
+  });
 }
 
 // Champs secrets (cle API) : masques par defaut, bouton Afficher/Masquer.
@@ -736,7 +770,7 @@ document.querySelectorAll("[data-reveal]").forEach(btn => btn.addEventListener("
   const inp = document.getElementById(btn.dataset.reveal);
   const show = inp.type === "password";
   inp.type = show ? "text" : "password";
-  btn.textContent = show ? "🙈 Masquer" : "👁 Afficher";
+  btn.textContent = show ? "Masquer" : "Afficher";
 }));
 
 bindSections();
@@ -828,15 +862,15 @@ bindMcp();
 <style>
   .cf-result { display:flex; flex-direction:column; gap:10px; }
   .cf-row { display:flex; align-items:center; gap:12px; padding:12px 14px;
-    background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:12px; flex-wrap:wrap; }
+    background:var(--surface); border:1px solid var(--line); border-radius:12px; flex-wrap:wrap; }
   .cf-row.cf-col { flex-direction:column; align-items:flex-start; gap:6px; }
-  .cf-label { flex:1; min-width:150px; font-size:0.9rem; color:var(--text); }
-  .cf-val { font-size:0.78rem; color:var(--muted); word-break:break-all; }
-  .cf-pill { font-size:0.62rem; text-transform:uppercase; letter-spacing:0.05em; padding:4px 11px;
-    border-radius:999px; border:1px solid var(--border); background:rgba(255,255,255,0.03); white-space:nowrap; }
-  .cf-ok { color:#4ade80; border-color:#4ade80; }
+  .cf-label { flex:1; min-width:150px; font-size:14px; color:var(--text); }
+  .cf-val { font-size:12.5px; color:var(--muted); word-break:break-all; }
+  .cf-pill { font:500 10.5px/1 var(--f-mono); text-transform:uppercase; letter-spacing:0.06em; padding:5px 11px;
+    border-radius:999px; border:1px solid var(--line2); background:var(--surface); white-space:nowrap; }
+  .cf-ok { color:var(--ok); border-color:var(--ok); }
   .cf-gold { color:var(--accent); border-color:var(--accent); }
-  .cf-ko { color:#e85c47; border-color:#e85c47; }
+  .cf-ko { color:var(--danger); border-color:var(--danger); }
   .cf-neutral { color:var(--muted); }
 </style>
 {% endblock %}

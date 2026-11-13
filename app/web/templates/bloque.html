@@ -1,34 +1,17 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-accent-defaut="lavande" data-encre-sprite="/static/encre/icones.svg">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0e0f11">
+  {% include "_encre_head.html" %}
   <title>Accès refusé — botpanel</title>
-  <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
-  <link rel="stylesheet" href="/static/css/fonts.css">
-  <link rel="stylesheet" href="/static/css/socle.css">
-  <link rel="stylesheet" href="/static/css/atelier-auth.css?v=1">
-  <link rel="stylesheet" href="/static/css/animations.css?v=1">
 </head>
 <body class="login-page">
   <div class="login-card">
     <div class="login-logo">
-      <svg class="logo-mark" viewBox="0 0 100 100" width="44" height="44" aria-hidden="true">
-        <rect x="4" y="4" width="92" height="92" rx="24" fill="#1b1d26"/>
-        <g stroke="#3d4152" stroke-width="6" stroke-linecap="round" fill="none">
-          <line x1="26" y1="34" x2="74" y2="34"/><line x1="26" y1="50" x2="74" y2="50"/><line x1="26" y1="66" x2="74" y2="66"/>
-        </g>
-        <circle cx="58" cy="34" r="8" fill="#e8c547"/><circle cx="38" cy="50" r="8" fill="#8b5cf6"/><circle cx="62" cy="66" r="8" fill="#4ade80"/>
-      </svg>
-      <span class="logo"><span class="g">bot</span><span class="i">panel</span></span>
+      {% include "_logo.html" %}
+      <span class="wm">bot<b>panel</b></span>
     </div>
-    <div class="access-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>
-      </svg>
-    </div>
-    <h2>Accès refusé</h2>
+    <div class="access-icon err"><svg class="i" aria-hidden="true"><use href="/static/encre/icones.svg#i-shield"/></svg></div>
+    <h1 class="h-acces">Accès refusé</h1>
     {% if email and email != "—" %}<span class="mail-chip">{{ email }}</span>{% endif %}
     <p class="access-text">Ce panel est accessible <b>uniquement via Cloudflare</b>
       (connexion Google). L'accès direct n'est pas autorisé.</p>

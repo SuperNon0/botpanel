@@ -20,7 +20,7 @@
         <div class="gf-status-value" id="bot-val">—</div>
         <div class="gf-status-meta" id="bot-meta"></div>
       </div>
-      <div class="gf-panel-bg-icon">🤖</div>
+      <div class="gf-panel-bg-icon"><svg class="i" aria-hidden="true"><use href="/static/encre/icones.svg#i-chat"/></svg></div>
     </div>
   </div>
 
@@ -32,7 +32,7 @@
         <div class="gf-status-value" id="ha-val">—</div>
         <div class="gf-status-meta" id="ha-meta"></div>
       </div>
-      <div class="gf-panel-bg-icon">🏠</div>
+      <div class="gf-panel-bg-icon"><svg class="i" aria-hidden="true"><use href="/static/encre/icones.svg#i-home"/></svg></div>
     </div>
   </div>
 
@@ -69,7 +69,7 @@
     <div class="gf-panel-title">Monitoring actif</div>
     <div class="gf-panel-body" style="display:flex;flex-direction:column;align-items:center;padding-top:0.35rem;padding-bottom:0.5rem;">
       <div id="m-gauge"></div>
-      <div id="m-gauge-label" style="font-size:0.56rem;color:var(--muted);margin-top:0.1rem;text-align:center;"></div>
+      <div id="m-gauge-label" style="font-size:12px;color:var(--muted);margin-top:0.1rem;text-align:center;"></div>
     </div>
   </div>
 
@@ -174,14 +174,14 @@ function gaugeSVG(v, max, color) {
   return `<svg width="148" height="92" viewBox="0 0 148 92">
     ${ticks}
     <circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
-      stroke="rgba(255,255,255,0.06)" stroke-width="9" stroke-linecap="butt"
+      stroke="var(--line)" stroke-width="9" stroke-linecap="butt"
       stroke-dasharray="${trackD}" transform="rotate(180 ${cx} ${cy})"/>
     <circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
       stroke="${color}" stroke-width="9" stroke-linecap="round"
       stroke-dasharray="${valD}" transform="rotate(180 ${cx} ${cy})"
-      style="transition:stroke-dasharray .55s ease;filter:drop-shadow(0 0 4px ${color});"/>
+      style="transition:stroke-dasharray .55s ease;"/>
     <text x="${cx}" y="${cy - 17}" text-anchor="middle" fill="${color}"
-      font-size="22" font-family="DM Serif Display,serif">${v}</text>
+      font-size="22" font-family="DM Serif Display,Georgia,serif">${v}</text>
     <text x="${cx}" y="${cy - 3}" text-anchor="middle" fill="var(--muted)"
       font-size="8.5" font-family="DM Mono,monospace">/ ${max} blocs</text>
     <text x="${cx}" y="${cy + 12}" text-anchor="middle" fill="${color}"
@@ -304,15 +304,15 @@ async function loadRecent() {
         const color  = l.success ? (KIND_COLOR[l.kind] || "var(--muted)") : "var(--danger)";
         const label  = KIND_LABEL[l.kind] || l.kind;
         const slug   = l.notification_slug ? `<code>${esc(l.notification_slug)}</code>` : "—";
-        const detail = l.detail ? `<span style="color:var(--muted);font-size:.63rem;">${esc(l.detail.slice(0,40))}</span>` : "—";
+        const detail = l.detail ? `<span style="color:var(--muted);font-size:12px;">${esc(l.detail.slice(0,40))}</span>` : "—";
         const who    = l.user_name ? esc(l.user_name) : "—";
         const [d, t] = (l.created_at || "").split(" ");
         const when   = d && t ? `${d.slice(5)} ${t.slice(0,5)}` : "—";
         const errBadge = !l.success
-          ? `<span style="color:var(--danger);margin-left:.25rem;font-size:.57rem;">ERR</span>` : "";
+          ? `<span style="color:var(--danger);margin-left:.25rem;font-size:11px;">ERR</span>` : "";
         return `<div class="gf-table-row">
           <span><span class="gf-tl-dot" style="background:${color};box-shadow:0 0 4px ${color};"></span>
-            <span style="color:${color};font-size:.62rem;text-transform:uppercase;letter-spacing:.05em;">${label}</span>${errBadge}</span>
+            <span style="color:${color};font-size:11px;font-family:var(--f-mono);text-transform:uppercase;letter-spacing:.05em;">${label}</span>${errBadge}</span>
           <span>${slug}</span>
           <span>${detail}</span>
           <span>${who}</span>

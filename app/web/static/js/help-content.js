@@ -146,7 +146,7 @@ window.BP_HELP["integration_key"] = {
   html:
     '<p>Clé secrète qui permet au <b>module Home Assistant</b>, aux <b>webhooks Proxmox</b> et à <b>Claude (MCP)</b> de se connecter à BotPanel (en-tête <code>X-API-Key</code>).</p>' +
     '<div class="hbox hbox-tip"><b>Home Assistant</b> : colle-la à l\'ajout de l\'intégration BotPanel (URL + clé).<br><b>Proxmox</b> : dans l\'en-tête du webhook.<br><b>Claude</b> : dans le connecteur (voir le « ? » du bloc Claude).</div>' +
-    '<div class="hbox hbox-info">Masquée par défaut : <b>👁 Afficher</b> pour la voir, <b>Copier</b> pour la copier sans l\'afficher.</div>' +
+    '<div class="hbox hbox-info">Masquée par défaut : <b>Afficher</b> pour la voir, <b>Copier</b> pour la copier sans l\'afficher.</div>' +
     '<div class="hbox hbox-warn"><b>Régénérer</b> invalide l\'ancienne clé : il faudra la remettre partout (HA, Proxmox, Claude).</div>' +
     '<div class="hbox hbox-info">Les webhooks simples (<code>/api/notify</code>) fonctionnent <b>sans</b> cette clé.</div>',
 };

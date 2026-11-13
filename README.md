@@ -27,19 +27,19 @@ Hébergé dans un conteneur LXC Proxmox.
 - **Intégration Home Assistant native** : composant HA officiel (boutons par notification, action `botpanel.envoyer`, capteurs d'état), sécurisé par une clé API
 - **Intégration Proxmox VE / PBS** : les backups/sync envoient leurs notifs directement à BotPanel (webhook natif), avec variables `{var:...}` et couleur auto selon le statut
 - **Serveur MCP intégré** : connecté à Claude (claude.ai / Claude Desktop), **Claude peut piloter BotPanel** — lister/déclencher/créer/**modifier**/**supprimer** des notifications (boutons d'action HA, images), **créer/modifier/supprimer/exécuter des commandes slash**, **créer/modifier/supprimer/envoyer des blocs de monitoring**, gérer les **couleurs préconfigurées** et les **salons favoris**, dupliquer / prévisualiser, lister les salons Discord, statistiques, purge de l'historique, redémarrage, mise à jour pilotée du site, envoyer un message ponctuel, lire l'état, l'**historique** et les **erreurs**. Voir [`docs/MCP.md`](docs/MCP.md)
-- **Aide contextuelle** : des petits « ? » partout ouvrent une pop-up d'explication (fini la page Aide séparée)
+- **Aide contextuelle** : des petits « ? » partout ouvrent une feuille d'explication (fini la page Aide séparée)
 - **Aperçu live avec vraies valeurs HA** : l'éditeur de notification résout `{state:...}`/`{attr:...}`/Jinja avec les valeurs réelles récupérées en direct
 - **Authentification à deux portes** : mot de passe local (LAN) + badge Cloudflare Access vérifié (JWT), avec mode « Cloudflare uniquement »
 - **PWA installable** + interface animée (respecte « réduire les animations »), squelettes de chargement, états vides illustrés
-- **Design « Atelier »** (dark mode exclusif, palette dorée, DM Mono + DM Serif Display) : menu flottant à icônes (barre d'onglets en bas sur mobile), listes en tuiles avec recherche, éditeurs avec aperçu Discord collant et barre Enregistrer toujours visible
+- **Design « encre »** (thème clair / sombre automatique, 5 couleurs d'accent au choix, DM Serif Display + Archivo + DM Mono servies par le site) : barre d'onglets flottante en verre sur mobile, menu à gauche sur ordinateur, recherche rapide Ctrl K, listes en tuiles avec recherche, éditeurs avec aperçu Discord collant et barre Enregistrer toujours visible
 
 ## Le site web
 
 Le site est l'interface d'administration du bot, accessible sur `http://IP_LXC:8080`. Il regroupe plusieurs sections : Accueil, Notifications, Commandes, Monitoring, Historique et Paramètres.
 
-> **Aide contextuelle** : partout où c'est utile, un petit **« ? »** ouvre une pop-up d'explication (slug, mode d'envoi, placeholders, clé API, Cloudflare, sauvegarde…), y compris l'intro de chaque page (Commandes, Monitoring, éditeurs), avec encadrés colorés et blocs de code copiables. Plus besoin d'une page Aide séparée (l'ancienne reste accessible sur `/aide` en secours).
+> **Aide contextuelle** : partout où c'est utile, un petit **« ? »** ouvre une feuille d'explication (slug, mode d'envoi, placeholders, clé API, Cloudflare, sauvegarde…), y compris l'intro de chaque page (Commandes, Monitoring, éditeurs), avec encadrés colorés et blocs de code copiables. Plus besoin d'une page Aide séparée (l'ancienne reste accessible sur `/aide` en secours).
 
-> **Interface animée** : micro-interactions et animations d'entrée légères (survol des cartes, retour au clic des boutons, focus clavier visible, toasts, `skeleton`/`spinner` de chargement) via `static/css/animations.css` + `static/js/anim.js`. Le tout est **additif** (ne change pas la mise en page) et **respecte `prefers-reduced-motion`** : si l'utilisateur a demandé à réduire les animations (OS/navigateur), elles sont automatiquement désactivées.
+> **Animations** : apparitions en fondu et en cascade, boutons qui s'enfoncent au clic, focus clavier visible, `skeleton` de chargement (`static/js/anim.js` + `static/css/botpanel.css`). Tout est coupé si l'appareil demande de **réduire les animations** (`prefers-reduced-motion`).
 >
 > **Squelettes de chargement** : les listes (notifications, commandes, monitoring, historique) affichent des blocs animés (`data-skeleton`) le temps que les données arrivent, au lieu d'une zone blanche.
 >
@@ -47,14 +47,17 @@ Le site est l'interface d'administration du bot, accessible sur `http://IP_LXC:8
 >
 > **PWA installable** : BotPanel peut être **ajouté à l'écran d'accueil** (mobile/desktop) et s'ouvre en plein écran comme une app. Fourni par `manifest.webmanifest` + `sw.js` (service worker, servis à la racine) et les icônes `static/icons/`. Le service worker fait du **network-first** avec repli hors-ligne et **ne met jamais en cache les appels `/api/`** (données live / webhooks machines).
 
-> **Design « Atelier »** : couche `static/css/atelier.css` chargée après `style.css` (mêmes couleurs), plus `static/css/atelier-auth.css` pour les écrans de connexion. Ce qu'elle apporte :
-> - **Menu** en pastille flottante avec icônes ; sur mobile, **barre d'onglets en bas** (au pouce).
-> - **Listes en tuiles** (notifications, commandes, monitoring) avec **recherche** (touche `/` pour y aller) et boutons en clair : *Tester*, *Éditer*, et un menu **« ⋯ »** pour *Cloner* / *Supprimer*.
-> - Bouton **« + Nouveau »** doré en bas à droite.
-> - **Éditeurs** : sur ordi, l'**aperçu Discord reste visible à droite** ; la barre **Annuler / Tester / Enregistrer reste collée en bas**.
-> - **Ctrl+S** (ou Cmd+S) enregistre l'éditeur ouvert ; un repère **« Modifications non enregistrées »** s'affiche et le navigateur prévient si tu quittes sans enregistrer.
-> - **Confirmations** (supprimer, régénérer la clé, importer…) dans une fenêtre au style du site au lieu de la boîte grise du navigateur (`confirmBox()` dans `static/js/ux.js`).
-> - Textes plus lisibles (tailles minimum relevées, moins de majuscules) et accueil en 2 colonnes sur mobile.
+> **Design « encre »** : le panel suit le design « encre » (le même que cinéthèque). Le kit complet est dans [`design-encre/`](design-encre/LISEZMOI.md) ; ses fichiers sont servis depuis `static/encre/` (`encre.css`, `encre.js`, `polices.css` + `polices/`, `icones.svg`) et `static/css/botpanel.css` habille les briques propres au panel avec les mêmes jetons. Ce qu'il apporte :
+> - **Thème clair / sombre** automatique (suit l'appareil) ou forcé, et **couleur d'accent au choix** (or, ambre, corail, menthe ou lavande, par défaut lavande) dans **Paramètres → Apparence**. Le choix reste **sur l'appareil** (navigateur).
+> - **Téléphone et tablette** : barre du haut + **barre d'onglets flottante en verre flouté** en bas (Accueil, Notifs, Commandes, Suivi, **Plus** → Historique, Paramètres, Aide, Apparence, déconnexion). Elle se cache quand une feuille est ouverte.
+> - **Ordinateur** (1000 px et plus) : **menu à gauche** avec le compte et la déconnexion en bas.
+> - **Recherche rapide** : `Ctrl K` (⌘ K), la loupe de la barre du haut ou « Rechercher » du menu, pour aller à une page ou créer une notification / commande / bloc. Sur une liste, `/` place le curseur dans la recherche de la liste.
+> - **Feuilles** à la place des fenêtres : l'aide « ? », les confirmations et les questions (nom d'un preset de couleur…) montent du bas sur téléphone et s'ouvrent au centre sur ordinateur ; le **bouton retour du téléphone** les referme. Plus aucune boîte grise du navigateur (`alert`, `confirm`, `prompt`).
+> - **Messages** (« Enregistré », erreurs) posés au-dessus de la barre flottante.
+> - **Polices servies par le site** (DM Serif Display, Archivo, DM Mono : plus d'appel à Google Fonts), **icônes au trait** à la place des emojis de l'interface, champs en 16 px (pas de zoom automatique sur iPhone), zoom autorisé, contraste vérifié.
+> - **Écrans de connexion** (`/login`, mot de passe oublié, accès refusé) et **assistant de configuration** assortis.
+> - Gardé de la version précédente : **listes en tuiles** avec recherche et menu **« ⋯ »** (*Cloner* / *Supprimer*), bouton **« + Nouveau »**, **aperçu Discord collé à droite** dans les éditeurs sur grand écran, barre **Annuler / Tester / Enregistrer** collée en bas, **Ctrl+S**, alerte **« Modifications non enregistrées »**.
+> - Les couleurs passent toutes par les **jetons** de `encre.css` ; l'aperçu Discord garde volontairement les couleurs de Discord (jetons `--dc-*`).
 
 ### Notifications (`/notifications`)
 
@@ -68,7 +71,7 @@ Le formulaire d'édition permet de configurer :
 
 Un **aperçu live** du rendu Discord est affiché pendant l'édition. Un bouton "Tester" envoie la notification dans Discord sans sauvegarder.
 
-> **Aperçu avec vraies valeurs Home Assistant** : l'aperçu résout en direct les placeholders HA (`{state:...}`, `{attr:...}`, `{unit:...}`, Jinja HA) avec les **valeurs réelles** récupérées depuis Home Assistant (endpoint `POST /api/notifications/resolve-preview`, sans rien envoyer sur Discord). Un voyant indique l'état (🟢 valeurs en direct / 🔴 HA injoignable) et un bouton **« 🔄 Valeurs HA »** rafraîchit. Les `{var:...}` (remplis au déclenchement) restent affichés tels quels. Le bouton **« + entité »** de la barre d'outils ouvre un sélecteur d'entités **groupé par domaine** (💡 Lumières, 🔌 Interrupteurs, 📊 Capteurs, 🌡️ Chauffage/clim…) avec des **puces de filtre** par domaine, une **recherche** par nom/`entity_id`, et l'**état/valeur en direct** affiché à droite de chaque entité (ex. `21.4 °C`, `on`) ; l'entité choisie est insérée sous forme `{state:...|--}` à l'endroit du curseur. Les domaines de **moins de 5 entités** sont automatiquement regroupés dans un fourre-tout **« 🗃️ Divers »** pour garder la barre lisible.
+> **Aperçu avec vraies valeurs Home Assistant** : l'aperçu résout en direct les placeholders HA (`{state:...}`, `{attr:...}`, `{unit:...}`, Jinja HA) avec les **valeurs réelles** récupérées depuis Home Assistant (endpoint `POST /api/notifications/resolve-preview`, sans rien envoyer sur Discord). Un voyant indique l'état (point vert : valeurs en direct / point rouge : HA injoignable) et un bouton **« Valeurs HA »** rafraîchit. Les `{var:...}` (remplis au déclenchement) restent affichés tels quels. Le bouton **« + entité »** de la barre d'outils ouvre un sélecteur d'entités **groupé par domaine** (💡 Lumières, 🔌 Interrupteurs, 📊 Capteurs, 🌡️ Chauffage/clim…) avec des **puces de filtre** par domaine, une **recherche** par nom/`entity_id`, et l'**état/valeur en direct** affiché à droite de chaque entité (ex. `21.4 °C`, `on`) ; l'entité choisie est insérée sous forme `{state:...|--}` à l'endroit du curseur. Les domaines de **moins de 5 entités** sont automatiquement regroupés dans un fourre-tout **« 🗃️ Divers »** pour garder la barre lisible.
 
 ### Commandes (`/commands`)
 

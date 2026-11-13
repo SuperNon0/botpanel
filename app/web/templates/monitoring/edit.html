@@ -102,7 +102,7 @@
       <div style="display:flex; align-items:center; gap:0.6rem;">
         <span id="resolve-status" class="hint" style="margin:0;"></span>
         <button type="button" class="btn btn-secondary btn-small" id="btn-refresh-preview"
-                title="Récupérer les vraies valeurs Home Assistant">🔄 Valeurs HA</button>
+                title="Récupérer les vraies valeurs Home Assistant"><svg class="i s16" aria-hidden="true"><use href="/static/encre/icones.svg#i-refresh"/></svg>Valeurs HA</button>
       </div>
     </div>
     <div class="embed-preview" id="preview">
@@ -169,8 +169,8 @@ function renderFields() {
     return `
     <div class="mon-field" data-idx="${i}">
       <div class="seg">
-        <button type="button" data-mode="entity" class="${mode === "entity" ? "active" : ""}">📊 Une entité</button>
-        <button type="button" data-mode="text" class="${mode === "text" ? "active" : ""}">✏️ Texte libre</button>
+        <button type="button" data-mode="entity" class="${mode === "entity" ? "active" : ""}">Une entité</button>
+        <button type="button" data-mode="text" class="${mode === "text" ? "active" : ""}">Texte libre</button>
       </div>
       <div class="mon-field-grid">
         <div>
@@ -186,7 +186,7 @@ function renderFields() {
           <label class="form-label">Entité HA</label>
           <div style="display:flex; gap:0.3rem;">
             <input class="form-input ha-entity-input" data-k="entity_id" value="${esc(f.entity_id || "")}" placeholder="sensor.temp_salon" style="flex:1;">
-            <button type="button" class="md-btn" data-pick title="Choisir une entité">🔍</button>
+            <button type="button" class="md-btn" data-pick title="Choisir une entité" aria-label="Choisir une entité"><svg class="i s16" aria-hidden="true"><use href="/static/encre/icones.svg#i-search"/></svg></button>
           </div>
         </div>
         <div>

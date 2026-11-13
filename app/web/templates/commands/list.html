@@ -103,7 +103,7 @@ document.getElementById("groups-root").addEventListener("click", async (e) => {
       const warn = c && c.action_type !== "message" ? "\nL'action sera VRAIMENT exécutée." : "";
       if (!await confirmBox(`Tester /${c ? c.name : ""} ?${warn}`)) return;
       const r = await API.post(`/commands/${t.dataset.test}/test`);
-      toast("✅ OK — réponse : " + (r.message || r.title || "(vide)").slice(0, 120));
+      toast("OK — réponse : " + (r.message || r.title || "(vide)").slice(0, 120));
     } else if (t.dataset.dup) {
       const copy = await API.post(`/commands/${t.dataset.dup}/duplicate`);
       toast(`Clonée en /${copy.name} (désactivée)`);

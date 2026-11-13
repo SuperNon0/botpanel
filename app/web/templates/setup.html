@@ -1,27 +1,20 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-accent-defaut="lavande" data-encre-sprite="/static/encre/icones.svg">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="color-scheme" content="dark">
+  {% include "_encre_head.html" %}
   <title>Configuration — BotPanel</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/style.css">
-  <link rel="stylesheet" href="/static/css/help.css?v=1">
-  <link rel="stylesheet" href="/static/css/atelier.css?v=1">
 </head>
-<body>
+<body class="page-simple">
 
-<header class="header">
-  <div class="logo"><span class="bot">bot</span><span class="panel">panel</span></div>
-  <div class="header-right">assistant de configuration</div>
+<header class="top">
+  <span class="brand">{% include "_logo.html" %}<span class="wm">bot<b>panel</b></span></span>
+  <span class="esp"></span>
+  <span class="badge">configuration</span>
 </header>
 
-<main>
+<main class="pages">
   <div class="page-header">
-    <h2>Bienvenue 👋</h2>
+    <h2>Bienvenue</h2>
   </div>
 
   <div class="card">
@@ -91,7 +84,7 @@
           </div>
         </div>
 
-        <h4 style="margin:1rem 0 0.4rem;">Protection par mot de passe (facultatif)</h4>
+        <h4 class="sec-t" style="margin:1rem 0 0.4rem;">Protection par mot de passe (facultatif)</h4>
         <p class="hint" style="margin-top:0;">Compte unique <code>admin</code>. Laisse vide pour un panel ouvert (ex. derrière Cloudflare ou en réseau local) — activable plus tard dans Paramètres.</p>
         <div class="form-group">
           <label class="form-label">Mot de passe admin (min. 6, optionnel)</label>
@@ -111,10 +104,8 @@
   </div>
 </main>
 
-<div id="toast" class="toast">Ok</div>
-
-<script src="/static/js/help-content.js?v=2"></script>
-<script src="/static/js/help.js?v=2"></script>
+<script src="/static/js/help-content.js?v=5"></script>
+<script src="/static/js/help.js?v=3"></script>
 <script>
 const form = document.getElementById("setup-form");
 const saveBtn = document.getElementById("save-btn");
@@ -122,10 +113,7 @@ const restartBox = document.getElementById("restart-box");
 const restartMsg = document.getElementById("restart-msg");
 
 function showToast(msg, kind) {
-  const t = document.getElementById("toast");
-  t.textContent = msg;
-  t.className = "toast show" + (kind === "error" ? " toast-error" : "");
-  setTimeout(() => { t.className = "toast"; }, 3500);
+  if (window.Encre) Encre.toast(msg, { erreur: kind === "error" });
 }
 
 form.addEventListener("submit", async (e) => {

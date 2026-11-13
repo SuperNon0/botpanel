@@ -72,7 +72,7 @@
     </div>
 
     <!-- Groupe site : rangement sur la liste du site, INDEPENDANT de Discord -->
-    <div class="form-group" style="border-top:1px solid rgba(255,255,255,0.08); margin-top:1rem; padding-top:1rem;">
+    <div class="form-group" style="border-top:1px solid var(--line); margin-top:1rem; padding-top:1rem;">
       <label class="form-label">Groupe (rangement sur le site)<button type="button" class="help-dot" data-help="list_group">?</button></label>
       <input class="form-input" id="f-list-group" list="group-list"
              maxlength="64" placeholder="AdGuard / Backup / Palworld ...">
@@ -98,7 +98,7 @@
         <button type="button" class="md-btn" data-wrap="`" title="Code">&lt;/&gt;</button>
         <button type="button" class="md-btn" id="msg-insert-emoji" title="Inserer un emoji">😀</button>
         <button type="button" class="md-btn" id="msg-insert-entity" title="Inserer une entite HA">+ entité</button>
-        <button type="button" class="md-btn" id="msg-proxmox" title="Mode Proxmox">🖥️ Proxmox</button>
+        <button type="button" class="md-btn" id="msg-proxmox" title="Mode Proxmox">Proxmox</button>
       </div>
       <textarea class="form-textarea" name="message" required maxlength="4000" id="f-message"></textarea>
 
@@ -148,7 +148,7 @@
       <div style="display:flex; align-items:center; gap:0.6rem;">
         <span id="resolve-status" class="hint" style="margin:0;"></span>
         <button type="button" class="btn btn-secondary btn-small" id="btn-refresh-preview"
-                title="Récupérer les vraies valeurs Home Assistant">🔄 Valeurs HA</button>
+                title="Récupérer les vraies valeurs Home Assistant"><svg class="i s16" aria-hidden="true"><use href="/static/encre/icones.svg#i-refresh"/></svg>Valeurs HA</button>
       </div>
     </div>
     <div class="embed-preview" id="preview">

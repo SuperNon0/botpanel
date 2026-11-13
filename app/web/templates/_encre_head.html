@@ -1,0 +1,23 @@
+{# Tête commune du design « encre » (voir design-encre/LISEZMOI.md, § 10). #}
+  <meta charset="UTF-8">
+  <!-- Zoom autorisé : pas de maximum-scale ni de user-scalable=no. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#0b0f17" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)">
+  <script>
+    /* Avant l'affichage : accent et thème gardés sur cet appareil (rien ne clignote). */
+    try {
+      var p = JSON.parse(localStorage.getItem("encre-apparence") || "{}"), h = document.documentElement;
+      if (p.accent) h.dataset.accent = p.accent;
+      if (p.theme === "sombre") h.dataset.theme = "dark";
+      else if (p.theme === "clair") h.dataset.theme = "light";
+      else { h.dataset.theme = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"; h.dataset.encreAuto = ""; }
+    } catch (e) {}
+  </script>
+  <link rel="preload" href="/static/encre/polices/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/static/encre/polices.css?v=1">
+  <link rel="stylesheet" href="/static/encre/encre.css?v=1">
+  <link rel="stylesheet" href="/static/css/botpanel.css?v=1">
+  <script defer src="/static/encre/encre.js?v=1"></script>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">

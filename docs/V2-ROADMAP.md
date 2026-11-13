@@ -33,5 +33,6 @@
   de couleurs créables depuis les éditeurs.
 - **Source dans l'historique** (Home Assistant / Proxmox / API / Manuel / Test).
 - Intégration **Proxmox / PBS** (webhook natif → notif, variables, couleur auto).
-- **Aide contextuelle** (« ? » → pop-up) partout, en remplacement de la page Aide.
+- **Aide contextuelle** (« ? » → feuille) partout, en remplacement de la page Aide.
+- **Design « encre »** (clair / sombre, choix de l'accent, barre flottante en verre).
 - Authentification **Cloudflare Access** + mot de passe LAN ; **PWA** ; animations.

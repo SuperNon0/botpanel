@@ -37,11 +37,11 @@
     <div class="form-group">
       <label class="form-label">Action<button type="button" class="help-dot" data-help="command_action">?</button></label>
       <select class="form-select" name="action_type" id="f-action">
-        <option value="message">💬 Répondre seulement (afficher des infos HA)</option>
-        <option value="service">⚡ Appeler un service Home Assistant</option>
-        <option value="script">📜 Lancer un script</option>
-        <option value="scene">🎬 Activer une scène</option>
-        <option value="notification">🔔 Envoyer une notification BotPanel</option>
+        <option value="message">Répondre seulement (afficher des infos HA)</option>
+        <option value="service">Appeler un service Home Assistant</option>
+        <option value="script">Lancer un script</option>
+        <option value="scene">Activer une scène</option>
+        <option value="notification">Envoyer une notification BotPanel</option>
       </select>
     </div>
 
@@ -55,7 +55,7 @@
           <label class="form-label" id="entity-label">Entité</label>
           <div style="display:flex; gap:0.3rem;">
             <input class="form-input" name="ha_entity_id" id="f-entity" placeholder="light.salon" style="flex:1;">
-            <button type="button" class="md-btn" id="entity-pick" title="Choisir une entité">🔍</button>
+            <button type="button" class="md-btn" id="entity-pick" title="Choisir une entité" aria-label="Choisir une entité"><svg class="i s16" aria-hidden="true"><use href="/static/encre/icones.svg#i-search"/></svg></button>
           </div>
         </div>
       </div>
@@ -81,8 +81,8 @@
     <div class="form-group">
       <label class="form-label">Qui voit la réponse ?</label>
       <select class="form-select" id="f-visibility">
-        <option value="private">🔒 Seulement la personne qui tape la commande</option>
-        <option value="public">👥 Tout le salon</option>
+        <option value="private">Seulement la personne qui tape la commande</option>
+        <option value="public">Tout le salon</option>
       </select>
     </div>
 
@@ -127,7 +127,7 @@
       <div style="display:flex; align-items:center; gap:0.6rem;">
         <span id="resolve-status" class="hint" style="margin:0;"></span>
         <button type="button" class="btn btn-secondary btn-small" id="btn-refresh-preview"
-                title="Récupérer les vraies valeurs Home Assistant">🔄 Valeurs HA</button>
+                title="Récupérer les vraies valeurs Home Assistant"><svg class="i s16" aria-hidden="true"><use href="/static/encre/icones.svg#i-refresh"/></svg>Valeurs HA</button>
       </div>
     </div>
     <div class="hint" id="p-visibility" style="margin-bottom:0.4rem;"></div>
@@ -249,8 +249,8 @@ function updatePreview() {
   document.getElementById("p-buttons").innerHTML = previewButtonsHtml(buttons);
   document.getElementById("p-visibility").textContent =
     document.getElementById("f-visibility").value === "private"
-      ? "🔒 Visible seulement par toi (message éphémère)"
-      : "👥 Visible par tout le salon";
+      ? "Visible seulement par toi (message éphémère)"
+      : "Visible par tout le salon";
 }
 
 function buildPayload() {
@@ -380,7 +380,7 @@ document.getElementById("btn-test").addEventListener("click", async () => {
   if (!await confirmBox("Tester la commande ?" + what)) return;
   try {
     const r = await API.post(`/commands/${CMD_ID}/test`);
-    toast("✅ OK — réponse : " + (r.message || r.title || "(vide)").slice(0, 120));
+    toast("OK — réponse : " + (r.message || r.title || "(vide)").slice(0, 120));
   } catch (err) { toast(err.message, "error"); }
 });
 
