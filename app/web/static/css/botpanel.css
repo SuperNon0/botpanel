@@ -56,7 +56,7 @@ h3 { font-size: calc(18px * var(--t-scale)); line-height: 1.2; margin-bottom: 8p
 .page-tools { display: flex; align-items: center; gap: 10px 12px; flex-wrap: wrap; }
 @media (max-width: 640px) { .page-tools { width: 100%; } }
 
-.pages { max-width: 1240px; width: 100%; }
+.pages { width: 100%; min-width: 0; } /* toute la largeur, même sur grand écran */
 @media (min-width: 1000px) { .pages { padding-bottom: 110px; } }
 
 /* --------------------------------------------------------------- liens */
@@ -242,7 +242,7 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 8px; }
 
 /* Éditeurs : l'aperçu reste visible à droite sur grand écran */
 @media (min-width: 1180px) {
-  form.editor-2col { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 0 18px; align-items: start; }
+  form.editor-2col { display: grid; grid-template-columns: minmax(0, 1fr) clamp(380px, 30vw, 620px); gap: 0 18px; align-items: start; }
   form.editor-2col > * { grid-column: 1; }
   form.editor-2col > .preview-card {
     grid-column: 2; grid-row: 1 / span 20; position: sticky; top: 22px; max-height: calc(100vh - 44px); overflow-y: auto;
@@ -292,6 +292,7 @@ form.is-dirty .savebar .dirty-flag { display: inline; }
 #groups-root .group-card > summary:hover { background: transparent; }
 #groups-root .group-card[open] > summary { border-bottom-color: transparent; }
 #groups-root .group-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+@media (min-width: 1800px) { #groups-root .group-list { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; } }
 #groups-root .group-list .card-row {
   flex-direction: column; align-items: stretch; justify-content: space-between; gap: 14px;
   background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px;
