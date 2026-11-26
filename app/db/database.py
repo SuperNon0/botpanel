@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 
 -- ==========================================================
 -- BOUTONS CUSTOM D'UNE NOTIFICATION
--- Chaque bouton declenche un service HA a son clic.
+-- action : 'ha' (service HA), 'link' (ouvre url), 'webhook' (POST vers url).
 -- ==========================================================
 CREATE TABLE IF NOT EXISTS notification_buttons (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,14 +53,27 @@ CREATE TABLE IF NOT EXISTS notification_buttons (
     label           TEXT NOT NULL,
     style           TEXT NOT NULL DEFAULT 'primary',  -- primary/secondary/success/danger
     emoji           TEXT,
-    ha_service      TEXT NOT NULL,                    -- ex: light.turn_on
+    ha_service      TEXT NOT NULL,                    -- ex: light.turn_on ('' si lien/webhook)
     ha_entity_id    TEXT,                             -- ex: light.salon
     ha_data_json    TEXT,                             -- payload extra JSON
+    action          TEXT NOT NULL DEFAULT 'ha',       -- ha / link / webhook
+    url             TEXT,                             -- lien ou webhook ({var:...} acceptes)
     FOREIGN KEY (notification_id) REFERENCES notifications(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_buttons_notif
     ON notification_buttons(notification_id);
+
+-- ==========================================================
+-- VARIABLES D'UN MESSAGE ENVOYE
+-- Les {var:...} passees a /api/notify, gardees pour les boutons webhook
+-- (resolus au clic). Purge automatique apres 30 jours.
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS message_vars (
+    message_id      TEXT PRIMARY KEY,
+    vars_json       TEXT NOT NULL,
+    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
 
 -- ==========================================================
 -- CHAMPS (FIELDS) D'UNE NOTIFICATION
@@ -222,6 +235,8 @@ _MIGRATIONS_ALTER: list[str] = [
     "ALTER TABLE slash_commands ADD COLUMN buttons_json TEXT NOT NULL DEFAULT '[]'",
     "ALTER TABLE slash_commands ADD COLUMN list_group TEXT",
     "ALTER TABLE monitoring_blocks ADD COLUMN list_group TEXT",
+    "ALTER TABLE notification_buttons ADD COLUMN action TEXT NOT NULL DEFAULT 'ha'",
+    "ALTER TABLE notification_buttons ADD COLUMN url TEXT",
 ]
 
 

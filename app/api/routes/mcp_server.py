@@ -59,6 +59,63 @@ SERVER_INFO = {"name": "BotPanel", "version": "1.0.0"}
 # ======================================================================
 #  Définition des outils (JSON Schema)
 # ======================================================================
+# Boutons d'action (notifications, commandes, monitoring) : meme forme partout.
+_BUTTONS_SCHEMA = {
+    "type": "array",
+    "description": "Boutons d'action cliquables dans Discord. `action` choisit ce que fait le clic : "
+    "ha = appelle un service Home Assistant (ha_service requis) ; link = ouvre `url` "
+    "(bouton lien gris, {var:lien} accepté) ; webhook = BotPanel fait un POST JSON signé vers `url` "
+    "(ha_data = données JSON envoyées dans \"data\").",
+    "items": {
+        "type": "object",
+        "properties": {
+            "label": {"type": "string", "description": "Texte du bouton."},
+            "action": {
+                "type": "string",
+                "enum": ["ha", "link", "webhook"],
+                "description": "Type d'action (défaut : ha).",
+            },
+            "url": {"type": "string", "description": "Adresse ouverte (link) ou appelée (webhook). {var:...} accepté."},
+            "style": {
+                "type": "string",
+                "enum": ["primary", "secondary", "success", "danger"],
+                "description": "Couleur : primary=bleu, secondary=gris, success=vert, danger=rouge (ignorée pour link).",
+            },
+            "emoji": {"type": "string", "description": "Emoji optionnel sur le bouton."},
+            "ha_service": {"type": "string", "description": "Service HA (action ha), ex. light.turn_on, lock.lock, script.xxx."},
+            "ha_entity_id": {"type": "string", "description": "Entité ciblée (action ha), ex. light.salon (optionnel)."},
+            "ha_data": {"type": "object", "description": "Données du service HA, ou données envoyées au webhook (optionnel)."},
+        },
+        "required": ["label"],
+    },
+}
+
+
+def _button_kwargs(b: dict) -> dict:
+    """Champs d'un bouton (forme MCP -> modele). Leve ValueError si incomplet."""
+    data = b.get("ha_data")
+    action = b.get("action") or "ha"
+    return {
+        "label": b.get("label", ""),
+        "style": b.get("style") or "primary",
+        "emoji": b.get("emoji") or None,
+        "action": action,
+        "url": b.get("url") or None,
+        "ha_service": b.get("ha_service") or None,
+        "ha_entity_id": b.get("ha_entity_id") or None,
+        "ha_data_json": (json.dumps(data, ensure_ascii=False) if isinstance(data, dict) else None),
+    }
+
+
+def _button_summary(b) -> str:
+    action = getattr(b, "action", "ha") or "ha"
+    if action == "link":
+        return f"« {b.label} » (lien {b.url})"
+    if action == "webhook":
+        return f"« {b.label} » (webhook {b.url})"
+    return f"« {b.label} » ({b.ha_service})"
+
+
 TOOLS = [
     {
         "name": "list_notifications",
@@ -116,27 +173,7 @@ TOOLS = [
                 "icon_url": {"type": "string", "description": "Petite image (miniature) en haut à droite (URL)."},
                 "delete_button": {"type": "boolean", "description": "Ajoute le bouton intégré « Supprimer »."},
                 "snooze_button": {"type": "boolean", "description": "Ajoute le bouton intégré « Snooze »."},
-                "buttons": {
-                    "type": "array",
-                    "description": "Boutons d'action cliquables dans Discord. Chaque clic appelle un "
-                    "service Home Assistant (ex. allumer une lumière, verrouiller une porte).",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "label": {"type": "string", "description": "Texte du bouton."},
-                            "style": {
-                                "type": "string",
-                                "enum": ["primary", "secondary", "success", "danger"],
-                                "description": "Couleur : primary=bleu, secondary=gris, success=vert, danger=rouge.",
-                            },
-                            "emoji": {"type": "string", "description": "Emoji optionnel sur le bouton."},
-                            "ha_service": {"type": "string", "description": "Service HA appelé au clic, ex. light.turn_on, lock.lock, script.xxx."},
-                            "ha_entity_id": {"type": "string", "description": "Entité ciblée, ex. light.salon (optionnel)."},
-                            "ha_data": {"type": "object", "description": "Données additionnelles du service, ex. {\"brightness\": 255} (optionnel)."},
-                        },
-                        "required": ["label", "ha_service"],
-                    },
-                },
+                "buttons": _BUTTONS_SCHEMA,
             },
             "required": ["slug", "title", "message"],
         },
@@ -257,20 +294,8 @@ TOOLS = [
                     },
                 },
                 "buttons": {
-                    "type": "array",
+                    **_BUTTONS_SCHEMA,
                     "description": "Remplace TOUS les boutons par cette liste (voir create_notification).",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "label": {"type": "string"},
-                            "style": {"type": "string", "enum": ["primary", "secondary", "success", "danger"]},
-                            "emoji": {"type": "string"},
-                            "ha_service": {"type": "string"},
-                            "ha_entity_id": {"type": "string"},
-                            "ha_data": {"type": "object"},
-                        },
-                        "required": ["label", "ha_service"],
-                    },
                 },
             },
             "required": ["slug"],
@@ -338,18 +363,7 @@ async def _tool_create_notification(args: dict) -> str:
     ]
     buttons = []
     for i, b in enumerate(args.get("buttons") or []):
-        data = b.get("ha_data")
-        buttons.append(
-            NotificationButton(
-                label=b.get("label", ""),
-                style=b.get("style") or "primary",
-                emoji=b.get("emoji") or None,
-                ha_service=b.get("ha_service", ""),
-                ha_entity_id=b.get("ha_entity_id") or None,
-                ha_data_json=(json.dumps(data, ensure_ascii=False) if isinstance(data, dict) else None),
-                position=i,
-            )
-        )
+        buttons.append(NotificationButton(**_button_kwargs(b), position=i))
     payload = NotificationIn(
         slug=slug,
         channel_id=(args.get("channel_id") or _default_channel()),
@@ -451,18 +465,7 @@ def _fields_from_args(raw) -> list:
 def _buttons_from_args(raw) -> list:
     out = []
     for i, b in enumerate(raw or []):
-        data = b.get("ha_data")
-        out.append(
-            NotificationButton(
-                label=b.get("label", ""),
-                style=b.get("style") or "primary",
-                emoji=b.get("emoji") or None,
-                ha_service=b.get("ha_service", ""),
-                ha_entity_id=b.get("ha_entity_id") or None,
-                ha_data_json=(json.dumps(data, ensure_ascii=False) if isinstance(data, dict) else None),
-                position=i,
-            )
-        )
+        out.append(NotificationButton(**_button_kwargs(b), position=i))
     return out
 
 
@@ -648,22 +651,7 @@ HANDLERS["rollback_site"] = _tool_rollback_site
 # ======================================================================
 #  Commandes slash, blocs de monitoring, erreurs, couleurs
 # ======================================================================
-_HA_BUTTONS_SCHEMA = {
-    "type": "array",
-    "description": "Boutons d'action sous le message. Chaque clic appelle un service Home Assistant.",
-    "items": {
-        "type": "object",
-        "properties": {
-            "label": {"type": "string", "description": "Texte du bouton."},
-            "style": {"type": "string", "enum": ["primary", "secondary", "success", "danger"]},
-            "emoji": {"type": "string"},
-            "ha_service": {"type": "string", "description": "Service HA, ex. light.toggle."},
-            "ha_entity_id": {"type": "string", "description": "Entité ciblée (optionnel)."},
-            "ha_data": {"type": "object", "description": "Données du service (optionnel)."},
-        },
-        "required": ["label", "ha_service"],
-    },
-}
+_HA_BUTTONS_SCHEMA = _BUTTONS_SCHEMA
 
 _COMMAND_PROPS = {
     "description": {"type": "string", "description": "Description affichée dans Discord (100 car. max)."},
@@ -891,17 +879,7 @@ TOOLS.extend([
 def _ha_buttons_from_args(raw) -> list[HaButton]:
     out = []
     for b in raw or []:
-        data = b.get("ha_data")
-        out.append(
-            HaButton(
-                label=b.get("label", ""),
-                style=b.get("style") or "primary",
-                emoji=b.get("emoji") or None,
-                ha_service=b.get("ha_service", ""),
-                ha_entity_id=b.get("ha_entity_id") or None,
-                ha_data_json=(json.dumps(data, ensure_ascii=False) if isinstance(data, dict) else None),
-            )
-        )
+        out.append(HaButton(**_button_kwargs(b)))
     return out
 
 
@@ -1472,7 +1450,7 @@ async def _tool_preview_notification(args: dict) -> str:
         if url:
             lines.append(f"{label} : {await r(url)}")
     if notif.buttons:
-        lines.append("Boutons : " + ", ".join(f"« {b.label} » ({b.ha_service})" for b in notif.buttons))
+        lines.append("Boutons : " + ", ".join(_button_summary(b) for b in notif.buttons))
     lines.append(f"Salon : {notif.channel_id} · couleur #{notif.color:06x}")
     return "Aperçu (non envoyé) :\n" + "\n".join(lines)
 

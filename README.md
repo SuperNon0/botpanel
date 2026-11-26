@@ -15,7 +15,7 @@ Hébergé dans un conteneur LXC Proxmox.
 
 - **Notifications Discord** configurables depuis le site — HA n'a qu'un seul appel à faire (`rest_command.bot_discord` avec `id: <slug>`)
 - **Trois modes d'envoi** par notification : *Direct* (channel texte), *Thread* (fil dans un channel texte, regroupé par groupe), *Forum* (post dans un channel forum Discord)
-- **Boutons interactifs** (persistants, survivent au timeout 15 min et aux redémarrages) : Supprimer, Snooze, boutons custom appelant un service HA
+- **Boutons interactifs** (persistants, survivent au timeout 15 min et aux redémarrages) : Supprimer, Snooze, et boutons d'action au choix : **service Home Assistant**, **lien** (ouvre une page, ex. `{var:lien}`) ou **webhook** (BotPanel appelle ton site, signé HMAC) — voir [Boutons lien et webhook](#boutons-lien-et-webhook)
 - **Commandes slash Discord** : deux commandes fixes (`/ha`, `/clear`) + commandes personnalisées entièrement gérées depuis le site (répondre seulement / service / script / scène / notification), avec réponse contenant les **vraies valeurs HA**, en carte (titre, couleur, image), privée ou publique, et **boutons d'action HA**
 - **Monitoring temps réel** : messages épinglés édités à intervalle configurable (min. 30 s), recréés automatiquement si supprimés côté Discord, avec **aperçu des vraies valeurs**, unité HA automatique, arrondi, texte libre, images et **boutons d'action HA / « Actualiser »**
 - **Templates dans les champs** : syntaxe BotPanel (`{state:sensor.x}`, `{attr:sensor.x:attr}`, `{unit:sensor.x}`) et Jinja HA natif (`{{ states('...') }}`, `{{ state_attr(...) }}`)
@@ -66,7 +66,7 @@ Page principale. Elle liste toutes les notifications enregistrées, **groupées 
 Le formulaire d'édition permet de configurer :
 - **Identification** : slug, channel Discord cible, **mode d'envoi** (Direct / Thread / Forum) et nom de groupe/post selon le mode
 - **Embed** : titre, message (Markdown), couleur (sélecteur + **pastilles de presets**, la pastille **＋** enregistre la couleur actuelle comme nouveau preset), icône, footer, horodatage
-- **Boutons** : cases "Supprimer" et "Snooze N min", plus des boutons custom déclenchant un service HA au clic (texte + emoji, couleur, service, entité avec sélecteur 🔍, data JSON en option avancée, ordre ↑/↓)
+- **Boutons** : cases "Supprimer" et "Snooze N min", plus des boutons d'action (texte + emoji, couleur, ordre ↑/↓) dont on choisit le **type** : *Home Assistant* (service, entité avec sélecteur 🔍, data JSON en option avancée), *Lien* (adresse à ouvrir, `{var:...}` accepté) ou *Webhook* (URL appelée au clic + données JSON envoyées)
 - **Champs** : fields Discord affichés en grille dans l'embed, avec templates d'états HA
 
 Un **aperçu live** du rendu Discord est affiché pendant l'édition. Un bouton "Tester" envoie la notification dans Discord sans sauvegarder.
@@ -82,7 +82,7 @@ L'éditeur est organisé en blocs :
 - **Ce que fait la commande** : *Répondre seulement* (aucune action, ex. `/temperature`), *Service HA*, *Script*, *Scène* ou *Notification BotPanel* (liste déroulante). Sélecteur d'entités 🔍 groupé par domaine
 - **Réponse sur Discord** : visible **seulement par l'auteur** ou **par tout le salon** ; message Markdown où les `{state:...}` / `{attr:...}` / Jinja HA sont remplacés par les **vraies valeurs** au moment de la réponse (bouton **+ entité**) ; option **carte** (titre, couleur avec presets, grande image)
 - **Aperçu live** avec les valeurs HA réelles (voyant 🟢/🔴)
-- **Boutons sous la réponse** : boutons d'action HA (ex. « Éteindre »)
+- **Boutons sous la réponse** : boutons d'action HA, lien ou webhook (ex. « Éteindre »)
 
 Les utilisations des commandes et les clics sur leurs boutons sont tracés dans l'**Historique** (type « Commandes / »). Un compteur affiche le quota utilisé sur les 100 commandes autorisées par Discord ; les noms `ha` et `clear` sont refusés.
 
@@ -95,7 +95,7 @@ Chaque bloc expose :
 - le **channel Discord** cible (favoris ★ en tête) et le **rythme** (30 s, 1 min, 5 min… ou valeur libre, min. 30 s)
 - un **texte sous le titre**, une **miniature**, une **grande image** (URLs avec placeholders, ex. caméra), un footer et l'heure de mise à jour
 - des **valeurs affichées**, chacune soit **une entité** (état ou attribut, **unité HA ajoutée automatiquement** si le suffixe est vide, **arrondi** 0/1/2 décimales, entité indisponible → « indisponible »), soit un **texte libre** combinant plusieurs placeholders (`{state:sensor.temp|--} °C · {state:sensor.hum|--} %`)
-- des **boutons** sous le message : actions HA et « 🔄 Actualiser » ; après un clic, le bloc est **re-rendu tout de suite** avec le nouvel état
+- des **boutons** sous le message : actions HA / lien / webhook et « 🔄 Actualiser » ; après un clic, le bloc est **re-rendu tout de suite** avec le nouvel état
 
 L'**aperçu** de l'éditeur affiche les **vraies valeurs** actuelles de Home Assistant (endpoint `POST /api/monitoring/preview`, sans rien envoyer sur Discord) — avant, il n'affichait que le nom des entités.
 
@@ -108,13 +108,13 @@ Chaque réglage n'affiche qu'**une phrase courte** ; les explications détaillé
 - **🏠 Général** : URL d'accueil ; **Mise à jour** (branche/commit git, bouton `git pull` + réinstallation + redémarrage automatique)
 - **🎨 Couleurs** : presets de couleurs nommés, affichés en **pastilles** dans tous les éditeurs ; on peut aussi en créer un directement depuis un éditeur (pastille **＋**)
 - **💬 Channels Discord** : **channels favoris** (nom + ID, proposés en tête ★ dans les éditeurs, ajout en un clic via « ★ Favori » sur un channel détecté), channels texte et forum détectés par le bot, **threads / posts actifs** (bouton « Réinitialiser » pour forcer la recréation)
-- **🔌 Intégrations** : **clé API unique** (HA, Proxmox, Claude) **masquée par défaut** (bouton 👁 Afficher, Copier sans l'afficher, Régénérer), diagnostic du module Home Assistant, et URLs du serveur **MCP** pour Claude (l'URL contenant la clé est masquée aussi)
+- **🔌 Intégrations** : **clé API unique** (HA, Proxmox, Claude) **masquée par défaut** (bouton 👁 Afficher, Copier sans l'afficher, Régénérer), **secret des boutons webhook** (masqué, Copier, Régénérer), diagnostic du module Home Assistant, et URLs du serveur **MCP** pour Claude (l'URL contenant la clé est masquée aussi)
 - **🔒 Compte & sécurité** : mot de passe admin (LAN) et **Cloudflare / Accès** (équipe + AUD + **Tester**, option « accès uniquement Cloudflare »)
 - **💾 Sauvegarde** : export/import JSON de toute la configuration
 
 ### Historique (`/historique`)
 
-Journal de toutes les activités du bot : envois de notifications, clics sur les boutons (Supprimer, Snooze, action HA). Chaque entrée indique la notification concernée, l'**origine de l'envoi** (🏠 Home Assistant / API / Manuel / Test), l'utilisateur (pour les clics), le channel, l'horodatage et si l'opération a réussi. Filtrable et purgeable.
+Journal de toutes les activités du bot : envois de notifications, clics sur les boutons (Supprimer, Snooze, action HA, webhook). Chaque entrée indique la notification concernée, l'**origine de l'envoi** (🏠 Home Assistant / API / Manuel / Test), l'utilisateur (pour les clics), le channel, l'horodatage et si l'opération a réussi. Filtrable et purgeable.
 
 ## Commandes slash Discord
 
@@ -202,6 +202,54 @@ activée), pour ne jamais bloquer tes intégrations.
 👉 **Guide complet avec exemples (Python, Node.js, PHP, Bash, Home Assistant) :
 [docs/API.md](docs/API.md)**
 
+### Boutons lien et webhook
+
+Chaque bouton d'action (notifications, commandes, monitoring) a un **type** :
+
+| Type | Au clic | Réglages |
+|---|---|---|
+| **Home Assistant** | appelle un service HA | service, entité, data JSON |
+| **Lien** | Discord ouvre l'adresse (bouton gris, imposé par Discord) | adresse, `{var:...}` / `{state:...}` acceptés |
+| **Webhook** | BotPanel fait un `POST` JSON vers l'URL | URL (`{var:...}` accepté), données JSON envoyées |
+
+**Exemple (site de recettes)** : une notification `nouvelle_recette` avec un bouton
+*Lien* « Lire la recette » → `{var:lien}`, et un bouton *Webhook* « Ajouter à la
+liste » → `https://recettes.lan/api/botpanel`. Le site déclenche :
+
+```bash
+curl -X POST http://IP_BOTPANEL:8080/api/notify -H "Content-Type: application/json" \
+  -d '{"id": "nouvelle_recette", "vars": {"lien": "https://recettes.lan/r/42", "id": "42"}}'
+```
+
+Si l'adresse d'un bouton lien est vide ou invalide une fois les variables
+remplies, le bouton est simplement omis (`{var:lien|https://…}` donne une valeur
+par défaut).
+
+**Appel webhook** — corps envoyé :
+
+```json
+{"event": "button_click", "source": "notification", "source_id": 3,
+ "source_name": "nouvelle_recette", "button": "Ajouter à la liste",
+ "user": {"id": "…", "name": "…"}, "channel_id": "…", "message_id": "…",
+ "vars": {"lien": "…", "id": "42"}, "data": {"recette": "42"}}
+```
+
+- `vars` : les variables passées à `/api/notify` pour **ce message** (gardées
+  30 jours en base, table `message_vars`, seulement si la notif a un bouton webhook).
+- `data` : le JSON « Données envoyées » du bouton, avec les `{var:...}` remplis.
+- Réponse facultative `{"message": "Ajoutée !"}` : affichée (en privé) à la personne
+  qui a cliqué. Sinon « ✅ <bouton> exécuté ». Délai max 10 s ; un code HTTP ≥ 400
+  affiche une erreur et est tracé dans l'Historique.
+- **Signature** : en-têtes `X-BotPanel-Timestamp` et
+  `X-BotPanel-Signature: sha256=<hex>` = HMAC-SHA256 de `"<timestamp>.<corps brut>"`
+  avec le **secret webhook** (Paramètres → Intégrations). Vérification en Python :
+
+```python
+import hashlib, hmac
+expected = "sha256=" + hmac.new(SECRET.encode(), ts.encode() + b"." + body, hashlib.sha256).hexdigest()
+ok = hmac.compare_digest(expected, request.headers["X-BotPanel-Signature"])
+```
+
 ## Endpoints
 
 ### API REST
@@ -254,6 +302,8 @@ activée), pour ne jamais bloquer tes intégrations.
 | `POST` | `/api/system/restart` | `systemctl restart botpanel` (détaché) |
 | `GET` | `/api/settings/integration` | État de l'intégration (clé API, HA joignable, dernière connexion) |
 | `POST` | `/api/settings/integration/regenerate` | Régénère la clé API |
+| `GET` | `/api/settings/webhook-secret` | Secret de signature des boutons webhook (créé au premier appel) |
+| `POST` | `/api/settings/webhook-secret/regenerate` | Régénère ce secret |
 | `GET` | `/health` | Vérification de santé — `{"status": "ok"}` |
 | `POST` | `/mcp` | **Serveur MCP** (JSON-RPC) pour Claude — auth par clé API (Bearer, `X-API-Key` ou `/mcp/<clé>`). Voir [docs/MCP.md](docs/MCP.md) |
 | `GET` | `/api/docs` | Documentation Swagger UI |
@@ -401,7 +451,7 @@ action:
 
 ## Points d'attention
 
-- **Boutons Discord** : les `custom_id` sont de la forme `bp:<action>:<notif_id>[:<btn_id>]` (actions : `del`, `snz`, `btn`, `preview`). Un dispatcher global (`on_interaction`) route les clics — aucun besoin de reconstruire les Views au boot.
+- **Boutons Discord** : les `custom_id` sont de la forme `bp:<action>:<notif_id>[:<btn_id>]` (actions : `del`, `snz`, `btn`, `preview`, `cbtn`, `mbtn`, `mref`). Les boutons **lien** n'ont pas de `custom_id` (Discord ouvre l'URL lui-même). Un dispatcher global (`on_interaction`) route les clics — aucun besoin de reconstruire les Views au boot.
 - **Modes d'envoi** : `thread_mode` sur chaque notification — `none` (direct), `thread` (fil dans channel texte), `forum` (post dans channel forum). Les tests et previews depuis l'éditeur ignorent toujours le mode et vont dans le channel direct. Le `thread_id`/`post_id` est stocké en DB par `(group_name, channel_id)` ; si archivé → désarchivé, si supprimé → recréé automatiquement. En mode forum, si le post n'est pas en DB, le bot le cherche par nom dans les posts actifs avant d'en créer un nouveau.
 - **Token HA** : créer un token avec uniquement les permissions nécessaires (lecture états + appel services).
 - **Sync slash** : les commandes sont poussées sur la **guild** (pas en global) → propagation immédiate. Les noms `ha` et `clear` sont réservés.

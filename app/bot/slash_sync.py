@@ -126,7 +126,7 @@ async def build_command_response(
     from app.bot.views import cid_command_button
 
     data = await render_command_response(cmd)
-    view = build_ha_buttons_view(cmd.buttons, lambda idx: cid_command_button(cmd.id, idx))
+    view = await build_ha_buttons_view(cmd.buttons, lambda idx: cid_command_button(cmd.id, idx))
 
     if not cmd.response_embed:
         return (data["message"] or None), None, view

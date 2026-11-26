@@ -368,7 +368,7 @@ async def send_notification_object(
         return None
 
     embed = await build_embed(notif, variables)
-    view = build_notification_view(notif)
+    view = await build_notification_view(notif, variables)
 
     message: discord.Message | None = None
     log_detail: str | None = "ephemere (test)" if not notif.id else None
@@ -404,6 +404,13 @@ async def send_notification_object(
         return None
 
     logger.info("Notification '%s' envoyee [mode=%s] (msg=%s)", notif.slug, use_mode, message.id)
+    # Garde les {var:...} pour les boutons webhook (resolus au clic).
+    if variables and any(b.action == "webhook" for b in notif.buttons):
+        try:
+            from app.bot.webhooks import store_message_vars
+            await store_message_vars(str(message.id), variables)
+        except Exception:  # noqa: BLE001
+            logger.exception("Impossible de garder les variables du message %s", message.id)
     await log_repo.add(
         kind="send",
         notification_id=notif.id or None,

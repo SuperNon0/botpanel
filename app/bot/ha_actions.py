@@ -1,4 +1,7 @@
-"""Boutons d'action Home Assistant partages (commandes slash + monitoring).
+"""Boutons d'action partages (notifications, commandes slash, monitoring).
+
+Trois types d'action (`action`) : `ha` (service Home Assistant), `link` (bouton
+lien Discord natif) et `webhook` (POST vers une URL, voir `webhooks.py`).
 
 Les notifications ont leurs boutons en table (avec un id) ; les commandes et
 les blocs de monitoring les stockent en JSON et les identifient par leur
@@ -60,12 +63,50 @@ async def call_ha_button(button: HaButton) -> None:
     await call_ha_service(button.ha_service, button.ha_entity_id, button.ha_data_json)
 
 
-def build_ha_buttons_view(
+def _valid_link(url: str | None) -> bool:
+    return bool(url) and url.lower().startswith(("http://", "https://"))
+
+
+async def resolve_link_url(button: HaButton, variables: dict | None = None) -> str | None:
+    """URL finale d'un bouton lien ({var:...}, {state:...} et Jinja HA resolus).
+
+    Renvoie None si l'URL obtenue n'est pas un lien http(s) valide : le bouton
+    est alors simplement omis (Discord refuserait tout le message sinon).
+    """
+    if button.action != "link":
+        return None
+    from app.bot.notifications import _resolve_template  # import tardif (cycle)
+
+    url = (await _resolve_template(button.url or "", variables)).strip()
+    if not _valid_link(url):
+        logger.warning("Bouton lien « %s » ignore : URL invalide %r", button.label, url)
+        return None
+    return url[:512]  # limite Discord
+
+
+def make_button(button: HaButton, custom_id: str, link_url: str | None = None) -> Button | None:
+    """Bouton Discord pour une action (lien natif ou bouton route par custom_id)."""
+    label = (button.label or "")[:80] or "Action"
+    if button.action == "link":
+        if not link_url:
+            return None
+        return Button(style=discord.ButtonStyle.link, label=label,
+                      emoji=button.emoji or None, url=link_url)
+    return Button(
+        style=DISCORD_STYLES.get(button.style, discord.ButtonStyle.primary),
+        label=label,
+        emoji=button.emoji or None,
+        custom_id=custom_id,
+    )
+
+
+async def build_ha_buttons_view(
     buttons: Iterable[HaButton],
     custom_id: Callable[[int], str],
     extra: Iterable[Button] = (),
+    variables: dict | None = None,
 ) -> View | None:
-    """View persistante (timeout=None) : un bouton Discord par HaButton.
+    """View persistante (timeout=None) : un bouton Discord par bouton d'action.
 
     `custom_id(idx)` donne l'identifiant stable du bouton n°idx (route par le
     dispatcher de `views.py`). `extra` ajoute des boutons systeme (ex.
@@ -76,14 +117,9 @@ def build_ha_buttons_view(
     for idx, btn in enumerate(buttons):
         if len(view.children) >= 25:  # limite Discord
             break
-        view.add_item(
-            Button(
-                style=DISCORD_STYLES.get(btn.style, discord.ButtonStyle.primary),
-                label=btn.label[:80] or "Action",
-                emoji=btn.emoji or None,
-                custom_id=custom_id(idx),
-            )
-        )
+        item = make_button(btn, custom_id(idx), await resolve_link_url(btn, variables))
+        if item is not None:
+            view.add_item(item)
     for item in extra:
         if len(view.children) >= 25:
             break

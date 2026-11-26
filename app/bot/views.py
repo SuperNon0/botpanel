@@ -15,8 +15,9 @@ import logging
 import discord
 from discord.ui import Button, View
 
-from app.bot.ha_actions import DISCORD_STYLES, call_ha_button, call_ha_service
-from app.db.models import Notification, NotificationButton
+from app.bot.ha_actions import call_ha_button, make_button, resolve_link_url
+from app.bot.webhooks import WebhookError, call_webhook, load_message_vars
+from app.db.models import HaButton, Notification, NotificationButton
 from app.db.repositories import LogRepository, NotificationRepository
 
 logger = logging.getLogger(__name__)
@@ -28,9 +29,10 @@ logger = logging.getLogger(__name__)
 #   Format : "bp:<action>:<notif_id>[:<button_id>]"
 #     - bp:del:<notif_id>             -> supprime le message
 #     - bp:snz:<notif_id>             -> re-envoie la notif apres N minutes
-#     - bp:btn:<notif_id>:<button_id> -> execute le service HA du bouton custom
-#     - bp:cbtn:<cmd_id>:<idx>        -> bouton HA sous la reponse d'une commande
-#     - bp:mbtn:<block_id>:<idx>      -> bouton HA sous un bloc de monitoring
+#     - bp:btn:<notif_id>:<button_id> -> action (HA ou webhook) du bouton custom
+#     - bp:cbtn:<cmd_id>:<idx>        -> bouton sous la reponse d'une commande
+#     - bp:mbtn:<block_id>:<idx>      -> bouton sous un bloc de monitoring
+#   Les boutons « lien » n'ont pas de custom_id : Discord ouvre l'URL lui-meme.
 #     - bp:mref:<block_id>            -> « Actualiser » un bloc de monitoring
 # -----------------------------------------------------------------
 CUSTOM_ID_PREFIX = "bp"
@@ -67,7 +69,7 @@ def cid_monitoring_refresh(block_id: int) -> str:
 # -----------------------------------------------------------------
 # View construite a l'envoi d'une notification
 # -----------------------------------------------------------------
-def build_notification_view(notif: Notification) -> View:
+async def build_notification_view(notif: Notification, variables: dict | None = None) -> View:
     """Cree une View persistante avec les boutons configures.
 
     - Si notif.id est falsy (test ephemere d'une notif non sauvegardee) :
@@ -75,23 +77,22 @@ def build_notification_view(notif: Notification) -> View:
     - Si notif.id est set : les boutons avec un id en DB sont interactifs,
       ceux sans id (nouveaux dans l'editeur, pas encore sauves) restent
       en mode preview.
+    - Les boutons lien ouvrent directement leur URL ({var:...} resolus avec
+      `variables`), meme en test.
     """
     view = View(timeout=None)
     is_preview_notif = not notif.id
 
     for idx, btn in enumerate(notif.buttons):
+        if len(view.children) >= 23:  # garde la place pour Snooze / Supprimer
+            break
         if is_preview_notif or btn.id is None:
             cid = _cid_preview(idx)
         else:
             cid = _cid_custom(notif.id, btn.id)
-        view.add_item(
-            Button(
-                style=DISCORD_STYLES.get(btn.style, discord.ButtonStyle.primary),
-                label=btn.label,
-                emoji=btn.emoji or None,
-                custom_id=cid,
-            )
-        )
+        item = make_button(btn, cid, await resolve_link_url(btn, variables))
+        if item is not None:
+            view.add_item(item)
 
     if notif.snooze_button:
         view.add_item(
@@ -130,6 +131,56 @@ class PersistentDispatcher(View):
 
     def __init__(self) -> None:
         super().__init__(timeout=None)
+
+
+async def run_button_action(
+    interaction: discord.Interaction,
+    button: HaButton | NotificationButton,
+    *,
+    source: str,
+    source_id: int,
+    source_name: str,
+) -> tuple[bool, str, str]:
+    """Execute l'action d'un bouton cliquable (HA ou webhook).
+
+    Renvoie (succes, detail pour l'historique, reponse ephemere pour Discord).
+    """
+    if button.action == "webhook":
+        message_id = str(interaction.message.id) if interaction.message else None
+        user = interaction.user
+        context = {
+            "source": source,
+            "source_id": source_id,
+            "source_name": source_name,
+            "button": button.label,
+            "user": {"id": str(user.id), "name": str(user)} if user else None,
+            "channel_id": str(interaction.channel_id) if interaction.channel_id else None,
+            "message_id": message_id,
+        }
+        try:
+            answer = await call_webhook(
+                button.url or "",
+                data_json=button.ha_data_json,
+                variables=await load_message_vars(message_id),
+                context=context,
+            )
+        except WebhookError as exc:
+            logger.warning("Bouton webhook « %s » : %s", button.label, exc)
+            return False, f"webhook -> {exc}", f"\u274c Erreur : {exc}"
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Erreur bouton webhook « %s »", button.label)
+            return False, f"webhook -> {exc}", f"\u274c Erreur : {exc}"
+        return True, "webhook", answer or f"\u2705 {button.label} execute."
+
+    if button.action == "link":  # normalement jamais clique cote bot
+        return True, "lien", "Lien."
+
+    try:
+        await call_ha_button(button)
+    except Exception as exc:  # HomeAssistantError remonte ici
+        logger.error("Erreur appel HA depuis bouton « %s » : %s", button.label, exc)
+        return False, f"{button.ha_service} -> {exc}", f"\u274c Erreur : {exc}"
+    return True, button.ha_service or "", f"\u2705 {button.label} execute."
 
 
 async def _log_click(
@@ -229,29 +280,15 @@ async def _handle_custom_button(
         )
         return
 
-    service = target.ha_service
     await interaction.response.defer(ephemeral=True, thinking=True)
-    try:
-        await call_ha_service(service, target.ha_entity_id, target.ha_data_json)
-    except Exception as exc:  # HomeAssistantError remonte ici
-        logger.error("Erreur appel HA depuis bouton : %s", exc)
-        await _log_click(
-            interaction, notif_id=notif_id, kind="button",
-            button_label=target.label,
-            detail=f"{service} -> {exc}"[:300], success=False,
-        )
-        await interaction.followup.send(
-            f"\u274c Erreur : {exc}", ephemeral=True
-        )
-        return
-
+    ok, detail, reply = await run_button_action(
+        interaction, target, source="notification", source_id=notif_id, source_name=notif.slug,
+    )
     await _log_click(
         interaction, notif_id=notif_id, kind="button",
-        button_label=target.label, detail=service,
+        button_label=target.label, detail=detail[:300], success=ok,
     )
-    await interaction.followup.send(
-        f"\u2705 {target.label} execute.", ephemeral=True
-    )
+    await interaction.followup.send(reply, ephemeral=True)
 
 
 async def _handle_command_button(
@@ -269,29 +306,17 @@ async def _handle_command_button(
         return
 
     await interaction.response.defer(ephemeral=True, thinking=True)
-    try:
-        await call_ha_button(target)
-    except Exception as exc:  # noqa: BLE001
-        logger.error("Erreur bouton commande /%s : %s", cmd.name, exc)
-        await LogRepository().add(
-            kind="button", notification_slug=f"/{cmd.name}",
-            channel_id=str(interaction.channel_id) if interaction.channel_id else None,
-            user_id=str(interaction.user.id) if interaction.user else None,
-            user_name=str(interaction.user) if interaction.user else None,
-            button_label=target.label, detail=f"{target.ha_service} -> {exc}"[:300],
-            success=False,
-        )
-        await interaction.followup.send(f"\u274c Erreur : {exc}", ephemeral=True)
-        return
-
+    ok, detail, reply = await run_button_action(
+        interaction, target, source="command", source_id=cmd_id, source_name=cmd.name,
+    )
     await LogRepository().add(
         kind="button", notification_slug=f"/{cmd.name}",
         channel_id=str(interaction.channel_id) if interaction.channel_id else None,
         user_id=str(interaction.user.id) if interaction.user else None,
         user_name=str(interaction.user) if interaction.user else None,
-        button_label=target.label, detail=target.ha_service,
+        button_label=target.label, detail=detail[:300], success=ok,
     )
-    await interaction.followup.send(f"\u2705 {target.label} execute.", ephemeral=True)
+    await interaction.followup.send(reply, ephemeral=True)
 
 
 async def _handle_monitoring_button(
@@ -321,11 +346,11 @@ async def _handle_monitoring_button(
             )
             return
         label = target.label
-        try:
-            await call_ha_button(target)
-        except Exception as exc:  # noqa: BLE001
-            logger.error("Erreur bouton monitoring %s : %s", block_id, exc)
-            await interaction.followup.send(f"\u274c Erreur : {exc}", ephemeral=True)
+        ok, _detail, reply = await run_button_action(
+            interaction, target, source="monitoring", source_id=block_id, source_name=block.name,
+        )
+        if not ok:
+            await interaction.followup.send(reply, ephemeral=True)
             return
         # Laisse a HA le temps d'appliquer le changement avant de relire l'etat.
         await asyncio.sleep(1.5)

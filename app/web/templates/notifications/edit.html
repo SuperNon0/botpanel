@@ -166,7 +166,7 @@
 
   <div class="card">
     <h3>Boutons</h3>
-    <p class="hint">Les boutons Snooze/Supprimer sont gerees par le bot. Les boutons custom appellent un service HA.</p>
+    <p class="hint">Snooze/Supprimer sont gérés par le bot. Les boutons d'action appellent HA, ouvrent un lien ou un webhook.<button type="button" class="help-dot" data-help="buttons">?</button></p>
 
     <div class="form-row">
       <div class="form-group">
@@ -660,14 +660,9 @@ function buildPayload() {
     group_name: getGroupName(),
     list_group: document.getElementById("f-list-group").value.trim() || null,
     mention: getMentionValue(),
-    buttons: buttons.map((b, i) => ({
+    buttons: buttons.filter(isButtonComplete).map((b, i) => ({
+      ...cleanHaButton(b),
       position: i,
-      label: b.label,
-      style: b.style,
-      emoji: b.emoji || null,
-      ha_service: b.ha_service,
-      ha_entity_id: b.ha_entity_id || null,
-      ha_data_json: b.ha_data_json || null,
     })),
     fields: fields.map((f, i) => ({
       position: i,

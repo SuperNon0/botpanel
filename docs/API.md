@@ -87,6 +87,10 @@ POST /api/notify
   dynamique. Exemple : mets `{var:poster}` dans le champ *Grande image (URL)* de la
   notification, puis envoie `"vars": { "poster": "https://.../affiche.jpg" }` → l'affiche
   s'affiche en grand dans l'embed Discord.
+- Ils fonctionnent aussi dans les **boutons lien** (adresse à ouvrir, ex.
+  `{var:lien}`) et les **boutons webhook** (URL appelée + données envoyées, remplies
+  au moment du clic). Détails et vérification de la signature : README, section
+  *Boutons lien et webhook*.
 
 ---
 
