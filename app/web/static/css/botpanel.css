@@ -112,10 +112,27 @@ code { color: var(--text); }
 .btn.full { width: 100%; }
 .btn[disabled] { opacity: .55; cursor: default; }
 
-/* Bouton « + Nouveau » : posé au-dessus de la barre flottante. */
+/* Barre d'onglets (téléphone, tablette) : collée au bas de l'écran, fond plein
+   jusqu'au bord (zone du geste iPhone comprise), pour que le contenu ne
+   défile plus visiblement dessous. Surcharge du kit encre, gardé intact. */
+@media (max-width: 999px) {
+  .tabbar {
+    left: 0; right: 0; bottom: 0; width: auto; transform: none;
+    height: calc(var(--tab-h) + env(safe-area-inset-bottom, 0px));
+    padding: 0 max(8px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(8px, env(safe-area-inset-left, 0px));
+    border: 0; border-top: 1px solid var(--line); border-radius: 0; box-shadow: none;
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+  }
+  body.overlay-ouvert .tabbar, body.mode-sel .tabbar { transform: translateY(100%); }
+  .tabbar .tab { max-width: 120px; }
+  .tabbar { justify-content: center; }
+  .pages { padding-bottom: calc(var(--tab-h) + 28px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* Bouton « + Nouveau » : posé au-dessus de la barre d'onglets. */
 .fab {
   position: fixed; z-index: 35; right: max(16px, env(safe-area-inset-right, 0px));
-  bottom: calc(var(--tab-h) + 26px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--tab-h) + 16px + env(safe-area-inset-bottom, 0px));
   height: 50px; padding: 0 20px; gap: 8px; border-radius: 99px; display: inline-flex; align-items: center;
   background: var(--accent); color: var(--ink); font-weight: 700; font-size: 15px; box-shadow: var(--shadow-s);
   transition: transform .12s var(--ease), filter .2s;
@@ -251,9 +268,9 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 8px; }
   }
 }
 
-/* Barre « Enregistrer » collante, en verre comme la barre flottante */
+/* Barre « Enregistrer » collante, en verre, juste au-dessus des onglets */
 .savebar {
-  position: sticky; z-index: 34; bottom: calc(var(--tab-h) + 24px + env(safe-area-inset-bottom, 0px));
+  position: sticky; z-index: 34; bottom: calc(var(--tab-h) + 10px + env(safe-area-inset-bottom, 0px));
   display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; align-items: center;
   margin-top: 6px; padding: 8px; border-radius: 20px; background: var(--glass); border: 1px solid var(--line2);
   -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4); box-shadow: var(--shadow-s);
