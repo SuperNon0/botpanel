@@ -31,7 +31,7 @@ Hébergé dans un conteneur LXC Proxmox.
 - **Aperçu live avec vraies valeurs HA** : l'éditeur de notification résout `{state:...}`/`{attr:...}`/Jinja avec les valeurs réelles récupérées en direct
 - **Authentification à deux portes** : mot de passe local (LAN) + badge Cloudflare Access vérifié (JWT), avec mode « Cloudflare uniquement »
 - **PWA installable** + interface animée (respecte « réduire les animations »), squelettes de chargement, états vides illustrés
-- **Design « encre »** (thème clair / sombre automatique, 5 couleurs d'accent au choix, DM Serif Display + Archivo + DM Mono servies par le site) : barre d'onglets flottante en verre sur mobile, menu à gauche sur ordinateur, recherche rapide Ctrl K, listes en tuiles avec recherche, éditeurs avec aperçu Discord collant et barre Enregistrer toujours visible
+- **Design « encre »** (thème clair / sombre automatique, 5 couleurs d'accent au choix, DM Serif Display + Archivo + DM Mono servies par le site) : barre d'onglets collée en bas sur mobile, menu à gauche sur ordinateur, recherche rapide Ctrl K, listes en tuiles avec recherche, éditeurs avec aperçu Discord collant et barre Enregistrer toujours visible
 
 ## Le site web
 
@@ -49,11 +49,11 @@ Le site est l'interface d'administration du bot, accessible sur `http://IP_LXC:8
 
 > **Design « encre »** : le panel suit le design « encre » (le même que cinéthèque). Le kit complet est dans [`design-encre/`](design-encre/LISEZMOI.md) ; ses fichiers sont servis depuis `static/encre/` (`encre.css`, `encre.js`, `polices.css` + `polices/`, `icones.svg`) et `static/css/botpanel.css` habille les briques propres au panel avec les mêmes jetons. Ce qu'il apporte :
 > - **Thème clair / sombre** automatique (suit l'appareil) ou forcé, et **couleur d'accent au choix** (or, ambre, corail, menthe ou lavande, par défaut lavande) dans **Paramètres → Apparence**. Le choix reste **sur l'appareil** (navigateur).
-> - **Téléphone et tablette** : barre du haut + **barre d'onglets flottante en verre flouté** en bas (Accueil, Notifs, Commandes, Suivi, **Plus** → Historique, Paramètres, Aide, Apparence, déconnexion). Elle se cache quand une feuille est ouverte.
+> - **Téléphone et tablette** : barre du haut + **barre d'onglets collée au bas de l'écran** (fond plein jusqu'au bord, zone du geste iPhone comprise, le contenu ne défile plus dessous) (Accueil, Notifs, Commandes, Suivi, **Plus** → Historique, Paramètres, Aide, Apparence, déconnexion). Elle se cache quand une feuille est ouverte.
 > - **Ordinateur** (1000 px et plus) : **menu à gauche** avec le compte et la déconnexion en bas ; le contenu prend **toute la largeur** de l'écran (plus de colonnes de tuiles sur grand écran, aperçu des éditeurs élargi).
 > - **Recherche rapide** : `Ctrl K` (⌘ K), la loupe de la barre du haut ou « Rechercher » du menu, pour aller à une page ou créer une notification / commande / bloc. Sur une liste, `/` place le curseur dans la recherche de la liste.
 > - **Feuilles** à la place des fenêtres : l'aide « ? », les confirmations et les questions (nom d'un preset de couleur…) montent du bas sur téléphone et s'ouvrent au centre sur ordinateur ; le **bouton retour du téléphone** les referme. Plus aucune boîte grise du navigateur (`alert`, `confirm`, `prompt`).
-> - **Messages** (« Enregistré », erreurs) posés au-dessus de la barre flottante.
+> - **Messages** (« Enregistré », erreurs) posés au-dessus de la barre d'onglets.
 > - **Polices servies par le site** (DM Serif Display, Archivo, DM Mono : plus d'appel à Google Fonts), **icônes au trait** à la place des emojis de l'interface, champs en 16 px (pas de zoom automatique sur iPhone), zoom autorisé, contraste vérifié.
 > - **Écrans de connexion** (`/login`, mot de passe oublié, accès refusé) et **assistant de configuration** assortis.
 > - Gardé de la version précédente : **listes en tuiles** avec recherche et menu **« ⋯ »** (*Cloner* / *Supprimer*), bouton **« + Nouveau »**, **aperçu Discord collé à droite** dans les éditeurs sur grand écran, barre **Annuler / Tester / Enregistrer** collée en bas, **Ctrl+S**, alerte **« Modifications non enregistrées »**.
