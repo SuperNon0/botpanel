@@ -4,21 +4,51 @@ from __future__ import annotations
 
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # ==========================================================
 #  Notifications
 # ==========================================================
-class NotificationButton(BaseModel):
-    id: Optional[int] = None
-    position: int = 0
+# Type d'action d'un bouton :
+#   ha      -> appelle un service Home Assistant (ha_service / ha_entity_id / ha_data_json)
+#   link    -> bouton lien Discord natif : ouvre `url` (aucun appel cote BotPanel)
+#   webhook -> au clic, BotPanel fait un POST JSON signe vers `url`
+#              (ha_data_json = donnees JSON en plus, envoyees dans "data")
+ButtonAction = Literal["ha", "link", "webhook"]
+
+
+class _ButtonActionMixin(BaseModel):
+    """Champs et validation communs a tous les boutons d'action."""
+
     label: str = Field(..., max_length=80)
     style: Literal["primary", "secondary", "success", "danger"] = "primary"
     emoji: Optional[str] = None
-    ha_service: str = Field(..., description="Ex: light.turn_on")
+    action: ButtonAction = "ha"
+    url: Optional[str] = Field(default=None, max_length=2000)
+    ha_service: Optional[str] = Field(default=None, description="Ex: light.turn_on")
     ha_entity_id: Optional[str] = None
     ha_data_json: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _check_action(self):
+        if self.action == "ha":
+            if not (self.ha_service or "").strip():
+                raise ValueError("ha_service est requis pour un bouton Home Assistant")
+        else:
+            url = (self.url or "").strip()
+            if not url:
+                raise ValueError("url est requise pour un bouton lien ou webhook")
+            # Une URL entierement dynamique ({var:lien}) est verifiee a l'envoi.
+            if not url.startswith("{") and not url.lower().startswith(("http://", "https://")):
+                raise ValueError("url doit commencer par http:// ou https://")
+            self.url = url
+        return self
+
+
+class NotificationButton(_ButtonActionMixin):
+    id: Optional[int] = None
+    position: int = 0
 
 
 class NotificationField(BaseModel):
@@ -78,19 +108,12 @@ class Notification(NotificationIn):
 # ==========================================================
 #  Boutons d'action HA generiques (commandes + monitoring)
 # ==========================================================
-class HaButton(BaseModel):
-    """Bouton Discord qui appelle un service Home Assistant au clic.
+class HaButton(_ButtonActionMixin):
+    """Bouton d'action Discord (Home Assistant, lien ou webhook).
 
     Meme forme que les boutons de notification, mais stocke en JSON
     (commandes : colonne `buttons_json`, monitoring : `config_json.buttons`).
     """
-
-    label: str = Field(..., max_length=80)
-    style: Literal["primary", "secondary", "success", "danger"] = "primary"
-    emoji: Optional[str] = None
-    ha_service: str = Field(..., description="Ex: light.toggle")
-    ha_entity_id: Optional[str] = None
-    ha_data_json: Optional[str] = None
 
 
 # ==========================================================

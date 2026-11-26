@@ -58,7 +58,7 @@ def block_buttons(block: MonitoringBlock) -> list[HaButton]:
     out: list[HaButton] = []
     for item in block_config(block).get("buttons") or []:
         try:
-            if item.get("label") and item.get("ha_service"):
+            if item.get("label"):
                 out.append(HaButton(**item))
         except Exception:  # noqa: BLE001
             logger.warning("Bouton monitoring invalide ignore : %r", item)
@@ -204,7 +204,7 @@ async def _build_embed(block: MonitoringBlock) -> discord.Embed:
     return embed
 
 
-def _build_view(block: MonitoringBlock) -> discord.ui.View | None:
+async def _build_view(block: MonitoringBlock) -> discord.ui.View | None:
     """Boutons sous le message : actions HA + « Actualiser » optionnel."""
     from app.bot.views import cid_monitoring_button, cid_monitoring_refresh
 
@@ -216,7 +216,7 @@ def _build_view(block: MonitoringBlock) -> discord.ui.View | None:
             emoji="\U0001f504",
             custom_id=cid_monitoring_refresh(block.id),
         ))
-    return build_ha_buttons_view(
+    return await build_ha_buttons_view(
         block_buttons(block),
         lambda idx: cid_monitoring_button(block.id, idx),
         extra,
@@ -255,7 +255,7 @@ async def _ensure_message(
 
     # Creation d'un nouveau message
     embed = await _build_embed(block)
-    view = _build_view(block)
+    view = await _build_view(block)
     try:
         if view is not None:
             message = await channel.send(embed=embed, view=view)  # type: ignore[union-attr]
@@ -284,7 +284,7 @@ async def _update_block_message(
     try:
         embed = await _build_embed(block)
         # view=None retire d'eventuels anciens boutons supprimes dans l'editeur.
-        await message.edit(embed=embed, view=_build_view(block))
+        await message.edit(embed=embed, view=await _build_view(block))
         return message, True, None
     except discord.HTTPException as exc:
         logger.error("Edit du message monitoring %s echoue : %s", block.id, exc)

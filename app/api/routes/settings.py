@@ -88,6 +88,21 @@ async def regenerate_integration_key() -> dict:
     return {"api_key": await regenerate_key()}
 
 
+# ----------------------------------------------------------------------
+# Boutons webhook : secret de signature (X-BotPanel-Signature)
+# ----------------------------------------------------------------------
+@router.get("/webhook-secret")
+async def get_webhook_secret_route() -> dict:
+    from app.bot.webhooks import get_webhook_secret
+    return {"secret": await get_webhook_secret()}
+
+
+@router.post("/webhook-secret/regenerate")
+async def regenerate_webhook_secret_route() -> dict:
+    from app.bot.webhooks import regenerate_webhook_secret
+    return {"secret": await regenerate_webhook_secret()}
+
+
 @router.get("/threads", response_model=list[NotificationThread])
 async def get_threads() -> list[NotificationThread]:
     return await thread_repo.list_all()

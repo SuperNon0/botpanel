@@ -130,7 +130,7 @@
     <span class="group-arrow">&#9656;</span>
     <span class="sec-ico"><svg class="i" aria-hidden="true"><use href="/static/encre/icones.svg#i-plug"/></svg></span>
     <span class="group-name">Intégrations</span>
-    <span class="sec-sub">clé API · Home Assistant · Claude</span>
+    <span class="sec-sub">clé API · webhooks · Home Assistant · Claude</span>
   </summary>
   <div class="sec-body">
 <div class="sub-block" id="integration-card">
@@ -141,6 +141,16 @@
     <button type="button" class="btn btn-secondary btn-small" data-reveal="int-key">Afficher</button>
     <button type="button" class="btn btn-secondary btn-small" id="int-copy">Copier</button>
     <button type="button" class="btn btn-danger btn-small" id="int-regen">Régénérer</button>
+  </div>
+</div>
+<div class="sub-block" id="webhook-card">
+  <h3>Secret des boutons webhook<button type="button" class="help-dot" data-help="webhook_secret">?</button></h3>
+  <p class="hint">Signe les appels des boutons webhook vers tes sites.</p>
+  <div class="secret-row">
+    <input class="form-input" id="wh-secret" type="password" readonly autocomplete="off">
+    <button type="button" class="btn btn-secondary btn-small" data-reveal="wh-secret">Afficher</button>
+    <button type="button" class="btn btn-secondary btn-small" id="wh-copy">Copier</button>
+    <button type="button" class="btn btn-danger btn-small" id="wh-regen">Régénérer</button>
   </div>
 </div>
 <div class="sub-block">
@@ -855,9 +865,28 @@ function bindIntegration() {
     } catch (e) { toast(e.message, "error"); }
   });
 }
+async function loadWebhookSecret() {
+  try {
+    const d = await API.get("/settings/webhook-secret");
+    document.getElementById("wh-secret").value = d.secret || "";
+  } catch { /* bloc vide si erreur */ }
+}
+function bindWebhookSecret() {
+  document.getElementById("wh-copy").addEventListener("click", () => copyField("wh-secret", "Secret"));
+  document.getElementById("wh-regen").addEventListener("click", async () => {
+    if (!await confirmBox("Régénérer le secret ? Tes sites qui vérifient la signature devront prendre le nouveau.")) return;
+    try {
+      const d = await API.post("/settings/webhook-secret/regenerate", {});
+      document.getElementById("wh-secret").value = d.secret || "";
+      toast("Nouveau secret généré.");
+    } catch (e) { toast(e.message, "error"); }
+  });
+}
 loadIntegration();
 bindIntegration();
 bindMcp();
+loadWebhookSecret();
+bindWebhookSecret();
 </script>
 <style>
   .cf-result { display:flex; flex-direction:column; gap:10px; }

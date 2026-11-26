@@ -210,6 +210,8 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 8px; }
 .mon-field-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px; }
 @media (max-width: 700px) { .mon-field-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 600px) { .button-row, .ha-btn-grid { grid-template-columns: minmax(0, 1fr); } }
+.ha-btn-wide { grid-column: 1 / -1; }
+.btn-action-pick { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .ha-btn-adv { margin-top: 10px; }
 .ha-btn-adv > summary { cursor: pointer; font-size: 13px; color: var(--soft); margin-bottom: 6px; }
 .ha-btn-tools { display: flex; gap: 6px; justify-content: flex-end; margin-top: 10px; flex-wrap: wrap; }

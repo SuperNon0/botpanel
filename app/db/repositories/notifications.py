@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Optional
 
 from app.db.database import get_connection
@@ -11,6 +12,8 @@ from app.db.models import (
     NotificationField,
     NotificationIn,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class NotificationRepository:
@@ -121,7 +124,8 @@ class NotificationRepository:
     async def _list_buttons(self, db, notif_id: int) -> list[NotificationButton]:
         cursor = await db.execute(
             """
-            SELECT id, position, label, style, emoji, ha_service, ha_entity_id, ha_data_json
+            SELECT id, position, label, style, emoji, action, url,
+                   ha_service, ha_entity_id, ha_data_json
             FROM notification_buttons
             WHERE notification_id = ?
             ORDER BY position, id
@@ -129,7 +133,16 @@ class NotificationRepository:
             (notif_id,),
         )
         rows = await cursor.fetchall()
-        return [NotificationButton(**dict(row)) for row in rows]
+        out: list[NotificationButton] = []
+        for row in rows:
+            data = dict(row)
+            data["action"] = data.get("action") or "ha"
+            data["ha_service"] = data.get("ha_service") or None
+            try:
+                out.append(NotificationButton(**data))
+            except ValueError:  # ligne incoherente : on l'ignore plutot que tout casser
+                logger.warning("Bouton %s invalide ignore", data.get("id"))
+        return out
 
     async def _list_fields(self, db, notif_id: int) -> list[NotificationField]:
         cursor = await db.execute(
@@ -162,12 +175,13 @@ class NotificationRepository:
                 """
                 INSERT INTO notification_buttons (
                     notification_id, position, label, style, emoji,
-                    ha_service, ha_entity_id, ha_data_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ha_service, ha_entity_id, ha_data_json, action, url
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     notif_id, btn.position or idx, btn.label, btn.style, btn.emoji,
-                    btn.ha_service, btn.ha_entity_id, btn.ha_data_json,
+                    btn.ha_service or "", btn.ha_entity_id, btn.ha_data_json,
+                    btn.action, btn.url,
                 ),
             )
 

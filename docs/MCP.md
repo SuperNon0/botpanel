@@ -81,7 +81,7 @@ Puis redémarre Claude Desktop.
 |-------|------|
 | `list_notifications` | Liste les notifications (slug, titre, groupe) |
 | `send_notification` | Déclenche une notif existante (par slug, + variables) |
-| `create_notification` | Crée une nouvelle notification (titre, message, salon, couleur, champs, **images**, **boutons d'action HA**, boutons Supprimer/Snooze) |
+| `create_notification` | Crée une nouvelle notification (titre, message, salon, couleur, champs, **images**, **boutons d'action** HA / lien / webhook, boutons Supprimer/Snooze) |
 | `update_notification` | Modifie une notification existante (par slug) — seuls les champs fournis changent ; peut la renommer |
 | `delete_notification` | Supprime définitivement une notification (par slug) |
 | `send_quick_message` | Envoie un message ponctuel sur un salon Discord (sans sauvegarder) |
@@ -90,13 +90,13 @@ Puis redémarre Claude Desktop.
 | `list_errors` | Erreurs récentes : échecs de l'historique + avertissements/erreurs du serveur depuis le dernier redémarrage |
 | `list_commands` | Liste les commandes slash (nom, action, état) |
 | `get_command` | Détail complet d'une commande (par nom) |
-| `create_command` | Crée une commande slash (action HA, script, scène, notification ou simple réponse ; réponse en encadré, boutons HA) — synchronisée sur Discord |
+| `create_command` | Crée une commande slash (action HA, script, scène, notification ou simple réponse ; réponse en encadré, boutons HA / lien / webhook) — synchronisée sur Discord |
 | `update_command` | Modifie une commande (par nom) — seuls les champs fournis changent ; peut la renommer |
 | `delete_command` | Supprime définitivement une commande |
 | `run_command` | Exécute une commande comme sur Discord et renvoie sa réponse (tracé dans l'historique, source `mcp`) |
 | `list_monitoring` | Liste les blocs de monitoring (id, nom, actif, salon, fréquence) |
 | `get_monitoring` | Détail d'un bloc (par id) + rendu actuel avec les vraies valeurs HA |
-| `create_monitoring` | Crée un bloc (champs HA, description, images, boutons HA, bouton Actualiser) — inactif sauf `enabled=true` |
+| `create_monitoring` | Crée un bloc (champs HA, description, images, boutons HA / lien / webhook, bouton Actualiser) — inactif sauf `enabled=true` |
 | `update_monitoring` | Modifie un bloc (par id) — seuls les champs fournis changent ; `enabled=true` l'active |
 | `delete_monitoring` | Supprime définitivement un bloc |
 | `send_monitoring` | Envoie / met à jour tout de suite le message Discord d'un bloc actif |

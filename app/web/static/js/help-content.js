@@ -57,9 +57,38 @@ window.BP_HELP["buttons"] = {
   html:
     '<ul>' +
     '<li><b>Supprimer</b> / <b>Snooze</b> : gérés par le bot (le Snooze reporte l\'affichage N minutes).</li>' +
-    '<li><b>Boutons d\'action</b> : appellent un <b>service Home Assistant</b> au clic (ex. éteindre une lumière).</li>' +
+    '<li><b>Home Assistant</b> : appelle un service HA au clic (ex. éteindre une lumière).</li>' +
+    '<li><b>Lien</b> : ouvre une page (ex. la recette reçue). Gris dans Discord, c\'est imposé.</li>' +
+    '<li><b>Webhook</b> : BotPanel appelle une adresse de ton site, qui fait l\'action.</li>' +
     '</ul>' +
     '<div class="hbox hbox-info">Les boutons survivent au redémarrage du bot (identifiants persistants).</div>',
+};
+
+window.BP_HELP["btn_link"] = {
+  title: "Bouton lien",
+  html:
+    '<p>Discord ouvre l\'adresse directement, sans passer par BotPanel.</p>' +
+    '<p>Elle peut venir de l\'envoi : <code>{var:lien}</code>, rempli par <code>/api/notify</code> :</p>' +
+    '<pre>{"id": "nouvelle_recette", "vars": {"lien": "https://…"}}</pre>' +
+    '<div class="hbox hbox-tip">Valeur par défaut si la variable manque : <code>{var:lien|https://monsite}</code>. Sans adresse valide, le bouton n\'est pas affiché.</div>',
+};
+
+window.BP_HELP["btn_webhook"] = {
+  title: "Bouton webhook",
+  html:
+    '<p>Au clic, BotPanel envoie un <b>POST JSON</b> à cette adresse. Ton site fait l\'action et peut répondre <code>{"message": "Ajouté !"}</code>, affiché à la personne qui a cliqué.</p>' +
+    '<p>Corps envoyé :</p>' +
+    '<pre>{"event": "button_click", "source": "notification",\n "source_name": "nouvelle_recette", "button": "Ajouter",\n "user": {"id": "…", "name": "…"},\n "vars": {…}, "data": {…}}</pre>' +
+    '<p><code>vars</code> = les variables de l\'envoi. <code>data</code> = le JSON « Données envoyées » (accepte <code>{var:...}</code>). L\'adresse accepte aussi <code>{var:...}</code>.</p>' +
+    '<div class="hbox hbox-warn">Vérifie la signature côté site : en-tête <code>X-BotPanel-Signature</code> = <code>sha256=</code> HMAC-SHA256 de <code>&lt;X-BotPanel-Timestamp&gt;.&lt;corps&gt;</code> avec le secret (Paramètres → Intégrations).</div>',
+};
+
+window.BP_HELP["webhook_secret"] = {
+  title: "Secret des boutons webhook",
+  html:
+    '<p>Chaque appel d\'un bouton webhook est signé avec ce secret (en-têtes <code>X-BotPanel-Timestamp</code> et <code>X-BotPanel-Signature</code>).</p>' +
+    '<p>Ton site recalcule <code>HMAC-SHA256(secret, timestamp + "." + corps)</code> et compare : si ça ne correspond pas, il refuse.</p>' +
+    '<div class="hbox hbox-warn"><b>Régénérer</b> invalide l\'ancien secret : remets le nouveau dans tes sites.</div>',
 };
 
 window.BP_HELP["fields"] = {

@@ -3,7 +3,7 @@
    - selecteur d'entites Home Assistant (modal groupee par domaine)
    - presets de couleurs en pastilles (+ creation d'un preset depuis l'editeur)
    - liste deroulante des channels Discord
-   - constructeur de boutons d'action HA
+   - constructeur de boutons d'action (HA, lien, webhook)
    - listes repliables par groupe (pages liste) */
 
 // ============================================================
@@ -68,9 +68,10 @@ function debounce(fn, ms) {
 // Boutons de l'apercu Discord
 function previewButtonsHtml(buttons, extra) {
   const out = (extra || []).map(label => `<span class="d-btn d-btn-secondary">${esc(label)}</span>`);
-  (buttons || []).forEach(b => {
-    const bg = STYLE_BG[b.style] || STYLE_BG.primary;
-    out.unshift(`<span class="d-btn" style="background:${bg};">${b.emoji ? esc(b.emoji) + " " : ""}${esc(b.label || "Action")}</span>`);
+  [...(buttons || [])].reverse().forEach(b => {
+    const isLink = b.action === "link";
+    const bg = isLink ? STYLE_BG.secondary : (STYLE_BG[b.style] || STYLE_BG.primary);
+    out.unshift(`<span class="d-btn" style="background:${bg};">${b.emoji ? esc(b.emoji) + " " : ""}${esc(b.label || "Action")}${isLink ? " ↗" : ""}</span>`);
   });
   return out.join("");
 }
@@ -344,34 +345,25 @@ async function bindChannelSelect(sel, idInput, emptyLabel) {
 }
 
 // ============================================================
-// Constructeur de boutons d'action Home Assistant
-//   list     : tableau d'objets {label, style, emoji, ha_service, ha_entity_id, ha_data_json}
+// Constructeur de boutons d'action (Home Assistant, lien, webhook)
+//   list     : tableau d'objets {label, style, emoji, action, url,
+//              ha_service, ha_entity_id, ha_data_json}
 //              (modifie sur place : les champs inconnus, ex. id, sont conserves)
 //   onChange : rappel apres chaque modif (apercu)
 // ============================================================
+const BTN_ACTIONS = [
+  ["ha", "Home Assistant"],
+  ["link", "Lien"],
+  ["webhook", "Webhook"],
+];
+
 function createHaButtonsBuilder(container, getList, onChange) {
   const changed = () => { if (onChange) onChange(); };
 
-  function render() {
-    const list = getList();
-    container.innerHTML = list.map((b, i) => `
-      <div class="ha-btn-row" data-bidx="${i}">
-        <div class="ha-btn-grid">
-          <div>
-            <label class="form-label">Texte du bouton</label>
-            <div style="display:flex; gap:0.3rem;">
-              <input class="form-input" data-bk="emoji" value="${esc(b.emoji || "")}" placeholder="😀" style="width:3.2rem; text-align:center;">
-              <input class="form-input" data-bk="label" value="${esc(b.label || "")}" placeholder="Allumer" style="flex:1;">
-              <button type="button" class="md-btn" data-bemoji title="Choisir un emoji">😀</button>
-            </div>
-          </div>
-          <div>
-            <label class="form-label">Couleur</label>
-            <select class="form-select" data-bk="style">
-              ${Object.keys(STYLE_BG).map(s =>
-                `<option value="${s}" ${s === (b.style || "primary") ? "selected" : ""}>${STYLE_LABEL[s]}</option>`).join("")}
-            </select>
-          </div>
+  function actionFields(b) {
+    const act = b.action || "ha";
+    if (act === "ha") {
+      return `
           <div>
             <label class="form-label">Action HA (service)</label>
             <input class="form-input ha-service-input" data-bk="ha_service" value="${esc(b.ha_service || "")}" placeholder="light.toggle">
@@ -382,19 +374,59 @@ function createHaButtonsBuilder(container, getList, onChange) {
               <input class="form-input ha-entity-input" data-bk="ha_entity_id" value="${esc(b.ha_entity_id || "")}" placeholder="light.salon" style="flex:1;">
               <button type="button" class="md-btn" data-bpick title="Choisir une entité" aria-label="Choisir une entité"><svg class="i s16" aria-hidden="true"><use href="/static/encre/icones.svg#i-search"/></svg></button>
             </div>
-          </div>
+          </div>`;
+    }
+    const isLink = act === "link";
+    return `
+          <div class="ha-btn-wide">
+            <label class="form-label">${isLink ? "Adresse à ouvrir" : "URL appelée au clic"}<button type="button" class="help-dot" data-help="${isLink ? "btn_link" : "btn_webhook"}">?</button></label>
+            <input class="form-input" data-bk="url" value="${esc(b.url || "")}" placeholder="${isLink ? "https://… ou {var:lien}" : "https://monsite/api/botpanel"}" inputmode="url">
+          </div>`;
+  }
+
+  function render() {
+    const list = getList();
+    container.innerHTML = list.map((b, i) => {
+      const act = b.action || "ha";
+      const advOpen = b.ha_data_json ? "open" : "";
+      return `
+      <div class="ha-btn-row" data-bidx="${i}">
+        <div class="btn-action-pick" role="group" aria-label="Type d'action">
+          ${BTN_ACTIONS.map(([v, l]) =>
+            `<button type="button" class="md-btn ${v === act ? "active" : ""}" data-bact="${v}" aria-pressed="${v === act}">${l}</button>`).join("")}
         </div>
-        <details class="ha-btn-adv" ${b.ha_data_json ? "open" : ""}>
-          <summary>Options avancées (data JSON)</summary>
-          <input class="form-input" data-bk="ha_data_json" value="${esc(b.ha_data_json || "")}" placeholder='{"brightness": 255}'>
-        </details>
+        <div class="ha-btn-grid">
+          <div>
+            <label class="form-label">Texte du bouton</label>
+            <div style="display:flex; gap:0.3rem;">
+              <input class="form-input" data-bk="emoji" value="${esc(b.emoji || "")}" placeholder="😀" style="width:3.2rem; text-align:center;">
+              <input class="form-input" data-bk="label" value="${esc(b.label || "")}" placeholder="${act === "link" ? "Lire la recette" : "Allumer"}" style="flex:1;">
+              <button type="button" class="md-btn" data-bemoji title="Choisir un emoji">😀</button>
+            </div>
+          </div>
+          <div>
+            <label class="form-label">Couleur</label>
+            ${act === "link"
+              ? `<select class="form-select" disabled title="Discord affiche toujours les liens en gris"><option>Gris (lien)</option></select>`
+              : `<select class="form-select" data-bk="style">
+              ${Object.keys(STYLE_BG).map(s =>
+                `<option value="${s}" ${s === (b.style || "primary") ? "selected" : ""}>${STYLE_LABEL[s]}</option>`).join("")}
+            </select>`}
+          </div>
+          ${actionFields(b)}
+        </div>
+        ${act === "link" ? "" : `
+        <details class="ha-btn-adv" ${advOpen}>
+          <summary>${act === "ha" ? "Options avancées (data JSON)" : "Données envoyées (JSON)"}</summary>
+          <input class="form-input" data-bk="ha_data_json" value="${esc(b.ha_data_json || "")}" placeholder='${act === "ha" ? '{"brightness": 255}' : '{"recette": "{var:id}"}'}'>
+        </details>`}
         <div class="ha-btn-tools">
           <button type="button" class="md-btn" data-bup ${i === 0 ? "disabled" : ""} title="Monter">↑</button>
           <button type="button" class="md-btn" data-bdown ${i === list.length - 1 ? "disabled" : ""} title="Descendre">↓</button>
           <button type="button" class="btn btn-danger btn-small" data-bdel>Retirer</button>
         </div>
-      </div>
-    `).join("") || `<div class="hint" style="margin:0;">Aucun bouton pour l'instant.</div>`;
+      </div>`;
+    }).join("") || `<div class="hint" style="margin:0;">Aucun bouton pour l'instant.</div>`;
 
     container.querySelectorAll(".ha-btn-row").forEach(row => {
       const idx = +row.dataset.bidx;
@@ -404,13 +436,19 @@ function createHaButtonsBuilder(container, getList, onChange) {
         inp.addEventListener("input", sync);
         inp.addEventListener("change", sync);
       });
+      row.querySelectorAll("[data-bact]").forEach(btn => btn.addEventListener("click", () => {
+        if ((item().action || "ha") === btn.dataset.bact) return;
+        item().action = btn.dataset.bact;
+        render(); changed();
+      }));
       row.querySelector("[data-bemoji]").addEventListener("click", () =>
         openEmojiPicker((e) => {
           const inp = row.querySelector('[data-bk="emoji"]');
           inp.value = e;
           inp.dispatchEvent(new Event("input", { bubbles: true }));
         }));
-      row.querySelector("[data-bpick]").addEventListener("click", () =>
+      const pick = row.querySelector("[data-bpick]");
+      if (pick) pick.addEventListener("click", () =>
         openEntityPicker((eid) => {
           const inp = row.querySelector('[data-bk="ha_entity_id"]');
           inp.value = eid;
@@ -428,34 +466,51 @@ function createHaButtonsBuilder(container, getList, onChange) {
         getList().splice(idx, 1);
         render(); changed();
       });
-      attachAutocomplete(row.querySelector(".ha-service-input"), "/ha/services",
-        it => it.service, it => it.service);
-      attachAutocomplete(row.querySelector(".ha-entity-input"), "/ha/entities",
-        it => it.friendly_name, it => it.entity_id);
+      const svc = row.querySelector(".ha-service-input");
+      if (svc) attachAutocomplete(svc, "/ha/services", it => it.service, it => it.service);
+      const ent = row.querySelector(".ha-entity-input");
+      if (ent) attachAutocomplete(ent, "/ha/entities", it => it.friendly_name, it => it.entity_id);
     });
   }
 
   return {
     render,
     add() {
-      getList().push({ label: "Action", style: "primary", emoji: "", ha_service: "", ha_entity_id: "", ha_data_json: "" });
+      getList().push({ label: "Action", style: "primary", emoji: "", action: "ha", url: "", ha_service: "", ha_entity_id: "", ha_data_json: "" });
       render(); changed();
     },
   };
 }
 
-// Nettoie la liste de boutons avant envoi a l'API (champs vides -> null).
+// Un bouton est complet s'il a un texte et sa cible (service HA ou URL).
+function isButtonComplete(b) {
+  if (!(b.label || "").trim()) return false;
+  return (b.action || "ha") === "ha" ? !!(b.ha_service || "").trim() : !!(b.url || "").trim();
+}
+
+// Nettoie un bouton avant envoi a l'API (champs vides -> null, champs inutiles retires).
+function cleanHaButton(b) {
+  const action = b.action || "ha";
+  const out = {
+    label: b.label.trim(),
+    style: b.style || "primary",
+    emoji: (b.emoji || "").trim() || null,
+    action,
+    url: null, ha_service: null, ha_entity_id: null, ha_data_json: null,
+  };
+  if (action === "ha") {
+    out.ha_service = b.ha_service.trim();
+    out.ha_entity_id = (b.ha_entity_id || "").trim() || null;
+    out.ha_data_json = (b.ha_data_json || "").trim() || null;
+  } else {
+    out.url = b.url.trim();
+    if (action === "webhook") out.ha_data_json = (b.ha_data_json || "").trim() || null;
+  }
+  return out;
+}
+
 function cleanHaButtons(list) {
-  return (list || [])
-    .filter(b => (b.label || "").trim() && (b.ha_service || "").trim())
-    .map(b => ({
-      label: b.label.trim(),
-      style: b.style || "primary",
-      emoji: (b.emoji || "").trim() || null,
-      ha_service: b.ha_service.trim(),
-      ha_entity_id: (b.ha_entity_id || "").trim() || null,
-      ha_data_json: (b.ha_data_json || "").trim() || null,
-    }));
+  return (list || []).filter(isButtonComplete).map(cleanHaButton);
 }
 
 // ============================================================

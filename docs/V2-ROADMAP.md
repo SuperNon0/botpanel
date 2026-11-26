@@ -24,6 +24,13 @@
 - **Passer des variables au déclenchement depuis Home Assistant** (on reste
   « par ID pur » pour l'instant).
 - **Exemples de notifications prêts à cloner** (Proxmox, HA…).
+- **Boutons choisis à l'envoi** (2026-11-26) : laisser un site (ex. RecipeLog)
+  envoyer lui-même la liste des boutons dans l'appel `/api/notify`, sans les
+  préconfigurer dans le panel. Reporté : les boutons lien/webhook avec
+  `{var:...}` couvrent déjà le besoin ; à faire avec une clé API sur
+  `/api/notify` (route aujourd'hui ouverte).
+- **Autres types d'action de bouton** : « envoyer une autre notification »,
+  « lancer une commande »… Le champ `action` des boutons est prévu pour ça.
 
 ## Déjà livré (voir README pour le détail)
 - Intégration **Home Assistant** (composant : boutons, capteurs, action) + clé API.
@@ -36,3 +43,4 @@
 - **Aide contextuelle** (« ? » → feuille) partout, en remplacement de la page Aide.
 - **Design « encre »** (clair / sombre, choix de l'accent, barre flottante en verre).
 - Authentification **Cloudflare Access** + mot de passe LAN ; **PWA** ; animations.
+- **Boutons d'action au choix** : Home Assistant, **lien** ou **webhook** signé.
